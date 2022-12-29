@@ -8,6 +8,18 @@
   --alternate-grab: #17222b;
 }
 
+* {
+  font-family: 'JetBrainsMono';
+  font-weight: 400;
+
+  color: var(--text);
+}
+
+@font-face {
+  font-family: JetBrainsMono;
+  src: url(JetBrainsMono.ttf);
+}
+
 .material-symbols-rounded {
   text-align: center;
   color: #ffffff;
@@ -15,4 +27,13 @@
   user-select: none;
 
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+}
+
+body {
+  margin: 0;
+}
+
+button {
+  outline: none;
+  border: none;
 }
