@@ -1,5 +1,7 @@
 <template>
-  <div id="component">
+  <NavBarVue />
+
+  <div id="page">
     <canvas ref="canvas"></canvas>
 
     <div id="wrapper">
@@ -13,6 +15,7 @@
 <script setup lang="ts">
 import { ref, onMounted, Ref } from 'vue'
 import router from '@/router'
+import NavBarVue from '@/components/NavBar.vue'
 
 const canvas: Ref<null | HTMLCanvasElement> = ref(null)
 
@@ -144,7 +147,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-#component {
+#page {
   background-color: var(--main);
 }
 
@@ -171,9 +174,16 @@ h1 {
   display: inline-block;
 
   font-weight: 700;
-  font-size: 36px;
+  font-size: 3rem;
 
-  margin-bottom: 4rem;
+  margin-bottom: 6rem;
+
+  transition: color 200ms ease-in-out, text-shadow 200ms ease-in-out;
+}
+
+h1:hover {
+  color: var(--main);
+  text-shadow: -1px 1px 0 var(--text), 1px 1px 0 var(--text), 1px -1px 0 var(--text), -1px -1px 0 var(--text);
 }
 
 button {
@@ -182,5 +192,11 @@ button {
   box-shadow: 0 0 1.5rem 0.1rem var(--grab);
 
   padding: 0.25rem 0.5rem;
+
+  transition: transform 200ms ease-in-out;
+}
+
+button:hover {
+  transform: scale(1.05);
 }
 </style>

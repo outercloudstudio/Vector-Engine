@@ -21,11 +21,6 @@
 }
 
 .material-symbols-rounded {
-  text-align: center;
-  color: #ffffff;
-
-  user-select: none;
-
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48;
 }
 
@@ -36,4 +31,12 @@ body {
 button {
   outline: none;
   border: none;
+}
+
+.icon-button {
+  transition: color 100ms ease-in-out;
+}
+
+.icon-button:hover {
+  color: var(--grab);
 }
