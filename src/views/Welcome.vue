@@ -1,5 +1,5 @@
 <template>
-  <NavBarVue />
+  <NavBarVue leftIcon="dataset" leftLink="Projects" />
 
   <div id="page">
     <canvas ref="canvas"></canvas>
@@ -15,6 +15,7 @@
 <script setup lang="ts">
 import { ref, onMounted, Ref } from 'vue'
 import router from '@/router'
+
 import NavBarVue from '@/components/NavBar.vue'
 
 const canvas: Ref<null | HTMLCanvasElement> = ref(null)
@@ -174,9 +175,9 @@ h1 {
   display: inline-block;
 
   font-weight: 700;
-  font-size: 3rem;
+  font-size: xxx-large;
 
-  margin-bottom: 6rem;
+  margin-bottom: 5rem;
 
   transition: color 200ms ease-in-out, text-shadow 200ms ease-in-out;
 }
