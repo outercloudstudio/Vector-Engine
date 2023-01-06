@@ -15,21 +15,8 @@ export const useProjectsStore = defineStore('ProjectsStore', () => {
     }
   }
 
-  async function renameProject(
-    previousName: string,
-    newName: string,
-    handle: any
-  ) {
-    const projectIndex = projects.value.indexOf(previousName)
-
-    if (projectIndex == -1) return
-
-    projects.value[projectIndex] = newName
-  }
-
   return {
     projects,
     updateProjects,
-    renameProject,
   }
 })
