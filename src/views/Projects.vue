@@ -15,10 +15,12 @@
     <div id="flex">
       <div id="project-preview-grid" @click.self="selectedProject = null">
         <ProjectPreviewVue
-          v-for="project in ProjectsStore.projects"
-          :title="project"
-          :selected="selectedProject == project"
-          @click="selectedProject = project"
+          v-for="projectName in ProjectsStore.projects"
+          :key="projectName"
+          :name="projectName"
+          :selected="selectedProject == projectName"
+          @click="selectedProject = projectName"
+          @renamed="renamedProject"
         />
       </div>
 
@@ -108,6 +110,10 @@ async function chooseNewProjectFolder() {
   await setProjectsFolder(handle)
 
   await ProjectsStore.updateProjects()
+}
+
+async function renamedProject(previousName: string, newName: string) {
+  await ProjectsStore.renameProject(previousName, newName)
 }
 
 onMounted(async () => {

@@ -50,6 +50,11 @@ button {
   border: none;
 }
 
+input {
+  outline: none;
+  border: none;
+}
+
 .icon-button {
   transition: color 100ms ease-in-out;
 }

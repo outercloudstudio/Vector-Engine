@@ -99,3 +99,14 @@ export async function getFolders(handle: any): Promise<any[]> {
 
   return folders
 }
+
+export async function renameProject(
+  previousName: string,
+  newName: string
+): Promise<void> {
+  const projectsfolder = getProjectsFolder()
+
+  if (projectsfolder == null) return
+
+  if (!(await getProjectsFolderPermissions())) return
+}
