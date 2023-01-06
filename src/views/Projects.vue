@@ -30,18 +30,42 @@
         >
           folder
         </span>
-        <span class="material-symbols-outlined icon-button"> add </span>
-        <span class="material-symbols-outlined icon-button"> edit </span>
-        <span class="material-symbols-outlined icon-button"> delete </span>
+        <span class="material-symbols-outlined icon-button" @click="newProject">
+          add
+        </span>
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="deleteProjectButton"
+        >
+          delete
+        </span>
       </div>
     </div>
   </div>
 
-  <PopupVue
+  <BasicPopupVue
     text="Vector Engine needs to access a project folder. Make sure to create one if one does not exist yet!"
     buttonText="Got It"
     :display="displayPopup"
     @confirmed="popupConfirmed"
+  />
+
+  <InputPopupVue
+    text="Create a new project!"
+    placeholder="Enter a project name..."
+    buttonText="Submit"
+    :display="displayNewProjectPopup"
+    :validation="projectNameValidation"
+    @confirmed="newProjectPopupConfirmed"
+    @cancelled="newProjectPopupCancelled"
+  />
+
+  <ConfirmPopupVue
+    buttonText="Got It"
+    :text="`Are you sure you want to delete '${projectToDeleteName}'?`"
+    :display="displayDeleteProjectPopup"
+    @confirmed="deleteProjectPopupConfirmed"
+    @cancelled="deleteProjectPopupCancelled"
   />
 </template>
 
@@ -55,18 +79,82 @@ import {
   getProjectsFolderPermissions,
   hasPermissions,
   setProjectsFolder,
+  createProject,
+  deleteProject,
 } from '@/fs'
 
 import NavBarVue from '@/components/NavBar.vue'
 import ProjectPreviewVue from '@/components/ProjectPreview.vue'
-import PopupVue from '@/components/Popup.vue'
+import BasicPopupVue from '@/components/popups/BasicPopup.vue'
+import InputPopupVue from '@/components/popups/InputPopup.vue'
+import ConfirmPopupVue from '@/components/popups/ConfirmPopup.vue'
 
 import { useProjectsStore } from '@/stores/ProjectsStore'
 
 const ProjectsStore = useProjectsStore()
 
 const displayPopup = ref(false)
+const displayNewProjectPopup = ref(false)
 const selectedProject: Ref<null | string> = ref(null)
+const displayDeleteProjectPopup = ref(false)
+const projectToDeleteName = ref('')
+
+function deleteProjectButton() {
+  if (!selectedProject.value) return
+
+  projectToDeleteName.value = selectedProject.value
+
+  displayDeleteProjectPopup.value = true
+}
+
+async function deleteProjectPopupConfirmed() {
+  await deleteProject(projectToDeleteName.value)
+
+  await ProjectsStore.updateProjects()
+
+  displayDeleteProjectPopup.value = false
+}
+
+function deleteProjectPopupCancelled() {
+  displayDeleteProjectPopup.value = false
+}
+
+function newProject() {
+  displayNewProjectPopup.value = true
+}
+
+function projectNameValidation(name: string): {
+  status: string
+  message?: string
+} {
+  if (name == '')
+    return {
+      status: 'error',
+      message: "Project name can't be empty",
+    }
+
+  if (ProjectsStore.projects.includes(name))
+    return {
+      status: 'error',
+      message: 'A project with that name already exists!',
+    }
+
+  return {
+    status: 'none',
+  }
+}
+
+async function newProjectPopupConfirmed(name: string) {
+  await createProject(name)
+
+  await ProjectsStore.updateProjects()
+
+  displayNewProjectPopup.value = false
+}
+
+function newProjectPopupCancelled() {
+  displayNewProjectPopup.value = false
+}
 
 async function popupConfirmed() {
   if (await hasProjectsFolderPermissions()) {

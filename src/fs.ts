@@ -99,3 +99,19 @@ export async function getFolders(handle: any): Promise<any[]> {
 
   return folders
 }
+
+export async function createProject(name: string) {
+  if (!(await getProjectsFolderPermissions())) return
+
+  const projectsFolder = await getProjectsFolder()
+
+  await projectsFolder.getDirectoryHandle(name, { create: true })
+}
+
+export async function deleteProject(name: string) {
+  if (!(await getProjectsFolderPermissions())) return
+
+  const projectsFolder = await getProjectsFolder()
+
+  await projectsFolder.removeEntry(name)
+}
