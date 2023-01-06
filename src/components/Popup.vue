@@ -1,15 +1,21 @@
 <template>
-  <div id="component">
-    <div id="popup">
-      <p>{{ text }}</p>
+  <Transition name="fade">
+    <div v-if="display" id="component">
+      <div id="popup">
+        <p>{{ text }}</p>
 
-      <button @click="$emit('confirmed')">{{ buttonText }}</button>
+        <button @click="$emit('confirmed')">
+          {{ buttonText }}
+        </button>
+      </div>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
-defineProps(['text', 'buttonText'])
+import { ref } from 'vue'
+
+defineProps(['text', 'buttonText', 'display'])
 defineEmits(['confirmed'])
 </script>
 
@@ -30,6 +36,10 @@ defineEmits(['confirmed'])
   display: flex;
   justify-content: center;
   align-items: center;
+
+  backdrop-filter: blur(2px);
+
+  filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
 }
 
 #popup {
@@ -68,5 +78,15 @@ button {
 
 button:hover {
   transform: scale(1.05);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 100ms ease;
 }
 </style>

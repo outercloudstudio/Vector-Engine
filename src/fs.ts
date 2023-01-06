@@ -63,9 +63,7 @@ export async function getDirectoryPicker(): Promise<any> {
     handle = await window.showDirectoryPicker()
 
     await requestPermissions(handle)
-  } catch (error) {
-    console.warn(error)
-
+  } catch {
     handle = null
   }
 
@@ -81,11 +79,11 @@ export async function hasProjectsFolder(): Promise<boolean> {
 }
 
 export function isFile(handle: any): boolean {
-  return handle.isFile
+  return handle.kind == 'file'
 }
 
 export function isFolder(handle: any): boolean {
-  return !handle.isFile
+  return handle.kind == 'directory'
 }
 
 export async function getFolders(handle: any): Promise<any[]> {
@@ -94,7 +92,7 @@ export async function getFolders(handle: any): Promise<any[]> {
   let folders: any[] = []
 
   for await (const potentialFolder of handle.values()) {
-    if (!isFolder(potentialFolder)) continue
+    if (isFile(potentialFolder)) continue
 
     folders.push(potentialFolder)
   }

@@ -13,10 +13,12 @@
     -->
 
     <div id="flex">
-      <div id="project-preview-grid">
+      <div id="project-preview-grid" @click.self="selectedProject = null">
         <ProjectPreviewVue
           v-for="project in ProjectsStore.projects"
           :title="project"
+          :selected="selectedProject == project"
+          @click="selectedProject = project"
         />
       </div>
 
@@ -36,15 +38,15 @@
   </div>
 
   <PopupVue
-    v-if="displayPopup"
-    text="Sample popup text!"
+    text="Vector Engine needs to access a project folder. Make sure to create one if one does not exist yet!"
     buttonText="Got It"
+    :display="displayPopup"
     @confirmed="popupConfirmed"
   />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, Ref } from 'vue'
 import router from '@/router'
 import {
   hasProjectsFolderPermissions,
@@ -64,6 +66,7 @@ import { useProjectsStore } from '@/stores/ProjectsStore'
 const ProjectsStore = useProjectsStore()
 
 const displayPopup = ref(false)
+const selectedProject: Ref<null | string> = ref(null)
 
 async function popupConfirmed() {
   if (await hasProjectsFolderPermissions()) {
@@ -201,8 +204,9 @@ onMounted(async () => {
   flex-wrap: wrap;
 
   justify-content: space-evenly;
+  align-items: flex-start;
 
-  max-height: calc(100vh - 2rem);
+  min-height: calc(100vh - 2rem);
 
   overflow-y: auto;
 

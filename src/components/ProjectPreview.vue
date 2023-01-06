@@ -1,5 +1,5 @@
 <template>
-  <div id="component">
+  <div id="component" :class="{ selected }">
     <div id="preview"></div>
 
     <p id="name">{{ title }}</p>
@@ -10,7 +10,7 @@
 import { ref, watch } from 'vue'
 import router from '@/router'
 
-defineProps(['title'])
+defineProps(['title', 'selected'])
 </script>
 
 <style scoped>
@@ -33,7 +33,8 @@ defineProps(['title'])
   transition: border 100ms ease-in-out;
 }
 
-#component:hover #preview {
+#component:hover #preview,
+#component.selected #preview {
   border: solid 2px var(--grab);
 }
 
@@ -49,7 +50,8 @@ defineProps(['title'])
   color: var(--alternate-text);
 }
 
-#component:hover #name {
+#component:hover #name,
+#component.selected #name {
   color: var(--grab);
 }
 </style>
