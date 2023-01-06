@@ -7,21 +7,24 @@
     <div id="wrapper">
       <h1>Vector Engine</h1>
 
-      <button @click="router.push({ name: 'Projects' })">Let's Go!</button>
+      <button @click="projectsTransition.transition">Let's Go!</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, Ref } from 'vue'
-import router from '@/router'
+import { useTransition } from '@/transition'
 
 import NavBarVue from '@/components/NavBar.vue'
+
+const projectsTransition = useTransition('Projects', 1)
 
 const canvas: Ref<null | HTMLCanvasElement> = ref(null)
 
 const shapeSize = 200
 const shapeSpeed = 5
+const transitioningShapeSpeed = 100
 const fadeIn = 1
 const rotationSpeed = 1
 const lineWidth = 10
@@ -93,9 +96,17 @@ onMounted(() => {
 
     const deltaTime = (timestamp - lastTime) / 1000
 
+    if (lastTime == -1) {
+      lastTime = timestamp
+
+      window.requestAnimationFrame(drawFrame)
+
+      return
+    }
+
     lastTime = timestamp
 
-    if (lastTime == -1 || deltaTime > 0.1) {
+    if (deltaTime > 0.1) {
       window.requestAnimationFrame(drawFrame)
 
       return
@@ -109,9 +120,16 @@ onMounted(() => {
     for (let shapeIndex = 0; shapeIndex < shapes.length; shapeIndex++) {
       let shape = shapes[shapeIndex]
 
-      shape.distance -= shapeSpeed * deltaTime
+      shape.distance -=
+        (projectsTransition.transitioning.value
+          ? shapeSpeed +
+            (transitioningShapeSpeed - shapeSpeed) *
+              projectsTransition.progress.value
+          : shapeSpeed) * deltaTime
       shape.opacity += fadeIn * deltaTime
       shape.rotation += shape.rotationSpeed * rotationSpeed * deltaTime
+
+      if (projectsTransition.transitioning.value && shape.distance < 0) continue
 
       if (shape.distance < 0) {
         shapes[shapeIndex] = randomShape()
@@ -131,10 +149,16 @@ onMounted(() => {
 
       context.beginPath()
 
-      context.moveTo(Math.cos(shape.rotation) * renderSize + renderX, Math.sin(shape.rotation) * renderSize + renderY)
+      context.moveTo(
+        Math.cos(shape.rotation) * renderSize + renderX,
+        Math.sin(shape.rotation) * renderSize + renderY
+      )
 
       for (let side = 1; side <= shape.points; side++) {
-        context.lineTo(Math.cos(side * sideAngle + shape.rotation) * renderSize + renderX, Math.sin(side * sideAngle + shape.rotation) * renderSize + renderY)
+        context.lineTo(
+          Math.cos(side * sideAngle + shape.rotation) * renderSize + renderX,
+          Math.sin(side * sideAngle + shape.rotation) * renderSize + renderY
+        )
       }
 
       context.stroke()
@@ -184,7 +208,8 @@ h1 {
 
 h1:hover {
   color: var(--main);
-  text-shadow: -1px 1px 0 var(--text), 1px 1px 0 var(--text), 1px -1px 0 var(--text), -1px -1px 0 var(--text);
+  text-shadow: -1px 1px 0 var(--text), 1px 1px 0 var(--text),
+    1px -1px 0 var(--text), -1px -1px 0 var(--text);
 }
 
 button {
