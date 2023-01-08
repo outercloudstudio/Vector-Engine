@@ -5,9 +5,16 @@
     <canvas ref="canvas"></canvas>
 
     <div id="wrapper">
-      <h1>Vector Engine</h1>
+      <h1 :class="{ transitioning: projectsTransition.transitioning.value }">
+        Vector Engine
+      </h1>
 
-      <button @click="projectsTransition.transition">Let's Go!</button>
+      <button
+        :class="{ transitioning: projectsTransition.transitioning.value }"
+        @click="projectsTransition.transition"
+      >
+        Let's Go!
+      </button>
     </div>
   </div>
 </template>
@@ -18,13 +25,13 @@ import { useTransition } from '@/transition'
 
 import NavBarVue from '@/components/NavBar.vue'
 
-const projectsTransition = useTransition('Projects', 1)
+const projectsTransition = useTransition('Projects', 0.5)
 
 const canvas: Ref<null | HTMLCanvasElement> = ref(null)
 
 const shapeSize = 200
 const shapeSpeed = 5
-const transitioningShapeSpeed = 100
+const transitioningShapeSpeed = 300
 const fadeIn = 1
 const rotationSpeed = 1
 const lineWidth = 10
@@ -186,6 +193,8 @@ onMounted(() => {
   align-items: center;
 
   position: relative;
+
+  overflow: hidden;
 }
 
 canvas {
@@ -203,13 +212,19 @@ h1 {
 
   margin-bottom: 5rem;
 
-  transition: color 200ms ease-in-out, text-shadow 200ms ease-in-out;
+  transition: color 200ms ease-in-out, text-shadow 200ms ease-in-out,
+    opacity 200ms ease-in, scale 200ms ease-in;
 }
 
 h1:hover {
   color: var(--main);
   text-shadow: -1px 1px 0 var(--text), 1px 1px 0 var(--text),
     1px -1px 0 var(--text), -1px -1px 0 var(--text);
+}
+
+h1.transitioning {
+  opacity: 0;
+  scale: 2;
 }
 
 button {
@@ -219,10 +234,14 @@ button {
 
   padding: 0.25rem 0.5rem;
 
-  transition: transform 200ms ease-in-out;
+  transition: transform 200ms ease-in-out, opacity 200ms ease-in;
 }
 
 button:hover {
   transform: scale(1.05);
+}
+
+button.transitioning {
+  opacity: 0;
 }
 </style>

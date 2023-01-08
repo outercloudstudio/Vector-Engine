@@ -1,14 +1,19 @@
 import router from '@/router'
 import { ref } from 'vue'
 
-export function useTransition(pageName: string, length: number) {
-  // router.push({ name })
-
+export function useTransition(
+  pageName: string,
+  length: number,
+  start?: (() => void) | null,
+  finished?: (() => void) | null
+) {
   return {
     transitioning: ref(false),
     progress: ref(0),
     transition() {
       this.transitioning.value = true
+
+      if (start) start()
 
       const me = this
 
@@ -27,9 +32,15 @@ export function useTransition(pageName: string, length: number) {
 
         lastFrameTime = timestamp
 
-        me.progress.value += deltaTime
+        me.progress.value += deltaTime / length
 
-        if (me.progress.value > 1) me.progress.value = 1
+        if (me.progress.value > 1) {
+          me.progress.value = 1
+
+          if (finished) finished()
+
+          if (pageName != null) router.push({ name: pageName })
+        }
 
         if (me.progress.value < 1) window.requestAnimationFrame(frame)
       }
