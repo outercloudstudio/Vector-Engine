@@ -18,7 +18,7 @@
           v-for="project in ProjectsStore.projects"
           :title="project"
           :selected="selectedProject == project"
-          @click="selectedProject = project"
+          @click="() => projectClicked(project)"
         />
       </div>
 
@@ -98,6 +98,24 @@ const displayNewProjectPopup = ref(false)
 const selectedProject: Ref<null | string> = ref(null)
 const displayDeleteProjectPopup = ref(false)
 const projectToDeleteName = ref('')
+
+let lastProjectClickTime: null | number = null
+
+function projectClicked(project: string) {
+  const now = Date.now()
+
+  if (
+    lastProjectClickTime != null &&
+    selectedProject.value == project &&
+    now - lastProjectClickTime < 300
+  ) {
+    router.push({ name: 'Editor' })
+  }
+
+  lastProjectClickTime = now
+
+  selectedProject.value = project
+}
 
 function deleteProjectButton() {
   if (!selectedProject.value) return
