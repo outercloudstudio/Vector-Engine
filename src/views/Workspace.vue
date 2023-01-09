@@ -12,12 +12,7 @@
           <div id="side-menu"></div>
         </div>
 
-        <div id="timeline">
-          <div id="control-bar"></div>
-          <div ref="timelineCanvasWrapper" id="timeline-canvas-wrapper">
-            <canvas ref="timelineCanvas" id="timeline-canvas"></canvas>
-          </div>
-        </div>
+        <TimelineVue />
       </div>
 
       <div id="side-bar">
@@ -31,13 +26,11 @@
 
 <script setup lang="ts">
 import NavBarVue from '@/components/NavBar.vue'
+import TimelineVue from '@/components/workspace/Timeline.vue'
 import { ref, onMounted, Ref } from 'vue'
 
 const preview: Ref<null | HTMLCanvasElement> = ref(null)
 const previewWrapper: Ref<null | HTMLDivElement> = ref(null)
-
-const timelineCanvas: Ref<null | HTMLCanvasElement> = ref(null)
-const timelineCanvasWrapper: Ref<null | HTMLDivElement> = ref(null)
 
 function fixPreviewSize() {
   if (!previewWrapper.value) return
@@ -47,27 +40,16 @@ function fixPreviewSize() {
   preview.value.height = previewWrapper.value.offsetHeight
 }
 
-function fixTimelineCanvasSize() {
-  if (!timelineCanvasWrapper.value) return
-  if (!timelineCanvas.value) return
-
-  timelineCanvas.value.width = timelineCanvasWrapper.value.offsetWidth
-  timelineCanvas.value.height = timelineCanvasWrapper.value.offsetHeight
-}
-
 onMounted(() => {
   if (!previewWrapper.value) return
-  if (!timelineCanvasWrapper.value) return
 
   new ResizeObserver(fixPreviewSize).observe(previewWrapper.value)
-  new ResizeObserver(fixTimelineCanvasSize).observe(timelineCanvasWrapper.value)
 
   fixPreviewSize()
-  fixTimelineCanvasSize()
 })
 </script>
 
-<style>
+<style scoped>
 #page {
   width: 100%;
   height: 100vh;
@@ -109,15 +91,6 @@ onMounted(() => {
   height: 100%;
 }
 
-#timeline {
-  min-height: 18rem;
-
-  border-top: solid 1px var(--secondary);
-
-  display: flex;
-  flex-direction: column;
-}
-
 #half-horizontal-split {
   flex-grow: 1;
 
@@ -147,20 +120,5 @@ onMounted(() => {
   min-width: 14rem;
 
   border-left: solid 1px var(--secondary);
-}
-
-#control-bar {
-  height: 2rem;
-
-  border-bottom: solid 1px var(--secondary);
-}
-
-#timeline-canvas-wrapper {
-  flex-grow: 1;
-}
-
-#timeline-canvas {
-  display: block;
-  position: absolute;
 }
 </style>
