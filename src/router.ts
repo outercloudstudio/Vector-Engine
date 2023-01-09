@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Welcome from '@/views/Welcome.vue'
-import Editor from '@/views/Editor.vue'
+import Workspace from '@/views/Workspace.vue'
 import Projects from '@/views/Projects.vue'
 
 const router = createRouter({
@@ -17,9 +17,9 @@ const router = createRouter({
       component: Projects,
     },
     {
-      path: '/editor',
-      name: 'Editor',
-      component: Editor,
+      path: '/workspace',
+      name: 'Workspace',
+      component: Workspace,
     },
   ],
 })

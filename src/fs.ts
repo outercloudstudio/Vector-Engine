@@ -115,3 +115,17 @@ export async function deleteProject(name: string) {
 
   await projectsFolder.removeEntry(name)
 }
+
+export async function getProjectFolder(name: string): Promise<any> {
+  const projectsFolder = await getProjectsFolder()
+
+  if (!projectsFolder) return null
+
+  let projectFolder = null
+
+  try {
+    projectFolder = await projectsFolder.getDirectoryHandle(name)
+  } catch {}
+
+  return await projectFolder
+}

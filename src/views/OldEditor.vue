@@ -1,5 +1,8 @@
 <template>
-  <ErrorWindow :message="ProjectStore.error" v-show="ProjectStore.error != null" />
+  <ErrorWindow
+    :message="ProjectStore.error"
+    v-show="ProjectStore.error != null"
+  />
 
   <ContextMenu ref="contextMenu" @newMarker="newMarker" />
 
@@ -9,7 +12,13 @@
         <canvas width="1920" height="1080" id="canvas" ref="canvas" />
       </div>
 
-      <SideMenu ref="sideMenu" :canvas="canvas" :currentFrame="currentFrame" v-model:selectedMarker="selectedMarker" @updateFrame="updateFrame" />
+      <SideMenu
+        ref="sideMenu"
+        :canvas="canvas"
+        :currentFrame="currentFrame"
+        v-model:selectedMarker="selectedMarker"
+        @updateFrame="updateFrame"
+      />
     </div>
 
     <ActionBar
@@ -88,7 +97,8 @@ watch(currentFrame, async (frame, prevFrame) => {
   if (diff >= 0.1) {
     ProjectStore.masterAudioTrack.currentTime = frameTime
 
-    if (isPlaying.value && ProjectStore.masterAudioTrack.paused) ProjectStore.masterAudioTrack.play()
+    if (isPlaying.value && ProjectStore.masterAudioTrack.paused)
+      ProjectStore.masterAudioTrack.play()
 
     //console.log(`Audio time ${currentTime} Frame time ${frameTime} Difference ${diff}`)
   }
@@ -139,7 +149,8 @@ async function next() {
     isPlaying.value = false
   }
 
-  if (currentFrame.value < ProjectStore.animationLength - 1) currentFrame.value++
+  if (currentFrame.value < ProjectStore.animationLength - 1)
+    currentFrame.value++
 }
 
 async function prev() {

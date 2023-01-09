@@ -2,16 +2,6 @@
   <NavBarVue leftIcon="home" leftLink="Welcome" />
 
   <div id="page">
-    <!--
-    <button @click="chooseEngineFolder">Choose Folder</button>
-
-    <input v-model="newProjectName" />
-
-    <button @click="createProject">Create Project</button>
-
-    <button v-for="project in projects" @click="() => loadProject(project)">{{ project.name }}</button>
-    -->
-
     <div id="flex">
       <div id="project-preview-grid" @click.self="selectedProject = null">
         <ProjectPreviewVue
@@ -90,8 +80,10 @@ import InputPopupVue from '@/components/popups/InputPopup.vue'
 import ConfirmPopupVue from '@/components/popups/ConfirmPopup.vue'
 
 import { useProjectsStore } from '@/stores/ProjectsStore'
+import { useEditorStore } from '@/stores/EditorStore'
 
 const ProjectsStore = useProjectsStore()
+const EditorStore = useEditorStore()
 
 const displayPopup = ref(false)
 const displayNewProjectPopup = ref(false)
@@ -101,7 +93,7 @@ const projectToDeleteName = ref('')
 
 let lastProjectClickTime: null | number = null
 
-function projectClicked(project: string) {
+async function projectClicked(project: string) {
   const now = Date.now()
 
   if (
@@ -109,7 +101,9 @@ function projectClicked(project: string) {
     selectedProject.value == project &&
     now - lastProjectClickTime < 300
   ) {
-    router.push({ name: 'Editor' })
+    await EditorStore.loadProject(project)
+
+    router.push({ name: 'Workspace' })
   }
 
   lastProjectClickTime = now
@@ -219,69 +213,6 @@ async function chooseNewProjectFolder() {
 onMounted(async () => {
   if (!(await hasProjectsFolderPermissions())) displayPopup.value = true
 })
-
-// const ProjectStore = useProjectStore()
-// const SettingsStore = useSettingsStore()
-
-// let projects = ref([])
-
-// let newProjectName = ref('New Project')
-
-// async function chooseEngineFolder() {
-//   const dirHandle = getDirectoryPicker()
-
-//   if (!(await getFilePermissions(dirHandle))) return
-
-//   await set('engine-folder', dirHandle)
-
-//   await loadProjects()
-// }
-
-// async function loadProject(dir: any) {
-//   await ProjectStore.setupProject(dir)
-
-//   router.push({ name: 'Editor' })
-// }
-
-// async function loadProjects() {
-//   const dbKeys = await keys()
-
-//   if (!dbKeys.includes('engine-folder')) return
-
-//   projects.value = []
-
-//   const dir = await get('engine-folder')
-
-//   if (!(await getPermissions(dir))) return
-
-//   await SettingsStore.load(dir)
-
-//   for await (const entry of dir.values()) {
-//     if (await isDirAProject(entry)) projects.value.push(entry)
-//   }
-// }
-
-// async function createProject() {
-//   const dbKeys = await keys()
-
-//   if (!dbKeys.includes('engine-folder')) return
-
-//   const dir = await get('engine-folder')
-
-//   if (!(await getPermissions(dir))) return
-
-//   if (await doesFolderExistOnFolderHandle(newProjectName.value, dir)) return
-
-//   const projectDir = await dir.getDirectoryHandle(newProjectName.value, { create: true })
-
-//   await ProjectStore.createProject(projectDir)
-
-//   router.push({ name: 'Editor' })
-// }
-
-// onMounted(async () => {
-//   await loadProjects()
-// })
 </script>
 
 <style scoped>
