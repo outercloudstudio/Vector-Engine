@@ -1,5 +1,112 @@
 import { Runtime } from '@/Runtime'
 
+class Scene {
+  path: string
+  engine: Engine
+
+  context: any
+
+  name: string = 'ERROR SCENE NAME NOT SET'
+
+  extraContexts: any[] = []
+
+  elements: Element[] = []
+
+  ctx: any
+
+  constructor(path: string, engine: Engine) {
+    this.path = path
+    this.engine = engine
+    // const codeValue = `return async function*(Vector, Element, Mode, Builder, addElement, animate, all, any, wait, aside, forever, waitWhile, transitionTo, Transition, waitForMarker, getAsset, relative, absolute, lerp, animateVector, animateNumber, animateVectorProperty, animateNumberProperty) { ${code} }`
+    // this.context = new Function(codeValue)()(
+    //   Vector,
+    //   Element,
+    //   Modes,
+    //   Builders,
+    //   initAddElement(this),
+    //   initAnimate(engine.frameRate),
+    //   all,
+    //   any,
+    //   initWait(engine.frameRate),
+    //   aside,
+    //   forever,
+    //   waitWhile,
+    //   initTransitionTo(engine.frameRate, this, engine),
+    //   Transition,
+    //   initWaitForMarker(engine, engine.markers),
+    //   initGetAsset(engine.assets),
+    //   relative,
+    //   absolute,
+    //   lerp,
+    //   initAnimateVector(engine.frameRate),
+    //   initAnimateNumber(engine.frameRate),
+    //   initAnimateVectorProperty(engine.frameRate),
+    //   initAnimateNumberProperty(engine.frameRate)
+    // )
+    // const canvas = document.createElement('canvas')
+    // canvas.width = 1920
+    // canvas.height = 1080
+    // this.ctx = canvas.getContext('2d')
+    // this.name = name
+  }
+
+  async load() {
+    console.log('Loading scene ' + this.path)
+
+    this.context = await this.engine.runtime.run(this.path)
+
+    console.log(this.context)
+  }
+
+  addElement(element: Element) {
+    this.elements.push(element)
+  }
+
+  async render() {
+    this.ctx.fillStyle = '#ffffff'
+    this.ctx.fillRect(0, 0, 1920, 1080)
+
+    let sortedElements = this.elements.sort((a: any, b: any) => {
+      return (a.priority || 0) - (b.priority || 0)
+    })
+
+    for (const element of sortedElements) {
+      this.ctx.translate(0, 1080)
+      this.ctx.scale(1, -1)
+
+      await element.render(this.ctx)
+
+      this.ctx.resetTransform()
+    }
+  }
+
+  async next() {
+    for (let i = 0; i < this.extraContexts.length; i++) {
+      const generator = this.extraContexts[i]
+
+      await generator.next()
+
+      if (generator.done == 'true') {
+        this.extraContexts.splice(i, 1)
+
+        i--
+      }
+    }
+
+    let result = (await this.context.next()).value
+
+    while (
+      result != null &&
+      result != undefined &&
+      typeof result[Symbol.iterator] === 'function'
+    ) {
+      this.extraContexts.push(result)
+
+      result = (await this.context.next()).value
+    }
+  }
+}
+
 export class Engine {
   activeScene: Scene | undefined = undefined
 
@@ -11,10 +118,10 @@ export class Engine {
     mode: any
   }[] = []
 
-  scenes: {
-    name: string
-    content: string
-  }[] = []
+  // scenes: {
+  //   name: string
+  //   content: string
+  // }[] = []
 
   markers: {
     name: string
@@ -23,51 +130,63 @@ export class Engine {
 
   code: string = ''
   name: string = ''
-  frameRate: number = 60
 
   currentFrame: number = -1
 
   assets: any
 
-  config: {
-    frameRate: number
-    length: number
-    scenes: string[]
-    activeScene: undefined | string
-  } = {
-    frameRate: 60,
-    length: 60,
-    scenes: [],
-    activeScene: undefined,
+  runtime: Runtime
+
+  frameRate: number = 60
+  length: number = 60
+  scenes: {
+    [key: string]: string
+  } = {}
+  initialScene: undefined | string = undefined
+
+  activeScenes: Scene[] = []
+
+  constructor(runtime: Runtime) {
+    this.runtime = runtime
   }
 
-  constructor(project: any) {
-    console.log(project)
+  async load() {
+    this.frameRate = 60
+    this.length = 60
+    this.scenes = {}
+    this.initialScene = undefined
+
+    const project = await this.runtime.run('project.ts')
 
     const engine = this
 
     project.project({
       frameRate(frameRate: number) {
-        engine.config.frameRate = frameRate
+        engine.frameRate = frameRate
       },
       length(length: number) {
-        engine.config.length = length
+        engine.length = length
       },
       minutes(minutes: number) {
-        return engine.config.frameRate * 60 * minutes
+        return engine.frameRate * 60 * minutes
       },
       seconds(seconds: number) {
-        return engine.config.frameRate * seconds
+        return engine.frameRate * seconds
       },
-      scenes(scenes: string[]) {
-        engine.config.scenes = scenes
+      scenes(scenes: { [key: string]: string }) {
+        engine.scenes = scenes
       },
-      activeScene(activeScene: string) {
-        engine.config.activeScene = activeScene
+      initialScene(initialScene: string) {
+        engine.initialScene = initialScene
       },
     })
 
-    console.log(this.config)
+    this.currentFrame = -1
+
+    if (!this.initialScene) return
+
+    this.activeScenes = [new Scene(this.scenes[this.initialScene], this)]
+    await this.activeScenes[0].load()
   }
 
   async render(ctx: any) {
@@ -708,102 +827,4 @@ function absolute(pos: Vector) {
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
-}
-
-class Scene {
-  context: any
-
-  name: string = 'ERROR SCENE NAME NOT SET'
-
-  extraContexts: any[] = []
-
-  elements: Element[] = []
-
-  ctx: any
-
-  constructor(code: string, name: string, frameRate: number, engine: Engine) {
-    const codeValue = `return async function*(Vector, Element, Mode, Builder, addElement, animate, all, any, wait, aside, forever, waitWhile, transitionTo, Transition, waitForMarker, getAsset, relative, absolute, lerp, animateVector, animateNumber, animateVectorProperty, animateNumberProperty) { ${code} }`
-
-    this.context = new Function(codeValue)()(
-      Vector,
-      Element,
-      Modes,
-      Builders,
-      initAddElement(this),
-      initAnimate(frameRate),
-      all,
-      any,
-      initWait(frameRate),
-      aside,
-      forever,
-      waitWhile,
-      initTransitionTo(frameRate, this, engine),
-      Transition,
-      initWaitForMarker(engine, engine.markers),
-      initGetAsset(engine.assets),
-      relative,
-      absolute,
-      lerp,
-      initAnimateVector(frameRate),
-      initAnimateNumber(frameRate),
-      initAnimateVectorProperty(frameRate),
-      initAnimateNumberProperty(frameRate)
-    )
-
-    const canvas = document.createElement('canvas')
-    canvas.width = 1920
-    canvas.height = 1080
-
-    this.ctx = canvas.getContext('2d')
-
-    this.name = name
-  }
-
-  addElement(element: Element) {
-    this.elements.push(element)
-  }
-
-  async render() {
-    this.ctx.fillStyle = '#ffffff'
-    this.ctx.fillRect(0, 0, 1920, 1080)
-
-    let sortedElements = this.elements.sort((a: any, b: any) => {
-      return (a.priority || 0) - (b.priority || 0)
-    })
-
-    for (const element of sortedElements) {
-      this.ctx.translate(0, 1080)
-      this.ctx.scale(1, -1)
-
-      await element.render(this.ctx)
-
-      this.ctx.resetTransform()
-    }
-  }
-
-  async next() {
-    for (let i = 0; i < this.extraContexts.length; i++) {
-      const generator = this.extraContexts[i]
-
-      await generator.next()
-
-      if (generator.done == 'true') {
-        this.extraContexts.splice(i, 1)
-
-        i--
-      }
-    }
-
-    let result = (await this.context.next()).value
-
-    while (
-      result != null &&
-      result != undefined &&
-      typeof result[Symbol.iterator] === 'function'
-    ) {
-      this.extraContexts.push(result)
-
-      result = (await this.context.next()).value
-    }
-  }
 }

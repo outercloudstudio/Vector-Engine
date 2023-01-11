@@ -6,30 +6,40 @@ export class Runtime extends JsRuntime {
   protected directory: FileSystemDirectoryHandle | null = null
 
   constructor(
-    directory: FileSystemDirectoryHandle,
+    rootDirectoryHandle: FileSystemDirectoryHandle,
     modules?: [string, TBaseModule][]
   ) {
     super(modules)
 
-    this.directory = directory
+    this.directory = rootDirectoryHandle
   }
 
   async readFile(filePath: string) {
-    console.warn('Runtime reading file "' + filePath + '"')
+    const readPath: string[] = filePath.split('/')
 
-    const handle = await this.directory?.getFileHandle(filePath)
+    if (readPath.length == 0) return new File([], 'voidFile.error')
 
-    console.log(this.directory)
+    let singlePath = readPath.shift()!
 
-    console.log(filePath)
+    let handle =
+      readPath.length >= 1
+        ? await this.directory?.getDirectoryHandle(singlePath)
+        : await this.directory?.getFileHandle(singlePath)
 
-    console.log(handle)
+    while (readPath.length >= 1) {
+      singlePath = readPath.shift()!
+
+      handle =
+        readPath.length >= 1
+          ? await (<FileSystemDirectoryHandle>handle)?.getDirectoryHandle(
+              singlePath
+            )
+          : await (<FileSystemDirectoryHandle>handle)?.getFileHandle(singlePath)
+    }
 
     if (!handle) return new File([], 'voidFile.error')
 
-    console.log(await handle.getFile())
-
-    return await handle.getFile()
+    return await (<FileSystemFileHandle>handle).getFile()
   }
 
   run(filePath: string, env: any = {}, fileContent?: string) {
