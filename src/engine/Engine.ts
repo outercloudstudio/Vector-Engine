@@ -1,4 +1,257 @@
-import { Vector } from '@/engine-core'
+import { Runtime } from '@/Runtime'
+
+export class Engine {
+  activeScene: Scene | undefined = undefined
+
+  transitionScenes: {
+    scene: Scene
+    transition: any
+    leftFrames: number
+    length: number
+    mode: any
+  }[] = []
+
+  scenes: {
+    name: string
+    content: string
+  }[] = []
+
+  markers: {
+    name: string
+    frame: number
+  }[] = []
+
+  code: string = ''
+  name: string = ''
+  frameRate: number = 60
+
+  currentFrame: number = -1
+
+  assets: any
+
+  config: {
+    frameRate: number
+    length: number
+    scenes: string[]
+    activeScene: undefined | string
+  } = {
+    frameRate: 60,
+    length: 60,
+    scenes: [],
+    activeScene: undefined,
+  }
+
+  constructor(project: any) {
+    console.log(project)
+
+    const engine = this
+
+    project.project({
+      frameRate(frameRate: number) {
+        engine.config.frameRate = frameRate
+      },
+      length(length: number) {
+        engine.config.length = length
+      },
+      minutes(minutes: number) {
+        return engine.config.frameRate * 60 * minutes
+      },
+      seconds(seconds: number) {
+        return engine.config.frameRate * seconds
+      },
+      scenes(scenes: string[]) {
+        engine.config.scenes = scenes
+      },
+      activeScene(activeScene: string) {
+        engine.config.activeScene = activeScene
+      },
+    })
+
+    console.log(this.config)
+  }
+
+  async render(ctx: any) {
+    if (this.activeScene == undefined) return
+
+    await this.activeScene.render()
+
+    ctx.drawImage(this.activeScene.ctx.canvas, 0, 0)
+
+    for (const transitionScene of this.transitionScenes) {
+      await transitionScene.scene.render()
+
+      transitionScene.transition(
+        transitionScene.scene.ctx,
+        ctx,
+        transitionScene.mode(
+          transitionScene.leftFrames / transitionScene.length
+        )
+      )
+    }
+  }
+
+  reloadContext(
+    code: string,
+    name: string,
+    frameRate: number,
+    scenes: { name: string; content: string }[],
+    markers: { name: string; frame: number }[],
+    assets: any
+  ) {
+    this.assets = assets
+
+    this.scenes = scenes
+
+    this.markers = markers
+
+    this.code = code
+    this.name = name
+    this.frameRate = frameRate
+
+    this.currentFrame = -1
+
+    this.activeScene = new Scene(code, name, frameRate, this)
+  }
+
+  async stepFrame() {
+    if (this.activeScene == undefined) return
+
+    try {
+      await this.activeScene.next()
+
+      for (let i = 0; i < this.transitionScenes.length; i++) {
+        const transitionScene = this.transitionScenes[i]
+        await transitionScene.scene.next()
+
+        transitionScene.leftFrames--
+
+        if (transitionScene.leftFrames <= 0) {
+          this.activeScene = transitionScene.scene
+
+          this.transitionScenes.splice(i, 1)
+
+          i--
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    }
+
+    this.currentFrame++
+  }
+
+  async inference(length: number) {
+    const iEngine = new Engine(undefined)
+
+    iEngine.reloadContext(
+      this.code,
+      this.name,
+      this.frameRate,
+      this.scenes,
+      this.markers,
+      this.assets
+    )
+
+    let snapshots: {
+      frame: number
+      name: string
+      kind: string
+      fakeLength?: number
+    }[] = []
+
+    let lastSnapshotScene = null
+
+    let pastTransitions: {
+      scene: Scene
+      length: number
+    }[] = []
+
+    for (let i = 0; i < length; i++) {
+      await iEngine.stepFrame()
+
+      if (iEngine.activeScene != lastSnapshotScene) {
+        lastSnapshotScene = iEngine.activeScene
+
+        snapshots.push({
+          frame: i,
+          name: iEngine.activeScene!.name,
+          kind: 'start',
+        })
+      }
+
+      for (const transition of iEngine.transitionScenes) {
+        if (pastTransitions.find(t => t.scene == transition.scene) != undefined)
+          continue
+
+        snapshots.push({
+          frame: i,
+          name: transition.scene.name,
+          kind: 'transition',
+          fakeLength: transition.length,
+        })
+
+        pastTransitions.push({
+          scene: transition.scene,
+          length: transition.length,
+        })
+      }
+
+      for (let j = 0; j < pastTransitions.length; j++) {
+        if (
+          iEngine.transitionScenes.find(
+            t => t.scene == pastTransitions[j].scene
+          ) != undefined
+        )
+          continue
+
+        pastTransitions.splice(j, 1)
+
+        j--
+      }
+    }
+
+    let events = []
+
+    for (let i = 0; i < snapshots.length; i++) {
+      const snapshot = snapshots[i]
+      const prevSnapshot = snapshots[i - 1]
+      const nextSnapshot = snapshots[i + 1]
+
+      let shouldShowName = true
+
+      if (
+        prevSnapshot &&
+        prevSnapshot.kind == 'transition' &&
+        snapshot.kind == 'start' &&
+        prevSnapshot.name == snapshot.name &&
+        prevSnapshot.fakeLength &&
+        prevSnapshot.fakeLength - 1 == snapshot.frame - prevSnapshot.frame
+      )
+        shouldShowName = false
+
+      if (snapshot.kind == 'start') {
+        events.push({
+          from: snapshot.frame,
+          to: nextSnapshot ? nextSnapshot.frame : length,
+          kind: 'scene',
+          name: shouldShowName ? snapshot.name : null,
+        })
+      } else {
+        events.push({
+          from: snapshot.frame,
+          to: nextSnapshot ? nextSnapshot.frame : length,
+          kind: 'transition',
+          name: shouldShowName ? snapshot.name : null,
+          fakeTo: snapshot.fakeLength,
+        })
+      }
+    }
+
+    return events
+  }
+}
+
+import { Vector } from '@/engine/engine-core'
 
 function initAddElement(scene: Scene) {
   return (element: Element) => {
@@ -17,7 +270,13 @@ function initAnimate(frameRate: number) {
 }
 
 function initAnimateVector(frameRate: number) {
-  return function* (a: Vector, b: Vector, length: number, mode: any, operator: any) {
+  return function* (
+    a: Vector,
+    b: Vector,
+    length: number,
+    mode: any,
+    operator: any
+  ) {
     for (let i = 1; i <= length * frameRate; i++) {
       operator(a.lerp(b, mode(i / (length * frameRate))))
 
@@ -27,7 +286,13 @@ function initAnimateVector(frameRate: number) {
 }
 
 function initAnimateNumber(frameRate: number) {
-  return function* (a: number, b: number, length: number, mode: any, operator: any) {
+  return function* (
+    a: number,
+    b: number,
+    length: number,
+    mode: any,
+    operator: any
+  ) {
     for (let i = 1; i <= length * frameRate; i++) {
       operator(lerp(a, b, mode(i / (length * frameRate))))
 
@@ -37,7 +302,14 @@ function initAnimateNumber(frameRate: number) {
 }
 
 function initAnimateVectorProperty(frameRate: number) {
-  return function* (obj: any, property: string, a: Vector, b: Vector, length: number, mode: any) {
+  return function* (
+    obj: any,
+    property: string,
+    a: Vector,
+    b: Vector,
+    length: number,
+    mode: any
+  ) {
     for (let i = 1; i <= length * frameRate; i++) {
       obj[property] = a.lerp(b, mode(i / (length * frameRate)))
 
@@ -47,7 +319,14 @@ function initAnimateVectorProperty(frameRate: number) {
 }
 
 function initAnimateNumberProperty(frameRate: number) {
-  return function* (obj: any, property: string, a: number, b: number, length: number, mode: any) {
+  return function* (
+    obj: any,
+    property: string,
+    a: number,
+    b: number,
+    length: number,
+    mode: any
+  ) {
     for (let i = 1; i <= length * frameRate; i++) {
       obj[property] = lerp(a, b, mode(i / (length * frameRate)))
 
@@ -57,16 +336,25 @@ function initAnimateNumberProperty(frameRate: number) {
 }
 
 function initTransitionTo(frameRate: number, scene: Scene, engine: Engine) {
-  return function (sceneName: string, length: number, mode: any, transition: any) {
+  return function (
+    sceneName: string,
+    length: number,
+    mode: any,
+    transition: any
+  ) {
     const targetScene = engine.scenes.find(s => s.name == sceneName)
 
     if (targetScene == undefined) {
-      console.warn(`Could not find target scene '${sceneName}' to transtiion to!`)
+      console.warn(
+        `Could not find target scene '${sceneName}' to transtiion to!`
+      )
 
       return
     }
 
-    if (engine.transitionScenes.find(tran => tran.scene == scene) != undefined) {
+    if (
+      engine.transitionScenes.find(tran => tran.scene == scene) != undefined
+    ) {
       console.warn('Scene is already transitioning!')
 
       return
@@ -121,13 +409,24 @@ const Builders = {
         const green = me.color.z * 255
         const alpha = me.color.w
 
-        ctx.translate(me.position.x + me.size.x / 2, me.position.y + me.size.y / 2)
+        ctx.translate(
+          me.position.x + me.size.x / 2,
+          me.position.y + me.size.y / 2
+        )
         ctx.rotate((me.rotation * Math.PI) / 180)
 
-        ctx.translate(-me.position.x + -me.size.x / 2, -me.position.y + -me.size.y / 2)
+        ctx.translate(
+          -me.position.x + -me.size.x / 2,
+          -me.position.y + -me.size.y / 2
+        )
 
         ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
-        ctx.fillRect(me.position.x - me.size.x * me.origin.x, me.position.y - me.size.y * me.origin.y, me.size.x, me.size.y)
+        ctx.fillRect(
+          me.position.x - me.size.x * me.origin.x,
+          me.position.y - me.size.y * me.origin.y,
+          me.size.x,
+          me.size.y
+        )
       }
     },
   },
@@ -155,7 +454,13 @@ const Builders = {
 
         ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
         ctx.beginPath()
-        ctx.arc(me.position.x - me.size * 2 * (me.origin.x - 0.5), me.position.y - me.size * 2 * (me.origin.y - 0.5), me.size, 0, 2 * Math.PI)
+        ctx.arc(
+          me.position.x - me.size * 2 * (me.origin.x - 0.5),
+          me.position.y - me.size * 2 * (me.origin.y - 0.5),
+          me.size,
+          0,
+          2 * Math.PI
+        )
         ctx.fill()
       }
     },
@@ -194,10 +499,16 @@ const Builders = {
         const offsetX = ((uncroppedW - targetW) * scale) / 2
         const offsetY = ((uncroppedH - targetH) * scale) / 2
 
-        ctx.translate(me.position.x + me.size.x / 2, me.position.y + me.size.y / 2)
+        ctx.translate(
+          me.position.x + me.size.x / 2,
+          me.position.y + me.size.y / 2
+        )
         ctx.rotate((me.rotation * Math.PI) / 180)
 
-        ctx.translate(-me.position.x + -me.size.x / 2, -me.position.y + -me.size.y / 2)
+        ctx.translate(
+          -me.position.x + -me.size.x / 2,
+          -me.position.y + -me.size.y / 2
+        )
 
         ctx.translate(0, targetH)
         ctx.scale(1, -1)
@@ -344,11 +655,17 @@ function* waitWhile(condition: any) {
   while (condition()) yield null
 }
 
-function initWaitForMarker(engine: Engine, markers: { name: string; frame: number }[]) {
+function initWaitForMarker(
+  engine: Engine,
+  markers: { name: string; frame: number }[]
+) {
   return function* (name: string) {
     const targetMarker = markers.find(marker => marker.name == name)
 
-    while (targetMarker == undefined || targetMarker.frame - 1 != engine.currentFrame) {
+    while (
+      targetMarker == undefined ||
+      targetMarker.frame - 1 != engine.currentFrame
+    ) {
       yield null
     }
   }
@@ -479,201 +796,14 @@ class Scene {
 
     let result = (await this.context.next()).value
 
-    while (result != null && result != undefined && typeof result[Symbol.iterator] === 'function') {
+    while (
+      result != null &&
+      result != undefined &&
+      typeof result[Symbol.iterator] === 'function'
+    ) {
       this.extraContexts.push(result)
 
       result = (await this.context.next()).value
     }
-  }
-}
-
-export class Engine {
-  activeScene: Scene | undefined = undefined
-
-  transitionScenes: {
-    scene: Scene
-    transition: any
-    leftFrames: number
-    length: number
-    mode: any
-  }[] = []
-
-  scenes: {
-    name: string
-    content: string
-  }[] = []
-
-  markers: {
-    name: string
-    frame: number
-  }[] = []
-
-  code: string = ''
-  name: string = ''
-  frameRate: number = 60
-
-  currentFrame: number = -1
-
-  assets: any
-
-  async render(ctx: any) {
-    if (this.activeScene == undefined) return
-
-    await this.activeScene.render()
-
-    ctx.drawImage(this.activeScene.ctx.canvas, 0, 0)
-
-    for (const transitionScene of this.transitionScenes) {
-      await transitionScene.scene.render()
-
-      transitionScene.transition(transitionScene.scene.ctx, ctx, transitionScene.mode(transitionScene.leftFrames / transitionScene.length))
-    }
-  }
-
-  reloadContext(
-    code: string,
-    name: string,
-    frameRate: number,
-    scenes: { name: string; content: string }[],
-    markers: { name: string; frame: number }[],
-    assets: any
-  ) {
-    this.assets = assets
-
-    this.scenes = scenes
-
-    this.markers = markers
-
-    this.code = code
-    this.name = name
-    this.frameRate = frameRate
-
-    this.currentFrame = -1
-
-    this.activeScene = new Scene(code, name, frameRate, this)
-  }
-
-  async stepFrame() {
-    if (this.activeScene == undefined) return
-
-    try {
-      await this.activeScene.next()
-
-      for (let i = 0; i < this.transitionScenes.length; i++) {
-        const transitionScene = this.transitionScenes[i]
-        await transitionScene.scene.next()
-
-        transitionScene.leftFrames--
-
-        if (transitionScene.leftFrames <= 0) {
-          this.activeScene = transitionScene.scene
-
-          this.transitionScenes.splice(i, 1)
-
-          i--
-        }
-      }
-    } catch (err) {
-      console.error(err)
-    }
-
-    this.currentFrame++
-  }
-
-  async inference(length: number) {
-    const iEngine = new Engine()
-
-    iEngine.reloadContext(this.code, this.name, this.frameRate, this.scenes, this.markers, this.assets)
-
-    let snapshots: {
-      frame: number
-      name: string
-      kind: string
-      fakeLength?: number
-    }[] = []
-
-    let lastSnapshotScene = null
-
-    let pastTransitions: {
-      scene: Scene
-      length: number
-    }[] = []
-
-    for (let i = 0; i < length; i++) {
-      await iEngine.stepFrame()
-
-      if (iEngine.activeScene != lastSnapshotScene) {
-        lastSnapshotScene = iEngine.activeScene
-
-        snapshots.push({
-          frame: i,
-          name: iEngine.activeScene!.name,
-          kind: 'start',
-        })
-      }
-
-      for (const transition of iEngine.transitionScenes) {
-        if (pastTransitions.find(t => t.scene == transition.scene) != undefined) continue
-
-        snapshots.push({
-          frame: i,
-          name: transition.scene.name,
-          kind: 'transition',
-          fakeLength: transition.length,
-        })
-
-        pastTransitions.push({
-          scene: transition.scene,
-          length: transition.length,
-        })
-      }
-
-      for (let j = 0; j < pastTransitions.length; j++) {
-        if (iEngine.transitionScenes.find(t => t.scene == pastTransitions[j].scene) != undefined) continue
-
-        pastTransitions.splice(j, 1)
-
-        j--
-      }
-    }
-
-    let events = []
-
-    for (let i = 0; i < snapshots.length; i++) {
-      const snapshot = snapshots[i]
-      const prevSnapshot = snapshots[i - 1]
-      const nextSnapshot = snapshots[i + 1]
-
-      let shouldShowName = true
-
-      if (
-        prevSnapshot &&
-        prevSnapshot.kind == 'transition' &&
-        snapshot.kind == 'start' &&
-        prevSnapshot.name == snapshot.name &&
-        prevSnapshot.fakeLength &&
-        prevSnapshot.fakeLength - 1 == snapshot.frame - prevSnapshot.frame
-      )
-        shouldShowName = false
-
-      if (snapshot.kind == 'start') {
-        events.push({
-          from: snapshot.frame,
-          to: nextSnapshot ? nextSnapshot.frame : length,
-          kind: 'scene',
-          name: shouldShowName ? snapshot.name : null,
-        })
-      } else {
-        events.push({
-          from: snapshot.frame,
-          to: nextSnapshot ? nextSnapshot.frame : length,
-          kind: 'transition',
-          name: shouldShowName ? snapshot.name : null,
-          fakeTo: snapshot.fakeLength,
-        })
-      }
-    }
-
-    return events
   }
 }

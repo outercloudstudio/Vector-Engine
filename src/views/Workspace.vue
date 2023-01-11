@@ -27,7 +27,10 @@
 <script setup lang="ts">
 import NavBarVue from '@/components/NavBar.vue'
 import TimelineVue from '@/components/workspace/Timeline.vue'
+import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { ref, onMounted, Ref } from 'vue'
+
+const WorkspaceStore = useWorkspaceStore()
 
 const preview: Ref<null | HTMLCanvasElement> = ref(null)
 const previewWrapper: Ref<null | HTMLDivElement> = ref(null)

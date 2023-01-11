@@ -80,10 +80,10 @@ import InputPopupVue from '@/components/popups/InputPopup.vue'
 import ConfirmPopupVue from '@/components/popups/ConfirmPopup.vue'
 
 import { useProjectsStore } from '@/stores/ProjectsStore'
-import { useEditorStore } from '@/stores/EditorStore'
+import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 
 const ProjectsStore = useProjectsStore()
-const EditorStore = useEditorStore()
+const WorkspaceStore = useWorkspaceStore()
 
 const displayPopup = ref(false)
 const displayNewProjectPopup = ref(false)
@@ -101,7 +101,7 @@ async function projectClicked(project: string) {
     selectedProject.value == project &&
     now - lastProjectClickTime < 300
   ) {
-    await EditorStore.loadProject(project)
+    await WorkspaceStore.loadProject(project)
 
     router.push({ name: 'Workspace' })
   }
