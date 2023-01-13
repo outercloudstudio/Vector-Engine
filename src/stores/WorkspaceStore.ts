@@ -8,6 +8,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   let projectFolder: FileSystemDirectoryHandle | undefined = undefined
   let engine: Engine | undefined = undefined
   let loaded: Ref<boolean> = ref(false)
+  let frame: Ref<number> = ref(0)
+  let length: Ref<number> = ref(60)
 
   async function loadProject(name: string) {
     projectFolder = (await getProjectFolder(name)) || undefined
@@ -32,5 +34,5 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     return await engine?.render()
   }
 
-  return { loadProject, loadProjectFromCache, render, loaded }
+  return { loadProject, loadProjectFromCache, render, loaded, frame, length }
 })
