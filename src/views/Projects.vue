@@ -71,6 +71,7 @@ import {
   setProjectsFolder,
   createProject,
   deleteProject,
+  getProjectsFolder,
 } from '@/fs'
 
 import NavBarVue from '@/components/NavBar.vue'
@@ -211,7 +212,11 @@ async function chooseNewProjectFolder() {
 }
 
 onMounted(async () => {
-  if (!(await hasProjectsFolderPermissions())) displayAccessPopup.value = true
+  if (!(await hasProjectsFolderPermissions())) {
+    displayAccessPopup.value = true
+  } else {
+    await ProjectsStore.updateProjects()
+  }
 })
 </script>
 
