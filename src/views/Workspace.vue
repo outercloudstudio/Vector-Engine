@@ -22,15 +22,35 @@
       </div>
     </div>
   </div>
+
+  <BasicPopupVue
+    text="Vector Engine needs to access a project folder. Make sure to create one if one does not exist yet!"
+    buttonText="Got It"
+    :display="displayAccessPopup"
+    @confirmed="loadWithPermissions"
+  />
 </template>
 
 <script setup lang="ts">
 import NavBarVue from '@/components/NavBar.vue'
 import TimelineVue from '@/components/workspace/Timeline.vue'
+import BasicPopupVue from '@/components/popups/BasicPopup.vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { ref, onMounted, Ref } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
+
+const displayAccessPopup = ref(false)
+
+async function loadWithPermissions() {
+  await WorkspaceStore.loadProjectFromCache()
+
+  displayAccessPopup.value = false
+
+  preview.value
+    ?.getContext('2d')
+    ?.drawImage((await WorkspaceStore.render())!, 0, 0, 192, 108)
+}
 
 const preview: Ref<null | HTMLCanvasElement> = ref(null)
 const previewWrapper: Ref<null | HTMLDivElement> = ref(null)
@@ -50,11 +70,9 @@ onMounted(() => {
 
   fixPreviewSize()
 
-  setTimeout(async () => {
-    preview.value
-      ?.getContext('2d')
-      ?.drawImage((await WorkspaceStore.render())!, 0, 0, 192, 108)
-  }, 500)
+  displayAccessPopup.value = !WorkspaceStore.loaded
+
+  if (WorkspaceStore.loaded) loadWithPermissions()
 })
 </script>
 

@@ -36,8 +36,8 @@
   <BasicPopupVue
     text="Vector Engine needs to access a project folder. Make sure to create one if one does not exist yet!"
     buttonText="Got It"
-    :display="displayPopup"
-    @confirmed="popupConfirmed"
+    :display="displayAccessPopup"
+    @confirmed="accessPopupConfirmed"
   />
 
   <InputPopupVue
@@ -85,7 +85,7 @@ import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 const ProjectsStore = useProjectsStore()
 const WorkspaceStore = useWorkspaceStore()
 
-const displayPopup = ref(false)
+const displayAccessPopup = ref(false)
 const displayNewProjectPopup = ref(false)
 const selectedProject: Ref<null | string> = ref(null)
 const displayDeleteProjectPopup = ref(false)
@@ -168,9 +168,9 @@ function newProjectPopupCancelled() {
   displayNewProjectPopup.value = false
 }
 
-async function popupConfirmed() {
+async function accessPopupConfirmed() {
   if (await hasProjectsFolderPermissions()) {
-    displayPopup.value = false
+    displayAccessPopup.value = false
 
     await ProjectsStore.updateProjects()
 
@@ -195,7 +195,7 @@ async function popupConfirmed() {
     await ProjectsStore.updateProjects()
   }
 
-  displayPopup.value = false
+  displayAccessPopup.value = false
 }
 
 async function chooseNewProjectFolder() {
@@ -211,7 +211,7 @@ async function chooseNewProjectFolder() {
 }
 
 onMounted(async () => {
-  if (!(await hasProjectsFolderPermissions())) displayPopup.value = true
+  if (!(await hasProjectsFolderPermissions())) displayAccessPopup.value = true
 })
 </script>
 

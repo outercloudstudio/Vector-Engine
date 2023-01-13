@@ -86,7 +86,9 @@ export function isFolder(handle: any): boolean {
   return handle.kind == 'directory'
 }
 
-export async function getFolders(handle: any): Promise<any[]> {
+export async function getFolders(
+  handle: any
+): Promise<FileSystemDirectoryHandle[]> {
   if (!(await requestPermissions(handle))) return []
 
   let folders: any[] = []
@@ -116,7 +118,21 @@ export async function deleteProject(name: string) {
   await projectsFolder.removeEntry(name)
 }
 
-export async function getProjectFolder(name: string): Promise<any> {
+export async function getProjectFolder(
+  name: string
+): Promise<FileSystemDirectoryHandle | null> {
+  const dbKeys = await keys()
+
+  if (dbKeys.includes('project-folder')) {
+    const projectFolder = await get('project-folder')
+
+    if (projectFolder && (await requestPermissions(projectFolder))) {
+      console.warn('Loaded project folder from cache!')
+
+      return projectFolder
+    }
+  }
+
   const projectsFolder = await getProjectsFolder()
 
   if (!projectsFolder) return null
@@ -128,4 +144,10 @@ export async function getProjectFolder(name: string): Promise<any> {
   } catch {}
 
   return await projectFolder
+}
+
+export async function cacheProjectFolder(
+  handle: FileSystemDirectoryHandle
+): Promise<void> {
+  set('project-folder', handle)
 }
