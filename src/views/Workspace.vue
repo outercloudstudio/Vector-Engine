@@ -49,6 +49,12 @@ onMounted(() => {
   new ResizeObserver(fixPreviewSize).observe(previewWrapper.value)
 
   fixPreviewSize()
+
+  setTimeout(async () => {
+    preview.value
+      ?.getContext('2d')
+      ?.drawImage((await WorkspaceStore.render())!, 0, 0, 192, 108)
+  }, 500)
 })
 </script>
 

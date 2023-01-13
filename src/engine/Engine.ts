@@ -1,93 +1,260 @@
 import { Runtime } from '@/Runtime'
 
+function useProjectContext(engine: Engine) {
+  return {
+    frameRate(frameRate: number) {
+      engine.frameRate = frameRate
+    },
+
+    length(length: number) {
+      engine.length = length
+    },
+
+    minutes(minutes: number) {
+      return engine.frameRate * 60 * minutes
+    },
+
+    seconds(seconds: number) {
+      return engine.frameRate * seconds
+    },
+
+    scenes(scenes: { [key: string]: string }) {
+      engine.scenes = scenes
+    },
+
+    initialScene(initialScene: string) {
+      engine.initialScene = initialScene
+    },
+  }
+}
+
+class Element {
+  [key: string]: any
+
+  async render(ctx: any) {
+    console.warn('Element has no render!')
+  }
+
+  constructor(builder: any, options: any) {
+    if (builder == undefined) return
+
+    builder.setup(this, options)
+
+    this.render = builder.initRender(this)
+  }
+}
+
+function useSceneContext(scene: Scene) {
+  return {
+    addElement(element: Element) {
+      scene.addElement(element)
+    },
+
+    Builders: {
+      Rect: {
+        setup(element: Element, options: any) {
+          element.position = new Vector(0, 0)
+          element.origin = new Vector(0.5, 0.5)
+          element.size = new Vector(100, 100)
+          element.color = new Vector(0, 0, 0, 1)
+          element.rotation = 0
+          element.priority = 0
+
+          if (options != null) {
+            for (const option of Object.keys(options)) {
+              element[option] = options[option]
+            }
+          }
+        },
+
+        initRender(me: Element) {
+          return async (ctx: any) => {
+            const red = me.color.x * 255
+            const blue = me.color.y * 255
+            const green = me.color.z * 255
+            const alpha = me.color.w
+
+            ctx.translate(
+              me.position.x + me.size.x / 2,
+              me.position.y + me.size.y / 2
+            )
+            ctx.rotate((me.rotation * Math.PI) / 180)
+
+            ctx.translate(
+              -me.position.x + -me.size.x / 2,
+              -me.position.y + -me.size.y / 2
+            )
+
+            ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
+            ctx.fillRect(
+              me.position.x - me.size.x * me.origin.x,
+              me.position.y - me.size.y * me.origin.y,
+              me.size.x,
+              me.size.y
+            )
+          }
+        },
+      },
+      Circle: {
+        setup(element: Element, options: any) {
+          element.position = new Vector(0, 0)
+          element.origin = new Vector(0.5, 0.5)
+          element.size = 50
+          element.color = new Vector(0, 0, 0, 1)
+          element.priority = 0
+
+          if (options != null) {
+            for (const option of Object.keys(options)) {
+              element[option] = options[option]
+            }
+          }
+        },
+
+        initRender(me: Element) {
+          return async (ctx: any) => {
+            const red = me.color.x * 255
+            const blue = me.color.y * 255
+            const green = me.color.z * 255
+            const alpha = me.color.w
+
+            ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
+            ctx.beginPath()
+            ctx.arc(
+              me.position.x - me.size * 2 * (me.origin.x - 0.5),
+              me.position.y - me.size * 2 * (me.origin.y - 0.5),
+              me.size,
+              0,
+              2 * Math.PI
+            )
+            ctx.fill()
+          }
+        },
+      },
+      Image: {
+        setup(element: Element, options: any) {
+          element.position = new Vector(0, 0)
+          element.origin = new Vector(0.5, 0.5)
+          element.size = new Vector(100, 100)
+          element.rotation = 0
+          element.priority = 0
+          element.image = null
+
+          if (options != null) {
+            for (const option of Object.keys(options)) {
+              element[option] = options[option]
+            }
+          }
+        },
+
+        initRender(me: Element) {
+          return async (ctx: any) => {
+            if (me.image == null) return
+
+            const xScale = me.image.width / me.size.x
+            const yScale = me.image.height / me.size.y
+
+            let scale = xScale < yScale ? xScale : yScale
+
+            const targetW = me.image.width / xScale
+            const targetH = me.image.height / yScale
+
+            const uncroppedW = me.image.width / scale
+            const uncroppedH = me.image.height / scale
+
+            const offsetX = ((uncroppedW - targetW) * scale) / 2
+            const offsetY = ((uncroppedH - targetH) * scale) / 2
+
+            ctx.translate(
+              me.position.x + me.size.x / 2,
+              me.position.y + me.size.y / 2
+            )
+            ctx.rotate((me.rotation * Math.PI) / 180)
+
+            ctx.translate(
+              -me.position.x + -me.size.x / 2,
+              -me.position.y + -me.size.y / 2
+            )
+
+            ctx.translate(0, targetH)
+            ctx.scale(1, -1)
+
+            ctx.drawImage(
+              me.image,
+              offsetX,
+              offsetY,
+              me.image.width - offsetX * 2,
+              me.image.height - offsetY * 2,
+              me.position.x - me.size.x * me.origin.x,
+              -me.position.y + me.size.y * me.origin.y,
+              targetW,
+              targetH
+            )
+          }
+        },
+      },
+    },
+
+    Element,
+  }
+}
+
 class Scene {
+  context: any
   path: string
   engine: Engine
-
-  context: any
-
-  name: string = 'ERROR SCENE NAME NOT SET'
-
-  extraContexts: any[] = []
-
   elements: Element[] = []
-
-  ctx: any
+  sideContexts: any[] = []
 
   constructor(path: string, engine: Engine) {
     this.path = path
     this.engine = engine
-    // const codeValue = `return async function*(Vector, Element, Mode, Builder, addElement, animate, all, any, wait, aside, forever, waitWhile, transitionTo, Transition, waitForMarker, getAsset, relative, absolute, lerp, animateVector, animateNumber, animateVectorProperty, animateNumberProperty) { ${code} }`
-    // this.context = new Function(codeValue)()(
-    //   Vector,
-    //   Element,
-    //   Modes,
-    //   Builders,
-    //   initAddElement(this),
-    //   initAnimate(engine.frameRate),
-    //   all,
-    //   any,
-    //   initWait(engine.frameRate),
-    //   aside,
-    //   forever,
-    //   waitWhile,
-    //   initTransitionTo(engine.frameRate, this, engine),
-    //   Transition,
-    //   initWaitForMarker(engine, engine.markers),
-    //   initGetAsset(engine.assets),
-    //   relative,
-    //   absolute,
-    //   lerp,
-    //   initAnimateVector(engine.frameRate),
-    //   initAnimateNumber(engine.frameRate),
-    //   initAnimateVectorProperty(engine.frameRate),
-    //   initAnimateNumberProperty(engine.frameRate)
-    // )
-    // const canvas = document.createElement('canvas')
-    // canvas.width = 1920
-    // canvas.height = 1080
-    // this.ctx = canvas.getContext('2d')
-    // this.name = name
   }
 
   async load() {
     console.log('Loading scene ' + this.path)
 
-    this.context = await this.engine.runtime.run(this.path)
+    this.context = (await this.engine.runtime.run(this.path)).scene(
+      useSceneContext(this)
+    )
 
     console.log(this.context)
   }
 
-  addElement(element: Element) {
-    this.elements.push(element)
-  }
-
   async render() {
-    this.ctx.fillStyle = '#ffffff'
-    this.ctx.fillRect(0, 0, 1920, 1080)
+    const canvas = document.createElement('canvas')
+    canvas.width = 1920
+    canvas.height = 1080
+    const ctx = canvas.getContext('2d')!
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, 1920, 1080)
 
     let sortedElements = this.elements.sort((a: any, b: any) => {
       return (a.priority || 0) - (b.priority || 0)
     })
 
     for (const element of sortedElements) {
-      this.ctx.translate(0, 1080)
-      this.ctx.scale(1, -1)
+      console.log(element)
 
-      await element.render(this.ctx)
+      ctx.translate(0, 1080)
+      ctx.scale(1, -1)
 
-      this.ctx.resetTransform()
+      await element.render(ctx)
+
+      ctx.resetTransform()
     }
+
+    return canvas
   }
 
   async next() {
-    for (let i = 0; i < this.extraContexts.length; i++) {
-      const generator = this.extraContexts[i]
+    for (let i = 0; i < this.sideContexts.length; i++) {
+      const generator = this.sideContexts[i]
 
       await generator.next()
 
       if (generator.done == 'true') {
-        this.extraContexts.splice(i, 1)
+        this.sideContexts.splice(i, 1)
 
         i--
       }
@@ -100,51 +267,32 @@ class Scene {
       result != undefined &&
       typeof result[Symbol.iterator] === 'function'
     ) {
-      this.extraContexts.push(result)
+      this.sideContexts.push(result)
 
       result = (await this.context.next()).value
     }
   }
+
+  addElement(element: Element) {
+    this.elements.push(element)
+  }
 }
 
 export class Engine {
-  activeScene: Scene | undefined = undefined
-
-  transitionScenes: {
-    scene: Scene
-    transition: any
-    leftFrames: number
-    length: number
-    mode: any
-  }[] = []
-
-  // scenes: {
-  //   name: string
-  //   content: string
-  // }[] = []
-
-  markers: {
-    name: string
-    frame: number
-  }[] = []
-
-  code: string = ''
-  name: string = ''
-
-  currentFrame: number = -1
-
-  assets: any
-
-  runtime: Runtime
-
+  project: any
+  initialScene: undefined | string = undefined
+  activeScenes: Scene[] = []
   frameRate: number = 60
   length: number = 60
   scenes: {
     [key: string]: string
   } = {}
-  initialScene: undefined | string = undefined
-
-  activeScenes: Scene[] = []
+  runtime: Runtime
+  currentFrame: number = -1
+  markers: {
+    name: string
+    frame: number
+  }[] = []
 
   constructor(runtime: Runtime) {
     this.runtime = runtime
@@ -156,30 +304,9 @@ export class Engine {
     this.scenes = {}
     this.initialScene = undefined
 
-    const project = await this.runtime.run('project.ts')
+    this.project = await this.runtime.run('project.ts')
 
-    const engine = this
-
-    project.project({
-      frameRate(frameRate: number) {
-        engine.frameRate = frameRate
-      },
-      length(length: number) {
-        engine.length = length
-      },
-      minutes(minutes: number) {
-        return engine.frameRate * 60 * minutes
-      },
-      seconds(seconds: number) {
-        return engine.frameRate * seconds
-      },
-      scenes(scenes: { [key: string]: string }) {
-        engine.scenes = scenes
-      },
-      initialScene(initialScene: string) {
-        engine.initialScene = initialScene
-      },
-    })
+    this.project.project(useProjectContext(this))
 
     this.currentFrame = -1
 
@@ -187,70 +314,48 @@ export class Engine {
 
     this.activeScenes = [new Scene(this.scenes[this.initialScene], this)]
     await this.activeScenes[0].load()
+
+    await this.next()
   }
 
-  async render(ctx: any) {
-    if (this.activeScene == undefined) return
+  async render() {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1920
+    canvas.height = 1080
+    const ctx = canvas.getContext('2d')!
 
-    await this.activeScene.render()
+    for (const scene of this.activeScenes) {
+      const activeSceneRender = await scene.render()
 
-    ctx.drawImage(this.activeScene.ctx.canvas, 0, 0)
-
-    for (const transitionScene of this.transitionScenes) {
-      await transitionScene.scene.render()
-
-      transitionScene.transition(
-        transitionScene.scene.ctx,
-        ctx,
-        transitionScene.mode(
-          transitionScene.leftFrames / transitionScene.length
-        )
-      )
+      ctx.drawImage(activeSceneRender, 0, 0)
     }
+
+    return canvas
   }
 
-  reloadContext(
-    code: string,
-    name: string,
-    frameRate: number,
-    scenes: { name: string; content: string }[],
-    markers: { name: string; frame: number }[],
-    assets: any
-  ) {
-    this.assets = assets
+  async reloadContext() {
+    this.frameRate = 60
+    this.length = 60
+    this.scenes = {}
+    this.initialScene = undefined
 
-    this.scenes = scenes
+    const engine = this
 
-    this.markers = markers
-
-    this.code = code
-    this.name = name
-    this.frameRate = frameRate
+    this.project.project(useProjectContext(this))
 
     this.currentFrame = -1
 
-    this.activeScene = new Scene(code, name, frameRate, this)
+    if (!this.initialScene) return
+
+    this.activeScenes = [new Scene(this.scenes[this.initialScene], this)]
+
+    await this.activeScenes[0].load()
   }
 
-  async stepFrame() {
-    if (this.activeScene == undefined) return
-
+  async next() {
     try {
-      await this.activeScene.next()
-
-      for (let i = 0; i < this.transitionScenes.length; i++) {
-        const transitionScene = this.transitionScenes[i]
-        await transitionScene.scene.next()
-
-        transitionScene.leftFrames--
-
-        if (transitionScene.leftFrames <= 0) {
-          this.activeScene = transitionScene.scene
-
-          this.transitionScenes.splice(i, 1)
-
-          i--
-        }
+      for (const scene of this.activeScenes) {
+        await scene.next()
       }
     } catch (err) {
       console.error(err)
@@ -258,125 +363,9 @@ export class Engine {
 
     this.currentFrame++
   }
-
-  async inference(length: number) {
-    const iEngine = new Engine(undefined)
-
-    iEngine.reloadContext(
-      this.code,
-      this.name,
-      this.frameRate,
-      this.scenes,
-      this.markers,
-      this.assets
-    )
-
-    let snapshots: {
-      frame: number
-      name: string
-      kind: string
-      fakeLength?: number
-    }[] = []
-
-    let lastSnapshotScene = null
-
-    let pastTransitions: {
-      scene: Scene
-      length: number
-    }[] = []
-
-    for (let i = 0; i < length; i++) {
-      await iEngine.stepFrame()
-
-      if (iEngine.activeScene != lastSnapshotScene) {
-        lastSnapshotScene = iEngine.activeScene
-
-        snapshots.push({
-          frame: i,
-          name: iEngine.activeScene!.name,
-          kind: 'start',
-        })
-      }
-
-      for (const transition of iEngine.transitionScenes) {
-        if (pastTransitions.find(t => t.scene == transition.scene) != undefined)
-          continue
-
-        snapshots.push({
-          frame: i,
-          name: transition.scene.name,
-          kind: 'transition',
-          fakeLength: transition.length,
-        })
-
-        pastTransitions.push({
-          scene: transition.scene,
-          length: transition.length,
-        })
-      }
-
-      for (let j = 0; j < pastTransitions.length; j++) {
-        if (
-          iEngine.transitionScenes.find(
-            t => t.scene == pastTransitions[j].scene
-          ) != undefined
-        )
-          continue
-
-        pastTransitions.splice(j, 1)
-
-        j--
-      }
-    }
-
-    let events = []
-
-    for (let i = 0; i < snapshots.length; i++) {
-      const snapshot = snapshots[i]
-      const prevSnapshot = snapshots[i - 1]
-      const nextSnapshot = snapshots[i + 1]
-
-      let shouldShowName = true
-
-      if (
-        prevSnapshot &&
-        prevSnapshot.kind == 'transition' &&
-        snapshot.kind == 'start' &&
-        prevSnapshot.name == snapshot.name &&
-        prevSnapshot.fakeLength &&
-        prevSnapshot.fakeLength - 1 == snapshot.frame - prevSnapshot.frame
-      )
-        shouldShowName = false
-
-      if (snapshot.kind == 'start') {
-        events.push({
-          from: snapshot.frame,
-          to: nextSnapshot ? nextSnapshot.frame : length,
-          kind: 'scene',
-          name: shouldShowName ? snapshot.name : null,
-        })
-      } else {
-        events.push({
-          from: snapshot.frame,
-          to: nextSnapshot ? nextSnapshot.frame : length,
-          kind: 'transition',
-          name: shouldShowName ? snapshot.name : null,
-          fakeTo: snapshot.fakeLength,
-        })
-      }
-    }
-
-    return events
-  }
 }
 
 import { Vector } from '@/engine/engine-core'
-
-function initAddElement(scene: Scene) {
-  return (element: Element) => {
-    scene.addElement(element)
-  }
-}
 
 function initAnimate(frameRate: number) {
   return function* (length: number, mode: any, operator: any) {
@@ -504,150 +493,6 @@ const Modes = {
   },
 }
 
-const Builders = {
-  Rect: {
-    setup(element: Element, options: any) {
-      element.position = new Vector(0, 0)
-      element.origin = new Vector(0.5, 0.5)
-      element.size = new Vector(100, 100)
-      element.color = new Vector(0, 0, 0, 1)
-      element.rotation = 0
-      element.priority = 0
-
-      if (options != null) {
-        for (const option of Object.keys(options)) {
-          element[option] = options[option]
-        }
-      }
-    },
-
-    initRender(me: Element) {
-      return async (ctx: any) => {
-        const red = me.color.x * 255
-        const blue = me.color.y * 255
-        const green = me.color.z * 255
-        const alpha = me.color.w
-
-        ctx.translate(
-          me.position.x + me.size.x / 2,
-          me.position.y + me.size.y / 2
-        )
-        ctx.rotate((me.rotation * Math.PI) / 180)
-
-        ctx.translate(
-          -me.position.x + -me.size.x / 2,
-          -me.position.y + -me.size.y / 2
-        )
-
-        ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
-        ctx.fillRect(
-          me.position.x - me.size.x * me.origin.x,
-          me.position.y - me.size.y * me.origin.y,
-          me.size.x,
-          me.size.y
-        )
-      }
-    },
-  },
-  Circle: {
-    setup(element: Element, options: any) {
-      element.position = new Vector(0, 0)
-      element.origin = new Vector(0.5, 0.5)
-      element.size = 50
-      element.color = new Vector(0, 0, 0, 1)
-      element.priority = 0
-
-      if (options != null) {
-        for (const option of Object.keys(options)) {
-          element[option] = options[option]
-        }
-      }
-    },
-
-    initRender(me: Element) {
-      return async (ctx: any) => {
-        const red = me.color.x * 255
-        const blue = me.color.y * 255
-        const green = me.color.z * 255
-        const alpha = me.color.w
-
-        ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
-        ctx.beginPath()
-        ctx.arc(
-          me.position.x - me.size * 2 * (me.origin.x - 0.5),
-          me.position.y - me.size * 2 * (me.origin.y - 0.5),
-          me.size,
-          0,
-          2 * Math.PI
-        )
-        ctx.fill()
-      }
-    },
-  },
-  Image: {
-    setup(element: Element, options: any) {
-      element.position = new Vector(0, 0)
-      element.origin = new Vector(0.5, 0.5)
-      element.size = new Vector(100, 100)
-      element.rotation = 0
-      element.priority = 0
-      element.image = null
-
-      if (options != null) {
-        for (const option of Object.keys(options)) {
-          element[option] = options[option]
-        }
-      }
-    },
-
-    initRender(me: Element) {
-      return async (ctx: any) => {
-        if (me.image == null) return
-
-        const xScale = me.image.width / me.size.x
-        const yScale = me.image.height / me.size.y
-
-        let scale = xScale < yScale ? xScale : yScale
-
-        const targetW = me.image.width / xScale
-        const targetH = me.image.height / yScale
-
-        const uncroppedW = me.image.width / scale
-        const uncroppedH = me.image.height / scale
-
-        const offsetX = ((uncroppedW - targetW) * scale) / 2
-        const offsetY = ((uncroppedH - targetH) * scale) / 2
-
-        ctx.translate(
-          me.position.x + me.size.x / 2,
-          me.position.y + me.size.y / 2
-        )
-        ctx.rotate((me.rotation * Math.PI) / 180)
-
-        ctx.translate(
-          -me.position.x + -me.size.x / 2,
-          -me.position.y + -me.size.y / 2
-        )
-
-        ctx.translate(0, targetH)
-        ctx.scale(1, -1)
-
-        ctx.drawImage(
-          me.image,
-          offsetX,
-          offsetY,
-          me.image.width - offsetX * 2,
-          me.image.height - offsetY * 2,
-          me.position.x - me.size.x * me.origin.x,
-          -me.position.y + me.size.y * me.origin.y,
-          targetW,
-          targetH
-        )
-      }
-    },
-  },
-}
-
 const Transition = {
   Cut(sceneCtx: any, targetCtx: any, time: number) {
     targetCtx.drawImage(sceneCtx.canvas, 0, 0)
@@ -661,22 +506,6 @@ const Transition = {
 
     targetCtx.globalAlpha = prevAlpha
   },
-}
-
-class Element {
-  [key: string]: any
-
-  async render(ctx: any) {
-    console.warn('Element has no render!')
-  }
-
-  constructor(builder: any, options: any) {
-    if (builder == undefined) return
-
-    builder.setup(this, options)
-
-    this.render = builder.initRender(this)
-  }
 }
 
 function* all(contexts: any) {

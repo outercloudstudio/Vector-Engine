@@ -19,5 +19,9 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     await engine.load()
   }
 
-  return { loadProject }
+  async function render() {
+    return await engine?.render()
+  }
+
+  return { loadProject, render }
 })
