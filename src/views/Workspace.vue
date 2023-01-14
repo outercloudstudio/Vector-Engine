@@ -5,9 +5,7 @@
     <div id="main-split">
       <div id="half-vertical-split">
         <div id="half-horizontal-split">
-          <div ref="previewWrapper" id="preview-wrapper">
-            <canvas ref="preview" id="preview"></canvas>
-          </div>
+          <PreviewVue :render="renderPreview" />
 
           <div id="side-menu"></div>
         </div>
@@ -35,41 +33,23 @@
 import NavBarVue from '@/components/NavBar.vue'
 import TimelineVue from '@/components/workspace/Timeline.vue'
 import BasicPopupVue from '@/components/popups/BasicPopup.vue'
+import PreviewVue from '@/components/workspace/Preview.vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { ref, onMounted, Ref } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
 
 const displayAccessPopup = ref(false)
+const renderPreview = ref(false)
 
 async function loadWithPermissions() {
   await WorkspaceStore.loadProjectFromCache()
 
   displayAccessPopup.value = false
-
-  preview.value
-    ?.getContext('2d')
-    ?.drawImage((await WorkspaceStore.render())!, 0, 0, 192, 108)
-}
-
-const preview: Ref<null | HTMLCanvasElement> = ref(null)
-const previewWrapper: Ref<null | HTMLDivElement> = ref(null)
-
-function fixPreviewSize() {
-  if (!previewWrapper.value) return
-  if (!preview.value) return
-
-  preview.value.width = previewWrapper.value.offsetWidth
-  preview.value.height = previewWrapper.value.offsetHeight
+  renderPreview.value = true
 }
 
 onMounted(() => {
-  if (!previewWrapper.value) return
-
-  new ResizeObserver(fixPreviewSize).observe(previewWrapper.value)
-
-  fixPreviewSize()
-
   displayAccessPopup.value = !WorkspaceStore.loaded
 
   if (WorkspaceStore.loaded) loadWithPermissions()
@@ -122,25 +102,6 @@ onMounted(() => {
   flex-grow: 1;
 
   display: flex;
-}
-
-#preview-wrapper {
-  background-color: black;
-
-  flex-grow: 1;
-
-  margin: 0;
-  padding: 0;
-
-  max-height: 100%;
-}
-
-#preview {
-  display: block;
-
-  margin: 0;
-
-  position: absolute;
 }
 
 #side-menu {

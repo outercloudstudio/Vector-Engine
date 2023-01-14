@@ -183,8 +183,8 @@ function render() {
     ctx.strokeStyle = alternateTextColor
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(x + 0.5, frame % labelInterval == 0 ? 16 : 24)
-    ctx.lineTo(x + 0.5, 32)
+    ctx.moveTo(x, frame % labelInterval == 0 ? 16 : 24)
+    ctx.lineTo(x, 32)
     ctx.stroke()
 
     if (frame % labelInterval != 0) continue
@@ -199,8 +199,8 @@ function render() {
   ctx.strokeStyle = grabColor
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(frameToRelativeX(WorkspaceStore.frame) + 0.5, 0)
-  ctx.lineTo(frameToRelativeX(WorkspaceStore.frame) + 0.5, canvas.value.height)
+  ctx.moveTo(frameToRelativeX(WorkspaceStore.frame), 0)
+  ctx.lineTo(frameToRelativeX(WorkspaceStore.frame), canvas.value.height)
   ctx.stroke()
 }
 
