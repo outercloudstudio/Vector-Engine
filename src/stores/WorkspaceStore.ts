@@ -25,6 +25,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     await engine.load()
 
     length.value = engine.length
+    frame.value = 0
 
     reloadCount.value++
 

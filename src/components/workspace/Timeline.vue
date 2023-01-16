@@ -9,11 +9,13 @@
       <div class="control-bar-group">
         <span class="material-symbols-outlined icon-button"> volume_up </span>
 
-        <span class="material-symbols-outlined icon-button"> fast_rewind </span>
+        <span class="material-symbols-outlined icon-button" @click="restart">
+          fast_rewind
+        </span>
       </div>
 
       <div class="control-bar-group">
-        <span class="material-symbols-outlined icon-button">
+        <span class="material-symbols-outlined icon-button" @click="back">
           skip_previous
         </span>
 
@@ -24,7 +26,9 @@
           {{ playing ? 'pause' : 'play_arrow' }}
         </span>
 
-        <span class="material-symbols-outlined icon-button"> skip_next </span>
+        <span class="material-symbols-outlined icon-button" @click="next">
+          skip_next
+        </span>
       </div>
 
       <div class="control-bar-group">
@@ -72,6 +76,11 @@ async function playUpdate() {
 
   await WorkspaceStore.updateFrame(newFrame)
 
+  if (WorkspaceStore.frame >= WorkspaceStore.length - 1) {
+    startedPlayingTime = Date.now()
+    startedFrame = 0
+  }
+
   requestAnimationFrame(playUpdate)
 }
 
@@ -85,6 +94,28 @@ function play() {
 
 function pause() {
   playing.value = false
+}
+
+function restart() {
+  pause()
+
+  WorkspaceStore.updateFrame(0)
+}
+
+function next() {
+  pause()
+
+  if (WorkspaceStore.frame >= WorkspaceStore.length - 1) return
+
+  WorkspaceStore.updateFrame(WorkspaceStore.frame + 1)
+}
+
+function back() {
+  pause()
+
+  if (WorkspaceStore.frame <= 0) return
+
+  WorkspaceStore.updateFrame(WorkspaceStore.frame - 1)
 }
 
 let mouse = false

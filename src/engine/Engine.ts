@@ -212,8 +212,8 @@ function useSceneContext(scene: Scene) {
     },
 
     animate: function* (length: number, mode: any, operator: any) {
-      for (let i = 1; i <= length * scene.engine.frameRate; i++) {
-        operator(mode(i / (length * scene.engine.frameRate)))
+      for (let i = 1; i <= Math.ceil(length * scene.engine.frameRate); i++) {
+        operator(mode(i / Math.ceil(length * scene.engine.frameRate)))
 
         yield null
       }

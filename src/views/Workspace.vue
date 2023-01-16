@@ -50,7 +50,10 @@ async function loadWithPermissions() {
 }
 
 async function focus() {
-  // WorkspaceStore.loadProjectFromCache()
+  const originalFrame = WorkspaceStore.frame
+
+  await WorkspaceStore.loadProjectFromCache()
+  await WorkspaceStore.updateFrame(originalFrame)
 }
 
 onMounted(() => {
