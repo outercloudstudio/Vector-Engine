@@ -17,7 +17,12 @@
           skip_previous
         </span>
 
-        <span class="material-symbols-outlined icon-button"> play_arrow </span>
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="() => (playing ? pause() : play())"
+        >
+          {{ playing ? 'pause' : 'play_arrow' }}
+        </span>
 
         <span class="material-symbols-outlined icon-button"> skip_next </span>
       </div>
@@ -51,6 +56,36 @@ import { onMounted, Ref, ref, watch } from 'vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 
 const WorkspaceStore = useWorkspaceStore()
+
+let playing = ref(false)
+let startedPlayingTime = 0
+let startedFrame = 0
+
+async function playUpdate() {
+  if (!playing.value) return
+
+  const now = Date.now()
+
+  const newFrame =
+    Math.floor(((now - startedPlayingTime) / 1000) * WorkspaceStore.frameRate) +
+    startedFrame
+
+  await WorkspaceStore.updateFrame(newFrame)
+
+  requestAnimationFrame(playUpdate)
+}
+
+function play() {
+  playing.value = true
+  startedPlayingTime = Date.now()
+  startedFrame = WorkspaceStore.frame
+
+  requestAnimationFrame(playUpdate)
+}
+
+function pause() {
+  playing.value = false
+}
 
 let mouse = false
 

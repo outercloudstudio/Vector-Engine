@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { Ref, ref, watch } from 'vue'
+import { Ref, ref, watch, computed } from 'vue'
 import { getProjectFolder, cacheProjectFolder } from '@/fs'
 import { Engine } from '@/engine/engine'
 import { Runtime } from '@/Runtime'
@@ -67,6 +67,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     frame.value = frameNumber
   }
 
+  const frameRate = computed(() => engine?.frameRate || 60)
+
   return {
     loadProject,
     loadProjectFromCache,
@@ -76,5 +78,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     length,
     reloadCount,
     updateFrame,
+    frameRate,
   }
 })
