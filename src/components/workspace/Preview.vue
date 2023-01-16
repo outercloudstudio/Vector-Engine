@@ -53,7 +53,7 @@ let zoom = ref(1)
 function scroll(event: any) {
   const scrollY = event.deltaY / 30000
 
-  zoom.value = Math.pow(Math.pow(zoom.value, 1 / 10) + scrollY, 10)
+  zoom.value = Math.pow(Math.pow(zoom.value, 1 / 10) - scrollY, 10)
 
   zoom.value = Math.max(zoom.value, 0.0001)
 }
@@ -99,23 +99,41 @@ watch(
   }
 )
 
-watch(offsetX, async render => {
+watch(offsetX, async () => {
   if (!render) return
 
   renderCanvas()
 })
 
-watch(offsetY, async render => {
+watch(offsetY, async () => {
   if (!render) return
 
   renderCanvas()
 })
 
-watch(zoom, async render => {
+watch(zoom, async () => {
   if (!render) return
 
   renderCanvas()
 })
+
+watch(
+  () => WorkspaceStore.reloadCount,
+  async () => {
+    if (!render) return
+
+    renderCanvas()
+  }
+)
+
+watch(
+  () => WorkspaceStore.frame,
+  async () => {
+    if (!render) return
+
+    renderCanvas()
+  }
+)
 
 function fixPreviewSize() {
   if (!wrapper.value) return

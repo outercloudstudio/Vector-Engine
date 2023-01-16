@@ -127,8 +127,6 @@ export async function getProjectFolder(
     const projectFolder = await get('project-folder')
 
     if (projectFolder && (await requestPermissions(projectFolder))) {
-      console.warn('Loaded project folder from cache!')
-
       return projectFolder
     }
   }

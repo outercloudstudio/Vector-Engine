@@ -1,7 +1,7 @@
 <template>
   <NavBarVue leftIcon="dataset" leftLink="Projects" />
 
-  <div id="page">
+  <div id="page" @focus="focus">
     <div id="main-split">
       <div id="half-vertical-split">
         <div id="half-horizontal-split">
@@ -35,7 +35,7 @@ import TimelineVue from '@/components/workspace/Timeline.vue'
 import BasicPopupVue from '@/components/popups/BasicPopup.vue'
 import PreviewVue from '@/components/workspace/Preview.vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
-import { ref, onMounted, Ref } from 'vue'
+import { ref, onMounted, Ref, onUnmounted } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
 
@@ -49,10 +49,20 @@ async function loadWithPermissions() {
   renderPreview.value = true
 }
 
+async function focus() {
+  // WorkspaceStore.loadProjectFromCache()
+}
+
 onMounted(() => {
   displayAccessPopup.value = !WorkspaceStore.loaded
 
   if (WorkspaceStore.loaded) loadWithPermissions()
+
+  window.addEventListener('focus', focus)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', focus)
 })
 </script>
 

@@ -46,10 +46,6 @@ class Element {
 
 function useSceneContext(scene: Scene) {
   return {
-    addElement(element: Element) {
-      scene.addElement(element)
-    },
-
     Builders: {
       Rect: {
         setup(element: Element, options: any) {
@@ -194,7 +190,34 @@ function useSceneContext(scene: Scene) {
       },
     },
 
+    Modes: {
+      Linear(time: number): number {
+        return time
+      },
+      Ease(time: number): number {
+        return time < 0.5 ? 2 * time * time : 1 - Math.pow(-2 * time + 2, 2) / 2
+      },
+      EaseIn(time: number): number {
+        return Math.pow(time, 3)
+      },
+      EaseOut(time: number): number {
+        return 1 - Math.pow(1 - time, 3)
+      },
+    },
+
     Element,
+
+    addElement(element: Element) {
+      scene.addElement(element)
+    },
+
+    animate: function* (length: number, mode: any, operator: any) {
+      for (let i = 1; i <= length * scene.engine.frameRate; i++) {
+        operator(mode(i / (length * scene.engine.frameRate)))
+
+        yield null
+      }
+    },
   }
 }
 
@@ -211,13 +234,9 @@ class Scene {
   }
 
   async load() {
-    console.log('Loading scene ' + this.path)
-
     this.context = (await this.engine.runtime.run(this.path)).scene(
       useSceneContext(this)
     )
-
-    console.log(this.context)
   }
 
   async render() {
@@ -234,8 +253,6 @@ class Scene {
     })
 
     for (const element of sortedElements) {
-      console.log(element)
-
       ctx.translate(0, 1080)
       ctx.scale(1, -1)
 
@@ -367,16 +384,6 @@ export class Engine {
 
 import { Vector } from '@/engine/engine-core'
 
-function initAnimate(frameRate: number) {
-  return function* (length: number, mode: any, operator: any) {
-    for (let i = 1; i <= length * frameRate; i++) {
-      operator(mode(i / (length * frameRate)))
-
-      yield null
-    }
-  }
-}
-
 function initAnimateVector(frameRate: number) {
   return function* (
     a: Vector,
@@ -476,21 +483,6 @@ function initTransitionTo(frameRate: number, scene: Scene, engine: Engine) {
       mode,
     })
   }
-}
-
-const Modes = {
-  Linear(time: number): number {
-    return time
-  },
-  Ease(time: number): number {
-    return time < 0.5 ? 2 * time * time : 1 - Math.pow(-2 * time + 2, 2) / 2
-  },
-  EaseIn(time: number): number {
-    return Math.pow(time, 3)
-  },
-  EaseOut(time: number): number {
-    return 1 - Math.pow(1 - time, 3)
-  },
 }
 
 const Transition = {

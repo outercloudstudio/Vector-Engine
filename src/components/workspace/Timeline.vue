@@ -60,7 +60,7 @@ function mouseDown(event: MouseEvent) {
   mouseMove(event)
 }
 
-function mouseMove(event: MouseEvent) {
+async function mouseMove(event: MouseEvent) {
   if (!mouse) return
   if (!canvas.value) return
 
@@ -68,13 +68,18 @@ function mouseMove(event: MouseEvent) {
     (event.clientX - canvas.value.getBoundingClientRect().left) /
     canvas.value.width
 
-  WorkspaceStore.frame = Math.floor(
-    factor * (endFrame.value - startFrame.value) + startFrame.value
+  await WorkspaceStore.updateFrame(
+    Math.floor(factor * (endFrame.value - startFrame.value) + startFrame.value)
   )
 }
 
 let startFrame = ref(0)
 let endFrame = ref(60)
+
+watch(
+  () => WorkspaceStore.loaded,
+  () => (endFrame.value = WorkspaceStore.length)
+)
 
 function scroll(event: any) {
   const scrollX = Math.ceil(event.deltaX / 100)
@@ -130,9 +135,10 @@ function scroll(event: any) {
     Math.max(endFrame.value, startFrame.value + 1),
     WorkspaceStore.length
   )
-
-  render()
 }
+
+watch(startFrame, () => render())
+watch(endFrame, () => render())
 
 const secondaryColor = '#242424'
 const grabColor = '#32a6fc'
@@ -232,6 +238,8 @@ onMounted(() => {
   fixCanvasSize()
 
   render()
+
+  if (WorkspaceStore.loaded) endFrame.value = WorkspaceStore.length
 })
 </script>
 
