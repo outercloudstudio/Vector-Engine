@@ -5,26 +5,26 @@ import { Engine } from '@/engine/engine'
 import { Runtime } from '@/Runtime'
 
 export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
-  let projectFolder: FileSystemDirectoryHandle | undefined = undefined
-  let engine: Engine | undefined = undefined
+  let projectFolder: Ref<FileSystemDirectoryHandle | undefined> = ref(undefined)
+  let engine: Ref<Engine | undefined> = ref(undefined)
   let loaded: Ref<boolean> = ref(false)
   let frame: Ref<number> = ref(0)
   let length: Ref<number> = ref(60)
   let reloadCount: Ref<number> = ref(0)
 
   async function loadProject(name: string) {
-    projectFolder = (await getProjectFolder(name)) || undefined
+    projectFolder.value = (await getProjectFolder(name)) || undefined
 
-    if (!projectFolder) return
+    if (!projectFolder.value) return
 
-    cacheProjectFolder(projectFolder)
+    cacheProjectFolder(projectFolder.value)
 
-    const runtime = new Runtime(projectFolder)
+    const runtime = new Runtime(projectFolder.value)
 
-    engine = new Engine(runtime)
-    await engine.load()
+    engine.value = new Engine(runtime)
+    await engine.value.load()
 
-    length.value = engine.length
+    length.value = engine.value.length
     frame.value = 0
 
     reloadCount.value++
@@ -37,19 +37,19 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   }
 
   async function render() {
-    return await engine?.render()
+    return await engine.value?.render()
   }
 
   async function updateFrame(frameNumber: number) {
-    if (!engine) return
+    if (!engine.value) return
 
     if (frameNumber == frame.value) return
 
     if (frameNumber < frame.value) {
-      await engine.reloadContext()
+      await engine.value.reloadContext()
 
       for (let frameOffset = 0; frameOffset <= frameNumber; frameOffset++) {
-        await engine.next()
+        await engine.value.next()
       }
 
       frame.value = frameNumber
@@ -62,13 +62,13 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
       frameOffset < frameNumber;
       frameOffset++
     ) {
-      await engine.next()
+      await engine.value.next()
     }
 
     frame.value = frameNumber
   }
 
-  const frameRate = computed(() => engine?.frameRate || 60)
+  const frameRate = computed(() => engine.value?.frameRate || 60)
 
   return {
     loadProject,
@@ -80,5 +80,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     reloadCount,
     updateFrame,
     frameRate,
+    projectFolder,
   }
 })

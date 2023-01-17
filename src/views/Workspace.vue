@@ -7,14 +7,19 @@
         <div id="half-horizontal-split">
           <PreviewVue :render="renderPreview" />
 
-          <div id="side-menu"></div>
+          <SidemenuVue ref="sideMenu" />
         </div>
 
         <TimelineVue />
       </div>
 
       <div id="side-bar">
-        <span class="material-symbols-outlined icon-button"> save </span>
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="() => sideMenu?.open('export')"
+        >
+          save
+        </span>
         <span class="material-symbols-outlined icon-button"> settings </span>
         <span class="material-symbols-outlined icon-button"> colorize </span>
       </div>
@@ -34,10 +39,13 @@ import NavBarVue from '@/components/NavBar.vue'
 import TimelineVue from '@/components/workspace/Timeline.vue'
 import BasicPopupVue from '@/components/popups/BasicPopup.vue'
 import PreviewVue from '@/components/workspace/Preview.vue'
+import SidemenuVue from '@/components/workspace/Sidemenu.vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { ref, onMounted, Ref, onUnmounted } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
+
+const sideMenu: Ref<null | typeof SidemenuVue> = ref(null)
 
 const displayAccessPopup = ref(false)
 const renderPreview = ref(false)
@@ -115,11 +123,5 @@ onUnmounted(() => {
   flex-grow: 1;
 
   display: flex;
-}
-
-#side-menu {
-  min-width: 14rem;
-
-  border-left: solid 1px var(--secondary);
 }
 </style>
