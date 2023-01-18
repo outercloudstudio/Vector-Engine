@@ -2,19 +2,27 @@
   <div id="component">
     <div id="control-bar">
       <div class="control-bar-group">
-        <input value="0:00" id="time-input" />
-        <input value="[0]" id="frame-input" />
+        <input
+          id="time-input"
+          v-model.lazy="timeInputBuffer"
+          @blur="timeInputBuffer = (<any>$event).target.value"
+        />
+        <input
+          id="frame-input"
+          v-model.lazy="frameInputBuffer"
+          @blur="frameInputBuffer = (<any>$event).target.value"
+        />
       </div>
 
       <div class="control-bar-group">
         <span class="material-symbols-outlined icon-button"> volume_up </span>
-
-        <span class="material-symbols-outlined icon-button" @click="restart">
-          fast_rewind
-        </span>
       </div>
 
       <div class="control-bar-group">
+        <span class="material-symbols-outlined icon-button" @click="restart">
+          fast_rewind
+        </span>
+
         <span class="material-symbols-outlined icon-button" @click="back">
           skip_previous
         </span>
@@ -36,7 +44,7 @@
       </div>
 
       <div class="control-bar-group">
-        <p id="frame-length">[60]</p>
+        <p id="frame-length">{{ WorkspaceStore.length }}</p>
         <p id="length">0:01</p>
       </div>
     </div>
@@ -55,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, Ref, ref, watch } from 'vue'
+import { onMounted, Ref, ref, watch, computed } from 'vue'
 
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 
@@ -118,6 +126,54 @@ function back() {
   WorkspaceStore.updateFrame(WorkspaceStore.frame - 1)
 }
 
+const timeInputBuffer = computed({
+  get: () => {
+    const seconds = WorkspaceStore.frame / WorkspaceStore.frameRate
+
+    const minutes = Math.floor(seconds / WorkspaceStore.frameRate)
+
+    const leftSeconds =
+      Math.floor((seconds - minutes * WorkspaceStore.frameRate) * 1000) / 1000
+
+    return `${minutes}:${leftSeconds}`
+  },
+  set: frame => {
+    if (/^(([0-9]+:[0-9]+\.[0-9]{1,3})|([0-9]+:[0-9]+))$/.test(frame)) {
+      const minutes = parseInt(frame.split(':')[0])
+      const seconds =
+        parseFloat(frame.split(':')[1]) + minutes * WorkspaceStore.frameRate
+      const frames = Math.floor(seconds * WorkspaceStore.frameRate)
+
+      WorkspaceStore.updateFrame(
+        Math.max(Math.min(frames, WorkspaceStore.length - 1), 0)
+      )
+    } else {
+      const originalFrame = WorkspaceStore.frame
+
+      WorkspaceStore.frame = -1
+
+      WorkspaceStore.frame = originalFrame
+    }
+  },
+})
+
+const frameInputBuffer = computed({
+  get: () => WorkspaceStore.frame,
+  set: (frame: any) => {
+    if (/^[0-9]+$/.test(frame)) {
+      WorkspaceStore.updateFrame(
+        Math.min(Math.max(parseInt(frame), 0), WorkspaceStore.length - 1)
+      )
+    } else {
+      const originalFrame = WorkspaceStore.frame
+
+      WorkspaceStore.frame = -1
+
+      WorkspaceStore.frame = originalFrame
+    }
+  },
+})
+
 let mouse = false
 
 function mouseDown(event: MouseEvent) {
@@ -135,16 +191,24 @@ async function mouseMove(event: MouseEvent) {
     canvas.value.width
 
   await WorkspaceStore.updateFrame(
-    Math.floor(factor * (endFrame.value - startFrame.value) + startFrame.value)
+    Math.min(
+      Math.max(
+        Math.round(
+          factor * (endFrame.value - startFrame.value) + startFrame.value
+        ),
+        0
+      ),
+      WorkspaceStore.length - 1
+    )
   )
 }
 
-let startFrame = ref(0)
-let endFrame = ref(60)
+let startFrame = ref(-5)
+let endFrame = ref(59 + 5)
 
 watch(
   () => WorkspaceStore.loaded,
-  () => (endFrame.value = WorkspaceStore.length)
+  () => (endFrame.value = WorkspaceStore.length - 1 + 5)
 )
 
 function scroll(event: any) {
@@ -156,7 +220,7 @@ function scroll(event: any) {
   if (scrollY != 0) {
     let zoomAmount =
       (Math.ceil(
-        Math.abs(Math.pow(Math.log(viewRange / 60), Math.abs(scrollY)))
+        Math.abs(Math.pow(Math.log(viewRange / 59), Math.abs(scrollY)))
       ) *
         scrollY) /
       Math.abs(scrollY)
@@ -183,23 +247,28 @@ function scroll(event: any) {
     endFrame.value += Math.ceil((scrollX * viewRange) / 10)
 
     startFrame.value = Math.min(
-      Math.max(startFrame.value, 0),
+      Math.max(startFrame.value, 0 - 10),
       endFrame.value - 1
     )
+
     endFrame.value = Math.min(
       Math.max(endFrame.value, startFrame.value + 1),
-      WorkspaceStore.length
+      WorkspaceStore.length + 10
     )
 
-    if (startFrame.value == 0) endFrame.value = viewRange
-    if (endFrame.value == WorkspaceStore.length)
-      startFrame.value = endFrame.value - viewRange
+    if (startFrame.value == 0 - 10)
+      endFrame.value = startFrame.value + viewRange
+    if (endFrame.value == WorkspaceStore.length + 10)
+      startFrame.value = endFrame.value - viewRange - 1
   }
 
-  startFrame.value = Math.min(Math.max(startFrame.value, 0), endFrame.value - 1)
+  startFrame.value = Math.min(
+    Math.max(startFrame.value, 0 - 10),
+    endFrame.value - 1
+  )
   endFrame.value = Math.min(
     Math.max(endFrame.value, startFrame.value + 1),
-    WorkspaceStore.length
+    WorkspaceStore.length - 1 + 10
   )
 }
 
@@ -265,6 +334,24 @@ function render() {
     ctx.fillStyle = alternateTextColor
     ctx.font = '10px JetBrainsMono'
     ctx.fillText(frame.toString(), x + 4, 24)
+  }
+
+  // Left Side
+  if (startFrame.value < 0) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillRect(0, 0, frameToRelativeX(0), canvas.value.height)
+  }
+
+  // Right Side
+  if (endFrame.value >= WorkspaceStore.length) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillRect(
+      frameToRelativeX(WorkspaceStore.length - 1),
+      0,
+      frameToRelativeX(endFrame.value) -
+        frameToRelativeX(WorkspaceStore.length - 1),
+      canvas.value.height
+    )
   }
 
   // Playhead
@@ -349,11 +436,11 @@ onMounted(() => {
 }
 
 #time-input {
-  font-size: small;
+  font-size: x-small;
 }
 
 #frame-input {
-  font-size: 0.7rem;
+  font-size: x-small;
 
   color: var(--alternate-text);
 
@@ -369,7 +456,7 @@ onMounted(() => {
 }
 
 #frame-length {
-  font-size: 0.7rem;
+  font-size: x-small;
 
   color: var(--alternate-text);
 
@@ -384,7 +471,7 @@ onMounted(() => {
 }
 
 #length {
-  font-size: small;
+  font-size: x-small;
 
   margin: 0;
 
