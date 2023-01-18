@@ -45,7 +45,7 @@
 
       <div class="control-bar-group">
         <p id="frame-length">{{ WorkspaceStore.length }}</p>
-        <p id="length">0:01</p>
+        <p id="length">{{ lengthTime }}</p>
       </div>
     </div>
     <div ref="canvasWrapper" id="canvas-wrapper">
@@ -135,6 +135,9 @@ const timeInputBuffer = computed({
     const leftSeconds =
       Math.floor((seconds - minutes * WorkspaceStore.frameRate) * 1000) / 1000
 
+    if (Math.floor(leftSeconds).toString().length == 1)
+      return `${minutes}:0${leftSeconds}`
+
     return `${minutes}:${leftSeconds}`
   },
   set: frame => {
@@ -172,6 +175,20 @@ const frameInputBuffer = computed({
       WorkspaceStore.frame = originalFrame
     }
   },
+})
+
+const lengthTime = computed(() => {
+  const seconds = WorkspaceStore.length / WorkspaceStore.frameRate
+
+  const minutes = Math.floor(seconds / WorkspaceStore.frameRate)
+
+  const leftSeconds =
+    Math.floor((seconds - minutes * WorkspaceStore.frameRate) * 1000) / 1000
+
+  if (Math.floor(leftSeconds).toString().length == 1)
+    return `${minutes}:0${leftSeconds}`
+
+  return `${minutes}:${leftSeconds}`
 })
 
 let mouse = false
