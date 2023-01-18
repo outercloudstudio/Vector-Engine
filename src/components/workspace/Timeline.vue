@@ -245,31 +245,7 @@ function scroll(event: any) {
 
     startFrame.value += Math.ceil((scrollX * viewRange) / 10)
     endFrame.value += Math.ceil((scrollX * viewRange) / 10)
-
-    startFrame.value = Math.min(
-      Math.max(startFrame.value, 0 - 10),
-      endFrame.value - 1
-    )
-
-    endFrame.value = Math.min(
-      Math.max(endFrame.value, startFrame.value + 1),
-      WorkspaceStore.length + 10
-    )
-
-    if (startFrame.value == 0 - 10)
-      endFrame.value = startFrame.value + viewRange
-    if (endFrame.value == WorkspaceStore.length + 10)
-      startFrame.value = endFrame.value - viewRange - 1
   }
-
-  startFrame.value = Math.min(
-    Math.max(startFrame.value, 0 - 10),
-    endFrame.value - 1
-  )
-  endFrame.value = Math.min(
-    Math.max(endFrame.value, startFrame.value + 1),
-    WorkspaceStore.length - 1 + 10
-  )
 }
 
 watch(startFrame, () => render())
