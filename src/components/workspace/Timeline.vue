@@ -53,10 +53,11 @@
         ref="canvas"
         id="canvas"
         @mousedown="mouseDown"
-        @mouseup="() => (mouse = false)"
-        @mouseleave="() => (mouse = false)"
+        @mouseup="mouseUp"
+        @mouseleave="mouseUp"
         @mousemove="mouseMove"
         @wheel="scroll"
+        @contextmenu.prevent=""
       ></canvas>
     </div>
   </div>
@@ -192,32 +193,76 @@ const lengthTime = computed(() => {
 })
 
 let mouse = false
+let mouseAlt = false
+
+let selectedFrameStart = ref(0)
+let selectedFrameEnd = ref(0)
+let framesSelected = ref(false)
+
+function frameToRelativeX(frame: number): number {
+  if (!canvas.value) return -1
+
+  return Math.floor(
+    ((frame - startFrame.value) / (endFrame.value - startFrame.value)) *
+      canvas.value.width
+  )
+}
+
+function XtoFrame(x: number) {
+  if (!canvas.value) return -1
+
+  const factor =
+    (x - canvas.value.getBoundingClientRect().left) / canvas.value.width
+
+  return Math.round(
+    factor * (endFrame.value - startFrame.value) + startFrame.value
+  )
+}
 
 function mouseDown(event: MouseEvent) {
-  mouse = true
+  if (event.button == 0) {
+    mouse = true
+  } else if (event.button == 2) {
+    mouseAlt = true
+
+    selectedFrameStart.value = XtoFrame(event.clientX)
+    framesSelected.value = true
+  }
 
   mouseMove(event)
 }
 
+function mouseUp(event: MouseEvent) {
+  if (event.button == 0) {
+    mouse = false
+  } else if (event.button == 2) {
+    if (mouseAlt && XtoFrame(event.clientX) == selectedFrameStart.value) {
+      framesSelected.value = false
+    }
+
+    mouseAlt = false
+  }
+}
+
 async function mouseMove(event: MouseEvent) {
-  if (!mouse) return
   if (!canvas.value) return
 
-  const factor =
-    (event.clientX - canvas.value.getBoundingClientRect().left) /
-    canvas.value.width
-
-  await WorkspaceStore.updateFrame(
-    Math.min(
-      Math.max(
-        Math.round(
-          factor * (endFrame.value - startFrame.value) + startFrame.value
-        ),
-        0
-      ),
-      WorkspaceStore.length - 1
+  if (mouse) {
+    await WorkspaceStore.updateFrame(
+      Math.min(Math.max(XtoFrame(event.clientX), 0), WorkspaceStore.length - 1)
     )
-  )
+  } else if (mouseAlt) {
+    const frame = XtoFrame(event.clientX)
+
+    if (frame < selectedFrameStart.value) {
+      selectedFrameEnd.value = selectedFrameStart.value
+      selectedFrameStart.value = frame
+
+      console.log(frame, selectedFrameStart.value, selectedFrameEnd.value)
+    } else {
+      selectedFrameEnd.value = frame
+    }
+  }
 }
 
 let startFrame = ref(-5)
@@ -271,15 +316,6 @@ watch(endFrame, () => render())
 const secondaryColor = '#242424'
 const grabColor = '#32a6fc'
 const alternateTextColor = '#a7a7a7'
-
-function frameToRelativeX(frame: number): number {
-  if (!canvas.value) return -1
-
-  return Math.floor(
-    ((frame - startFrame.value) / (endFrame.value - startFrame.value)) *
-      canvas.value.width
-  )
-}
 
 function render() {
   if (!canvas.value) return
@@ -347,6 +383,18 @@ function render() {
     )
   }
 
+  // Selected Area
+  if (framesSelected.value) {
+    ctx.fillStyle = 'rgba(50, 166, 252, 0.3)'
+    ctx.fillRect(
+      frameToRelativeX(selectedFrameStart.value),
+      0,
+      frameToRelativeX(selectedFrameEnd.value) -
+        frameToRelativeX(selectedFrameStart.value),
+      canvas.value.height
+    )
+  }
+
   // Playhead
   ctx.strokeStyle = grabColor
   ctx.lineWidth = 1
@@ -362,6 +410,18 @@ watch(
     render()
   }
 )
+
+watch(framesSelected, () => {
+  render()
+})
+
+watch(selectedFrameStart, () => {
+  render()
+})
+
+watch(selectedFrameEnd, () => {
+  render()
+})
 
 const canvas: Ref<null | HTMLCanvasElement> = ref(null)
 const canvasWrapper: Ref<null | HTMLDivElement> = ref(null)
