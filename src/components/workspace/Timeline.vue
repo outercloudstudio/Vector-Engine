@@ -40,7 +40,14 @@
       </div>
 
       <div class="control-bar-group">
-        <span class="material-symbols-outlined icon-button"> redo </span>
+        <span
+          id="redo"
+          class="material-symbols-outlined icon-button"
+          :class="{ looping }"
+          @click="loop"
+        >
+          redo
+        </span>
       </div>
 
       <div class="control-bar-group">
@@ -195,8 +202,9 @@ const lengthTime = computed(() => {
 let mouse = false
 let mouseAlt = false
 
-let selectedFrameStart = ref(0)
-let selectedFrameEnd = ref(0)
+let selectedOriginal = ref(0)
+let selectedStart = ref(0)
+let selectedEnd = ref(0)
 let framesSelected = ref(false)
 
 function frameToRelativeX(frame: number): number {
@@ -225,7 +233,8 @@ function mouseDown(event: MouseEvent) {
   } else if (event.button == 2) {
     mouseAlt = true
 
-    selectedFrameStart.value = XtoFrame(event.clientX)
+    selectedOriginal.value = XtoFrame(event.clientX)
+    selectedStart.value = XtoFrame(event.clientX)
     framesSelected.value = true
   }
 
@@ -236,7 +245,7 @@ function mouseUp(event: MouseEvent) {
   if (event.button == 0) {
     mouse = false
   } else if (event.button == 2) {
-    if (mouseAlt && XtoFrame(event.clientX) == selectedFrameStart.value) {
+    if (mouseAlt && selectedEnd.value == selectedStart.value) {
       framesSelected.value = false
     }
 
@@ -254,15 +263,33 @@ async function mouseMove(event: MouseEvent) {
   } else if (mouseAlt) {
     const frame = XtoFrame(event.clientX)
 
-    if (frame < selectedFrameStart.value) {
-      selectedFrameEnd.value = selectedFrameStart.value
-      selectedFrameStart.value = frame
-
-      console.log(frame, selectedFrameStart.value, selectedFrameEnd.value)
+    if (frame < selectedOriginal.value) {
+      selectedEnd.value = selectedOriginal.value
+      selectedStart.value = frame
     } else {
-      selectedFrameEnd.value = frame
+      selectedStart.value = selectedOriginal.value
+      selectedEnd.value = frame
     }
   }
+}
+
+let looping = ref(false)
+let loopingStart = ref(0)
+let loopingEnd = ref(0)
+
+function loop() {
+  looping.value = !looping.value
+
+  if (!looping.value) return
+
+  if (!framesSelected.value || selectedStart.value == selectedEnd.value) {
+    looping.value = false
+
+    return
+  }
+
+  loopingStart.value = selectedStart.value
+  loopingEnd.value = selectedEnd.value
 }
 
 let startFrame = ref(-5)
@@ -385,12 +412,23 @@ function render() {
 
   // Selected Area
   if (framesSelected.value) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.fillRect(
+      frameToRelativeX(selectedStart.value),
+      0,
+      frameToRelativeX(selectedEnd.value) -
+        frameToRelativeX(selectedStart.value),
+      canvas.value.height
+    )
+  }
+
+  // Looping Area
+  if (looping.value) {
     ctx.fillStyle = 'rgba(50, 166, 252, 0.3)'
     ctx.fillRect(
-      frameToRelativeX(selectedFrameStart.value),
+      frameToRelativeX(loopingStart.value),
       0,
-      frameToRelativeX(selectedFrameEnd.value) -
-        frameToRelativeX(selectedFrameStart.value),
+      frameToRelativeX(loopingEnd.value) - frameToRelativeX(loopingStart.value),
       canvas.value.height
     )
   }
@@ -415,11 +453,23 @@ watch(framesSelected, () => {
   render()
 })
 
-watch(selectedFrameStart, () => {
+watch(selectedStart, () => {
   render()
 })
 
-watch(selectedFrameEnd, () => {
+watch(selectedEnd, () => {
+  render()
+})
+
+watch(looping, () => {
+  render()
+})
+
+watch(loopingStart, () => {
+  render()
+})
+
+watch(loopingEnd, () => {
   render()
 })
 
@@ -531,5 +581,9 @@ onMounted(() => {
   width: 3rem;
 
   text-align: right;
+}
+
+#redo.looping {
+  color: var(--grab);
 }
 </style>
