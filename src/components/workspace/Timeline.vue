@@ -92,17 +92,39 @@ async function playUpdate() {
 
   await WorkspaceStore.updateFrame(newFrame)
 
-  if (WorkspaceStore.frame >= WorkspaceStore.length - 1) {
+  if (
+    WorkspaceStore.frame >= WorkspaceStore.length - 1 ||
+    (looping.value &&
+      WorkspaceStore.frame >= loopingEnd.value &&
+      loopingEnd.value >= 0)
+  ) {
     startedPlayingTime = Date.now()
-    startedFrame = 0
+    startedFrame =
+      looping.value && loopingStart.value < WorkspaceStore.length
+        ? loopingStart.value
+        : 0
   }
 
   requestAnimationFrame(playUpdate)
 }
 
-function play() {
+async function play() {
   playing.value = true
   startedPlayingTime = Date.now()
+
+  if (looping.value) {
+    if (
+      WorkspaceStore.frame < loopingStart.value &&
+      loopingStart.value < WorkspaceStore.length
+    ) {
+      await WorkspaceStore.updateFrame(loopingStart.value)
+    }
+
+    if (WorkspaceStore.frame > loopingEnd.value && loopingEnd.value >= 0) {
+      await WorkspaceStore.updateFrame(loopingEnd.value)
+    }
+  }
+
   startedFrame = WorkspaceStore.frame
 
   requestAnimationFrame(playUpdate)
