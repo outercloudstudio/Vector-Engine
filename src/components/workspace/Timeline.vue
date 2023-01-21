@@ -224,6 +224,9 @@ const lengthTime = computed(() => {
 let mouse = false
 let mouseAlt = false
 
+let grabbedScrollbar = false
+let grabbedScrollbarOffset = 0
+
 let selectedOriginal = ref(0)
 let selectedStart = ref(0)
 let selectedEnd = ref(0)
@@ -250,8 +253,48 @@ function XtoFrame(x: number) {
 }
 
 function mouseDown(event: MouseEvent) {
+  if (!canvas.value) return
+
   if (event.button == 0) {
     mouse = true
+
+    if (
+      event.clientY - canvas.value.getBoundingClientRect().top >=
+      canvas.value.height - 8
+    ) {
+      const relativeX =
+        event.clientX - canvas.value.getBoundingClientRect().left
+
+      let scrollBarStart = Math.floor(
+        (canvas.value.width * startFrame.value) / WorkspaceStore.length
+      )
+
+      const scrollBarWidth = Math.floor(
+        (canvas.value.width * (endFrame.value - startFrame.value)) /
+          WorkspaceStore.length
+      )
+
+      if (
+        relativeX < scrollBarStart ||
+        relativeX > scrollBarStart + scrollBarWidth
+      ) {
+        const viewRange = endFrame.value - startFrame.value
+
+        const targetFrame = Math.round(
+          (relativeX / canvas.value.width) * WorkspaceStore.length
+        )
+
+        startFrame.value = targetFrame - Math.floor(viewRange / 2)
+        endFrame.value = targetFrame + Math.ceil(viewRange / 2)
+
+        scrollBarStart = Math.floor(
+          (canvas.value.width * startFrame.value) / WorkspaceStore.length
+        )
+      }
+
+      grabbedScrollbar = true
+      grabbedScrollbarOffset = scrollBarStart - relativeX
+    }
   } else if (event.button == 2) {
     mouseAlt = true
 
@@ -266,6 +309,8 @@ function mouseDown(event: MouseEvent) {
 function mouseUp(event: MouseEvent) {
   if (event.button == 0) {
     mouse = false
+
+    grabbedScrollbar = false
   } else if (event.button == 2) {
     if (mouseAlt && selectedEnd.value == selectedStart.value) {
       framesSelected.value = false
@@ -279,9 +324,27 @@ async function mouseMove(event: MouseEvent) {
   if (!canvas.value) return
 
   if (mouse) {
-    await WorkspaceStore.updateFrame(
-      Math.min(Math.max(XtoFrame(event.clientX), 0), WorkspaceStore.length - 1)
-    )
+    if (!grabbedScrollbar) {
+      await WorkspaceStore.updateFrame(
+        Math.min(
+          Math.max(XtoFrame(event.clientX), 0),
+          WorkspaceStore.length - 1
+        )
+      )
+    } else {
+      const relativeX =
+        event.clientX - canvas.value.getBoundingClientRect().left
+
+      const newScrollbarPosition = relativeX + grabbedScrollbarOffset
+
+      const newScrollBarFrame = Math.round(
+        (newScrollbarPosition / canvas.value.width) * WorkspaceStore.length
+      )
+      const viewRange = endFrame.value - startFrame.value
+
+      startFrame.value = newScrollBarFrame
+      endFrame.value = newScrollBarFrame + viewRange
+    }
   } else if (mouseAlt) {
     const frame = XtoFrame(event.clientX)
 
@@ -462,6 +525,21 @@ function render() {
   ctx.moveTo(frameToRelativeX(WorkspaceStore.frame), 0)
   ctx.lineTo(frameToRelativeX(WorkspaceStore.frame), canvas.value.height)
   ctx.stroke()
+
+  // Scrollbar
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
+  ctx.fillRect(0, canvas.value.height, canvas.value.width, -8)
+
+  ctx.fillStyle = '#242424'
+  ctx.fillRect(
+    Math.floor((canvas.value.width * startFrame.value) / WorkspaceStore.length),
+    canvas.value.height,
+    Math.floor(
+      (canvas.value.width * (endFrame.value - startFrame.value)) /
+        WorkspaceStore.length
+    ),
+    -8
+  )
 }
 
 watch(
