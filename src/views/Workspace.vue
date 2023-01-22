@@ -1,16 +1,16 @@
 <template>
-  <NavBarVue leftIcon="dataset" leftLink="Projects" />
+  <NavBar leftIcon="dataset" leftLink="Projects" />
 
   <div id="page" @focus="focus">
     <div id="main-split">
       <div id="half-vertical-split">
         <div id="half-horizontal-split">
-          <PreviewVue :render="renderPreview" />
+          <Preview :render="renderPreview" />
 
-          <SidemenuVue ref="sideMenu" />
+          <Sidemenu ref="sideMenu" />
         </div>
 
-        <TimelineVue />
+        <Timeline />
       </div>
 
       <div id="side-bar">
@@ -26,26 +26,32 @@
     </div>
   </div>
 
-  <BasicPopupVue
+  <BasicPopup
     text="Vector Engine needs to access a project folder. Make sure to create one if one does not exist yet!"
     buttonText="Got It"
     :display="displayAccessPopup"
     @confirmed="loadWithPermissions"
   />
+
+  <AlertPopup
+    :text="WorkspaceStore.error"
+    :display="WorkspaceStore.error != null"
+  />
 </template>
 
 <script setup lang="ts">
-import NavBarVue from '@/components/NavBar.vue'
-import TimelineVue from '@/components/workspace/Timeline.vue'
-import BasicPopupVue from '@/components/popups/BasicPopup.vue'
-import PreviewVue from '@/components/workspace/Preview.vue'
-import SidemenuVue from '@/components/workspace/Sidemenu.vue'
+import NavBar from '@/components/NavBar.vue'
+import Timeline from '@/components/workspace/Timeline.vue'
+import BasicPopup from '@/components/popups/BasicPopup.vue'
+import Preview from '@/components/workspace/Preview.vue'
+import Sidemenu from '@/components/workspace/Sidemenu.vue'
+import AlertPopup from '@/components/popups/AlertPopup.vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { ref, onMounted, Ref, onUnmounted } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
 
-const sideMenu: Ref<null | typeof SidemenuVue> = ref(null)
+const sideMenu: Ref<null | typeof Sidemenu> = ref(null)
 
 const displayAccessPopup = ref(false)
 const renderPreview = ref(false)

@@ -3,10 +3,6 @@
     <div v-if="display" id="component">
       <div id="popup">
         <p>{{ text }}</p>
-
-        <button @click="$emit('confirmed')">
-          {{ buttonText }}
-        </button>
       </div>
     </div>
   </Transition>
@@ -15,8 +11,7 @@
 <script setup lang="ts">
 import { Transition } from 'vue'
 
-defineProps(['text', 'buttonText', 'display'])
-defineEmits(['confirmed'])
+defineProps(['text', 'display'])
 </script>
 
 <style scoped>
@@ -64,20 +59,6 @@ p {
   display: table;
 
   margin: 0;
-  margin-bottom: 1rem;
-}
-
-button {
-  background-color: var(--grab);
-  border-radius: 5px;
-
-  padding: 0.25rem 0.5rem;
-
-  transition: transform 200ms ease-in-out;
-}
-
-button:hover {
-  transform: scale(1.05);
 }
 
 .fade-enter-from,

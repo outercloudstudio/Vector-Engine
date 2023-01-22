@@ -1,10 +1,10 @@
 <template>
-  <NavBarVue leftIcon="home" leftLink="Welcome" />
+  <NavBar leftIcon="home" leftLink="Welcome" />
 
   <div id="page">
     <div id="flex">
       <div id="project-preview-grid" @click.self="selectedProject = null">
-        <ProjectPreviewVue
+        <ProjectPreview
           v-for="project in ProjectsStore.projects"
           :title="project"
           :selected="selectedProject == project"
@@ -33,14 +33,14 @@
     </div>
   </div>
 
-  <BasicPopupVue
+  <BasicPopup
     text="Vector Engine needs to access a project folder. Make sure to create one if one does not exist yet!"
     buttonText="Got It"
     :display="displayAccessPopup"
     @confirmed="accessPopupConfirmed"
   />
 
-  <InputPopupVue
+  <InputPopup
     text="Create a new project!"
     placeholder="Enter a project name..."
     buttonText="Submit"
@@ -50,7 +50,7 @@
     @cancelled="newProjectPopupCancelled"
   />
 
-  <ConfirmPopupVue
+  <ConfirmPopup
     buttonText="Got It"
     :text="`Are you sure you want to delete '${projectToDeleteName}'?`"
     :display="displayDeleteProjectPopup"
@@ -74,11 +74,11 @@ import {
   getProjectsFolder,
 } from '@/fs'
 
-import NavBarVue from '@/components/NavBar.vue'
-import ProjectPreviewVue from '@/components/ProjectPreview.vue'
-import BasicPopupVue from '@/components/popups/BasicPopup.vue'
-import InputPopupVue from '@/components/popups/InputPopup.vue'
-import ConfirmPopupVue from '@/components/popups/ConfirmPopup.vue'
+import NavBar from '@/components/NavBar.vue'
+import ProjectPreview from '@/components/ProjectPreview.vue'
+import BasicPopup from '@/components/popups/BasicPopup.vue'
+import InputPopup from '@/components/popups/InputPopup.vue'
+import ConfirmPopup from '@/components/popups/ConfirmPopup.vue'
 
 import { useProjectsStore } from '@/stores/ProjectsStore'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'

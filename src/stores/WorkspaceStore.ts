@@ -11,6 +11,15 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   let frame: Ref<number> = ref(0)
   let length: Ref<number> = ref(60)
   let reloadCount: Ref<number> = ref(0)
+  let data: Ref<any> = ref({
+    project: {
+      markers: [],
+    },
+    editor: {
+      volume: 1,
+    },
+  })
+  let error: Ref<string | null> = ref(null)
 
   async function loadProject(name: string) {
     projectFolder.value = (await getProjectFolder(name)) || undefined
@@ -26,6 +35,52 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
     length.value = engine.value.length
     frame.value = 0
+
+    error.value = null
+
+    try {
+      const loadedData = JSON.parse(
+        await (
+          await (await projectFolder.value.getFileHandle('data.json')).getFile()
+        ).text()
+      )
+
+      if (
+        typeof loadedData.project != 'object' ||
+        Array.isArray(loadedData.project) ||
+        loadedData.project == null
+      )
+        throw new Error()
+
+      if (!Array.isArray(loadedData.project.markers)) throw new Error()
+
+      for (const marker of loadedData.project.markers) {
+        if (
+          typeof marker != 'object' ||
+          Array.isArray(marker) ||
+          marker == null
+        )
+          throw new Error()
+
+        if (typeof marker.name != 'string') throw new Error()
+
+        if (typeof marker.id != 'string') throw new Error()
+
+        if (typeof marker.frame != 'number') throw new Error()
+      }
+
+      if (
+        typeof loadedData.editor != 'object' ||
+        Array.isArray(loadedData.editor) ||
+        loadedData.editor == null
+      )
+        if (typeof loadedData.editor.volume != 'number') throw new Error()
+
+      data.value = loadedData
+    } catch {
+      error.value =
+        'There was an error loading your project! Make sure you have a data.json file and that it is formated correctly.'
+    }
 
     reloadCount.value++
 
@@ -68,7 +123,59 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     frame.value = frameNumber
   }
 
+  function generateUuid() {
+    let d = new Date().getTime()
+    let d2 =
+      (typeof performance !== 'undefined' &&
+        performance.now &&
+        performance.now() * 1000) ||
+      0
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+      /[xy]/g,
+      function (c) {
+        let r = Math.random() * 16
+        if (d > 0) {
+          r = (d + r) % 16 | 0
+          d = Math.floor(d / 16)
+        } else {
+          r = (d2 + r) % 16 | 0
+          d2 = Math.floor(d2 / 16)
+        }
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+      }
+    )
+  }
+
+  async function createMarker(name: string, frame: number) {
+    if (!projectFolder.value) return
+
+    data.value.project.markers.push({
+      name,
+      frame,
+      id: generateUuid(),
+    })
+
+    const dataFile = await projectFolder.value.getFileHandle('data.json')
+
+    // @ts-ignore
+    const writable = await dataFile.createWritable()
+    await writable.write(JSON.stringify(data.value, null, 2))
+    await writable.close()
+
+    console.log('created marker!')
+  }
+
   const frameRate = computed(() => engine.value?.frameRate || 60)
+
+  const markers = computed(() => {
+    let markers = []
+
+    for (const marker of data.value.project.markers) {
+      markers.push(marker)
+    }
+
+    return markers
+  })
 
   return {
     loadProject,
@@ -81,5 +188,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     updateFrame,
     frameRate,
     projectFolder,
+    error,
+    createMarker,
+    markers,
   }
 })

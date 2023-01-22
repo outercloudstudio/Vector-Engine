@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { Transition } from 'vue'
 
-const props = defineProps(['text', 'buttonText', 'display'])
+defineProps(['text', 'buttonText', 'display'])
 
 defineEmits(['confirmed', 'cancelled'])
 </script>

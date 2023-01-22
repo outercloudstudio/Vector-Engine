@@ -48,6 +48,13 @@
         >
           redo
         </span>
+
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="createMarker"
+        >
+          add
+        </span>
       </div>
 
       <div class="control-bar-group">
@@ -76,6 +83,10 @@ import { onMounted, Ref, ref, watch, computed } from 'vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 
 const WorkspaceStore = useWorkspaceStore()
+
+async function createMarker() {
+  WorkspaceStore.createMarker(`Marker`, WorkspaceStore.frame)
+}
 
 let playing = ref(false)
 let startedPlayingTime = 0
@@ -427,6 +438,8 @@ watch(endFrame, () => render())
 
 const secondaryColor = '#242424'
 const grabColor = '#32a6fc'
+const alternateGrab = '#17222b'
+const textColor = '#d9d9d9'
 const alternateTextColor = '#a7a7a7'
 
 function render() {
@@ -475,6 +488,30 @@ function render() {
     ctx.fillStyle = alternateTextColor
     ctx.font = '10px JetBrainsMono'
     ctx.fillText(frame.toString(), x + 4, 24)
+  }
+
+  //Markers
+  for (const marker of WorkspaceStore.markers) {
+    ctx.font = '10px JetBrainsMono'
+    const width = ctx.measureText(marker.name).width + 8
+
+    ctx.fillStyle = alternateGrab
+    ctx.beginPath()
+    ctx.roundRect(
+      frameToRelativeX(marker.frame),
+      58,
+      width,
+      16,
+      [0, 9999, 9999, 9999]
+    )
+    ctx.fill()
+
+    ctx.fillStyle = textColor
+    ctx.fillText(
+      marker.name,
+      frameToRelativeX(marker.frame) + 4,
+      60 + ctx.measureText(marker.name).fontBoundingBoxAscent
+    )
   }
 
   // Left Side
@@ -544,6 +581,13 @@ function render() {
 
 watch(
   () => WorkspaceStore.frame,
+  () => {
+    render()
+  }
+)
+
+watch(
+  () => WorkspaceStore.markers,
   () => {
     render()
   }

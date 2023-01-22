@@ -1,5 +1,5 @@
 <template>
-  <NavBarVue leftIcon="dataset" leftLink="Projects" />
+  <NavBar leftIcon="dataset" leftLink="Projects" />
 
   <div id="page">
     <canvas ref="canvas"></canvas>
@@ -23,7 +23,7 @@
 import { ref, onMounted, Ref } from 'vue'
 import { useTransition } from '@/transition'
 
-import NavBarVue from '@/components/NavBar.vue'
+import NavBar from '@/components/NavBar.vue'
 
 const projectsTransition = useTransition('Projects', 0.5)
 
