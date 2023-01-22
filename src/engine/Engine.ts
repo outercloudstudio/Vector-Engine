@@ -25,6 +25,10 @@ function useProjectContext(engine: Engine) {
     initialScene(initialScene: string) {
       engine.initialScene = initialScene
     },
+
+    audioTrack(path: string) {
+      engine.loadAudioTrack(path)
+    },
   }
 }
 
@@ -297,19 +301,24 @@ class Scene {
 
 export class Engine {
   project: any
-  initialScene: undefined | string = undefined
-  activeScenes: Scene[] = []
-  frameRate: number = 60
-  length: number = 60
+  runtime: Runtime
+
   scenes: {
     [key: string]: string
   } = {}
-  runtime: Runtime
+  initialScene: undefined | string = undefined
+  activeScenes: Scene[] = []
+
+  frameRate: number = 60
+  length: number = 60
   currentFrame: number = -1
+
   markers: {
     name: string
     frame: number
   }[] = []
+
+  volumePerFrame: number[] = []
 
   constructor(runtime: Runtime) {
     this.runtime = runtime
@@ -356,8 +365,6 @@ export class Engine {
     this.scenes = {}
     this.initialScene = undefined
 
-    const engine = this
-
     this.project.project(useProjectContext(this))
 
     this.currentFrame = -1
@@ -379,6 +386,54 @@ export class Engine {
     }
 
     this.currentFrame++
+  }
+
+  async loadAudioTrack(path: string) {
+    const audioFile = await this.runtime.readFile(path)
+
+    const ctx = new AudioContext()
+
+    if (!ctx) return
+
+    const audioBuffer = await ctx.decodeAudioData(await audioFile.arrayBuffer())
+
+    let volumePerFrame: number[] = []
+
+    const samplesPerFrame = audioBuffer.sampleRate / this.frameRate
+
+    for (let frame = 0; frame < this.length; frame++) {
+      const startingSample = Math.floor(samplesPerFrame * frame)
+      let frameValue = 0
+      let frameValueCount = 0
+
+      for (
+        let channelIndex = 0;
+        channelIndex < audioBuffer.numberOfChannels;
+        channelIndex++
+      ) {
+        const channel = audioBuffer.getChannelData(channelIndex)
+        for (
+          let sample = startingSample;
+          sample <
+          Math.min(
+            startingSample + Math.floor(samplesPerFrame),
+            channel.length
+          );
+          sample++
+        ) {
+          frameValue += Math.abs(channel[sample])
+          frameValueCount++
+        }
+      }
+
+      frameValue /= frameValueCount
+
+      volumePerFrame[frame] = frameValue
+
+      // console.log(audioBuffer.getChannelData(0)[frame])
+    }
+
+    this.volumePerFrame = volumePerFrame
   }
 }
 

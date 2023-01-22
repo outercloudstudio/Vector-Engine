@@ -558,7 +558,21 @@ function render() {
     ctx.fillText(frame.toString(), x + 4, 24)
   }
 
-  //Markers
+  // Volume
+  for (let frame = startFrame.value; frame < endFrame.value; frame++) {
+    // Frame bar
+    ctx.fillStyle = textColor
+    ctx.fillRect(
+      frameToRelativeX(frame),
+      (canvas.value.height - 72) / 2,
+      frameToRelativeX(frame + 1) - frameToRelativeX(frame),
+      ((WorkspaceStore.volumePerFrame[frame] || 0) *
+        (canvas.value.height - 72)) /
+        2
+    )
+  }
+
+  // Markers
   for (const marker of WorkspaceStore.markers) {
     if (marker.id == heldMarker.value) continue
 

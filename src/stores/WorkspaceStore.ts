@@ -198,6 +198,12 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     return markers.sort((markerA, markerB) => markerA.frame - markerB.frame)
   })
 
+  const volumePerFrame = computed(() => {
+    if (!engine.value) return []
+
+    return engine.value.volumePerFrame
+  })
+
   return {
     loadProject,
     loadProjectFromCache,
@@ -213,5 +219,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     createMarker,
     markers,
     updateMarker,
+    volumePerFrame,
   }
 })
