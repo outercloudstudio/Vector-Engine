@@ -243,6 +243,11 @@ let selectedStart = ref(0)
 let selectedEnd = ref(0)
 let framesSelected = ref(false)
 
+let highlightedMarker: Ref<string | null> = ref(null)
+let heldMarker: Ref<string | null> = ref(null)
+let heldMarkerX: Ref<number> = ref(0)
+let heldMarkerOffset = 0
+
 function frameToRelativeX(frame: number): number {
   if (!canvas.value) return -1
 
@@ -269,9 +274,31 @@ function mouseDown(event: MouseEvent) {
   if (event.button == 0) {
     mouse = true
 
+    const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
+
+    if (relativeY >= 58 && relativeY <= 72) {
+      const ctx = canvas.value.getContext('2d')!
+
+      for (const marker of WorkspaceStore.markers) {
+        if (event.clientX < frameToRelativeX(marker.frame)) continue
+
+        ctx.font = '10px JetBrainsMono'
+        const width = ctx.measureText(marker.name).width + 8
+
+        if (event.clientX > frameToRelativeX(marker.frame) + width) continue
+
+        heldMarker.value = marker.id
+
+        heldMarkerOffset = frameToRelativeX(marker.frame) - event.clientX
+
+        highlightedMarker.value = null
+      }
+    }
+
     if (
+      heldMarker.value == null &&
       event.clientY - canvas.value.getBoundingClientRect().top >=
-      canvas.value.height - 8
+        canvas.value.height - 8
     ) {
       const relativeX =
         event.clientX - canvas.value.getBoundingClientRect().left
@@ -322,6 +349,19 @@ function mouseUp(event: MouseEvent) {
     mouse = false
 
     grabbedScrollbar = false
+
+    if (heldMarker.value != null) {
+      const droppedFrame = XtoFrame(heldMarkerX.value)
+
+      WorkspaceStore.updateMarker(
+        heldMarker.value,
+        WorkspaceStore.markers.find(marker => marker.id == heldMarker.value)
+          .name,
+        droppedFrame
+      )
+
+      heldMarker.value = null
+    }
   } else if (event.button == 2) {
     if (mouseAlt && selectedEnd.value == selectedStart.value) {
       framesSelected.value = false
@@ -336,12 +376,19 @@ async function mouseMove(event: MouseEvent) {
 
   if (mouse) {
     if (!grabbedScrollbar) {
-      await WorkspaceStore.updateFrame(
-        Math.min(
-          Math.max(XtoFrame(event.clientX), 0),
-          WorkspaceStore.length - 1
+      if (heldMarker.value == null) {
+        await WorkspaceStore.updateFrame(
+          Math.min(
+            Math.max(XtoFrame(event.clientX), 0),
+            WorkspaceStore.length - 1
+          )
         )
-      )
+      } else {
+        heldMarkerX.value = Math.min(
+          Math.max(event.clientX + heldMarkerOffset, frameToRelativeX(0)),
+          frameToRelativeX(WorkspaceStore.length - 1)
+        )
+      }
     } else {
       const relativeX =
         event.clientX - canvas.value.getBoundingClientRect().left
@@ -365,6 +412,27 @@ async function mouseMove(event: MouseEvent) {
     } else {
       selectedStart.value = selectedOriginal.value
       selectedEnd.value = frame
+    }
+  } else if (heldMarker.value == null) {
+    highlightedMarker.value = null
+
+    const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
+
+    if (relativeY < 58) return
+
+    if (relativeY > 72) return
+
+    const ctx = canvas.value.getContext('2d')!
+
+    for (const marker of WorkspaceStore.markers) {
+      if (event.clientX < frameToRelativeX(marker.frame)) continue
+
+      ctx.font = '10px JetBrainsMono'
+      const width = ctx.measureText(marker.name).width + 8
+
+      if (event.clientX > frameToRelativeX(marker.frame) + width) continue
+
+      highlightedMarker.value = marker.id
     }
   }
 }
@@ -492,8 +560,15 @@ function render() {
 
   //Markers
   for (const marker of WorkspaceStore.markers) {
+    if (marker.id == heldMarker.value) continue
+
     ctx.font = '10px JetBrainsMono'
     const width = ctx.measureText(marker.name).width + 8
+
+    if (highlightedMarker.value == marker.id && heldMarker.value == null) {
+      ctx.strokeStyle = textColor
+      ctx.lineWidth = 1
+    }
 
     ctx.fillStyle = alternateGrab
     ctx.beginPath()
@@ -505,11 +580,37 @@ function render() {
       [0, 9999, 9999, 9999]
     )
     ctx.fill()
+    if (highlightedMarker.value == marker.id && heldMarker.value == null)
+      ctx.stroke()
 
     ctx.fillStyle = textColor
     ctx.fillText(
       marker.name,
       frameToRelativeX(marker.frame) + 4,
+      60 + ctx.measureText(marker.name).fontBoundingBoxAscent
+    )
+  }
+
+  if (heldMarker.value != null) {
+    const marker = WorkspaceStore.markers.find(
+      marker => marker.id == heldMarker.value
+    )
+
+    ctx.font = '10px JetBrainsMono'
+    const width = ctx.measureText(marker.name).width + 8
+
+    ctx.strokeStyle = textColor
+    ctx.lineWidth = 1
+    ctx.fillStyle = alternateGrab
+    ctx.beginPath()
+    ctx.roundRect(heldMarkerX.value, 58, width, 16, [0, 9999, 9999, 9999])
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.fillStyle = textColor
+    ctx.fillText(
+      marker.name,
+      heldMarkerX.value + 4,
       60 + ctx.measureText(marker.name).fontBoundingBoxAscent
     )
   }
@@ -614,6 +715,18 @@ watch(loopingStart, () => {
 })
 
 watch(loopingEnd, () => {
+  render()
+})
+
+watch(highlightedMarker, () => {
+  render()
+})
+
+watch(heldMarker, () => {
+  render()
+})
+
+watch(heldMarkerX, () => {
   render()
 })
 

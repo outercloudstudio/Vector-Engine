@@ -161,8 +161,29 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     const writable = await dataFile.createWritable()
     await writable.write(JSON.stringify(data.value, null, 2))
     await writable.close()
+  }
 
-    console.log('created marker!')
+  async function updateMarker(id: string, name: string, frame: number) {
+    if (!projectFolder.value) return
+
+    const index = data.value.project.markers.findIndex(
+      (marker: any) => marker.id == id
+    )
+
+    if (index == -1) return
+
+    data.value.project.markers[index] = {
+      name,
+      frame,
+      id,
+    }
+
+    const dataFile = await projectFolder.value.getFileHandle('data.json')
+
+    // @ts-ignore
+    const writable = await dataFile.createWritable()
+    await writable.write(JSON.stringify(data.value, null, 2))
+    await writable.close()
   }
 
   const frameRate = computed(() => engine.value?.frameRate || 60)
@@ -174,7 +195,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
       markers.push(marker)
     }
 
-    return markers
+    return markers.sort((markerA, markerB) => markerA.frame - markerB.frame)
   })
 
   return {
@@ -191,5 +212,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     error,
     createMarker,
     markers,
+    updateMarker,
   }
 })
