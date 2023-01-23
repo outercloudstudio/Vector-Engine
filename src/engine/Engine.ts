@@ -319,6 +319,7 @@ export class Engine {
   }[] = []
 
   volumePerFrame: number[] = []
+  audioBuffer: AudioBuffer | null = null
 
   constructor(runtime: Runtime) {
     this.runtime = runtime
@@ -397,14 +398,17 @@ export class Engine {
 
     const audioBuffer = await ctx.decodeAudioData(await audioFile.arrayBuffer())
 
+    this.audioBuffer = audioBuffer
+
     let volumePerFrame: number[] = []
 
     const samplesPerFrame = audioBuffer.sampleRate / this.frameRate
 
+    let peak = 0
+
     for (let frame = 0; frame < this.length; frame++) {
       const startingSample = Math.floor(samplesPerFrame * frame)
       let frameValue = 0
-      let frameValueCount = 0
 
       for (
         let channelIndex = 0;
@@ -421,19 +425,27 @@ export class Engine {
           );
           sample++
         ) {
-          frameValue += Math.abs(channel[sample])
-          frameValueCount++
+          frameValue = Math.max(Math.abs(channel[sample]), frameValue)
         }
       }
 
-      frameValue /= frameValueCount
+      const squaredValue = Math.pow(frameValue, 3)
 
-      volumePerFrame[frame] = frameValue
+      volumePerFrame.push(squaredValue)
 
-      // console.log(audioBuffer.getChannelData(0)[frame])
+      peak = Math.max(squaredValue, peak)
+    }
+
+    for (let frame = 0; frame < this.length; frame++) {
+      volumePerFrame[frame] = Math.min(
+        volumePerFrame[frame] / Math.max(peak, 0.0001),
+        1
+      )
     }
 
     this.volumePerFrame = volumePerFrame
+
+    ctx.close()
   }
 }
 

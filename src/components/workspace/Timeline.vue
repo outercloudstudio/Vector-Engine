@@ -91,6 +91,33 @@ async function createMarker() {
 let playing = ref(false)
 let startedPlayingTime = 0
 let startedFrame = 0
+let audioBufferSource: null | AudioBufferSourceNode = null
+
+async function startAudioPlayback(time: number) {
+  const audioBuffer = WorkspaceStore.getAudioBuffer()
+
+  if (!audioBuffer) return
+
+  audioBufferSource = WorkspaceStore.audioContext.createBufferSource()
+  audioBufferSource.buffer = audioBuffer
+  audioBufferSource.connect(WorkspaceStore.audioContext.destination)
+  WorkspaceStore.audioContext.resume()
+  audioBufferSource.start(0, time)
+
+  while (WorkspaceStore.audioContext.state == 'suspended') {
+    await new Promise<void>(res => {
+      setTimeout(() => {
+        res()
+      }, 1)
+    })
+  }
+}
+
+function stopAudioPlayback() {
+  if (!audioBufferSource) return
+
+  audioBufferSource.stop()
+}
 
 async function playUpdate() {
   if (!playing.value) return
@@ -114,12 +141,18 @@ async function playUpdate() {
       looping.value && loopingStart.value < WorkspaceStore.length
         ? loopingStart.value
         : 0
+
+    stopAudioPlayback()
+
+    await startAudioPlayback(startedFrame / WorkspaceStore.frameRate)
   }
 
   requestAnimationFrame(playUpdate)
 }
 
 async function play() {
+  await startAudioPlayback(WorkspaceStore.frame / WorkspaceStore.frameRate)
+
   playing.value = true
   startedPlayingTime = Date.now()
 
@@ -143,6 +176,8 @@ async function play() {
 
 function pause() {
   playing.value = false
+
+  stopAudioPlayback()
 }
 
 function restart() {
@@ -460,8 +495,10 @@ let startFrame = ref(-5)
 let endFrame = ref(59 + 5)
 
 watch(
-  () => WorkspaceStore.loaded,
-  () => (endFrame.value = WorkspaceStore.length - 1 + 5)
+  () => WorkspaceStore.length,
+  () => {
+    return (endFrame.value = WorkspaceStore.length - 1 + 5)
+  }
 )
 
 function scroll(event: any) {
@@ -561,14 +598,16 @@ function render() {
   // Volume
   for (let frame = startFrame.value; frame < endFrame.value; frame++) {
     // Frame bar
-    ctx.fillStyle = textColor
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+
+    const size =
+      (WorkspaceStore.volumePerFrame[frame] || 0) *
+      ((canvas.value.height - 72) / 2)
     ctx.fillRect(
       frameToRelativeX(frame),
-      (canvas.value.height - 72) / 2,
+      (canvas.value.height - 72) / 2 - size / 2 + 72,
       frameToRelativeX(frame + 1) - frameToRelativeX(frame),
-      ((WorkspaceStore.volumePerFrame[frame] || 0) *
-        (canvas.value.height - 72)) /
-        2
+      size
     )
   }
 
@@ -639,10 +678,10 @@ function render() {
   if (endFrame.value >= WorkspaceStore.length) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
     ctx.fillRect(
-      frameToRelativeX(WorkspaceStore.length - 1),
+      frameToRelativeX(WorkspaceStore.length),
       0,
       frameToRelativeX(endFrame.value) -
-        frameToRelativeX(WorkspaceStore.length - 1),
+        frameToRelativeX(WorkspaceStore.length),
       canvas.value.height
     )
   }
@@ -703,6 +742,13 @@ watch(
 
 watch(
   () => WorkspaceStore.markers,
+  () => {
+    render()
+  }
+)
+
+watch(
+  () => WorkspaceStore.volumePerFrame,
   () => {
     render()
   }

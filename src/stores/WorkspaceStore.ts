@@ -7,7 +7,6 @@ import { Runtime } from '@/Runtime'
 export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   let projectFolder: Ref<FileSystemDirectoryHandle | undefined> = ref(undefined)
   let engine: Ref<Engine | undefined> = ref(undefined)
-  let loaded: Ref<boolean> = ref(false)
   let frame: Ref<number> = ref(0)
   let length: Ref<number> = ref(60)
   let reloadCount: Ref<number> = ref(0)
@@ -20,6 +19,11 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     },
   })
   let error: Ref<string | null> = ref(null)
+  const audioContext: Ref<AudioContext> = ref(
+    new AudioContext({
+      latencyHint: 'interactive',
+    })
+  )
 
   async function loadProject(name: string) {
     projectFolder.value = (await getProjectFolder(name)) || undefined
@@ -83,8 +87,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     }
 
     reloadCount.value++
-
-    loaded.value = true
   }
 
   async function loadProjectFromCache() {
@@ -186,6 +188,14 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     await writable.close()
   }
 
+  function getAudioBuffer() {
+    if (!engine.value) return null
+
+    if (!engine.value.audioBuffer) return null
+
+    return engine.value.audioBuffer
+  }
+
   const frameRate = computed(() => engine.value?.frameRate || 60)
 
   const markers = computed(() => {
@@ -208,7 +218,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     loadProject,
     loadProjectFromCache,
     render,
-    loaded,
     frame,
     length,
     reloadCount,
@@ -220,5 +229,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     markers,
     updateMarker,
     volumePerFrame,
+    getAudioBuffer,
+    audioContext,
   }
 })
