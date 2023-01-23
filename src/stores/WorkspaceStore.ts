@@ -36,20 +36,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     audioDestination.value = audioGain.value
   }
 
-  async function loadProject(name: string) {
-    projectFolder.value = (await getProjectFolder(name)) || undefined
-
+  async function loadData() {
     if (!projectFolder.value) return
-
-    cacheProjectFolder(projectFolder.value)
-
-    const runtime = new Runtime(projectFolder.value)
-
-    engine.value = new Engine(runtime)
-    await engine.value.load()
-
-    length.value = engine.value.length
-    frame.value = 0
 
     error.value = null
 
@@ -96,6 +84,26 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
       error.value =
         'There was an error loading your project! Make sure you have a data.json file and that it is formated correctly.'
     }
+  }
+
+  async function loadProject(name: string) {
+    projectFolder.value = (await getProjectFolder(name)) || undefined
+
+    if (!projectFolder.value) return
+
+    cacheProjectFolder(projectFolder.value)
+
+    await loadData()
+
+    const runtime = new Runtime(projectFolder.value)
+
+    engine.value = new Engine(runtime, data.value.project.markers)
+    await engine.value.load()
+
+    length.value = engine.value.length
+    frame.value = 0
+
+    loadData()
 
     reloadCount.value++
   }

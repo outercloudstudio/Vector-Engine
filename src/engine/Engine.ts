@@ -1,4 +1,5 @@
 import { Runtime } from '@/Runtime'
+import { Vector } from '@/engine/engine-core'
 
 function useProjectContext(engine: Engine) {
   return {
@@ -50,6 +51,8 @@ class Element {
 
 function useSceneContext(scene: Scene) {
   return {
+    Vector,
+
     Builders: {
       Rect: {
         setup(element: Element, options: any) {
@@ -222,6 +225,63 @@ function useSceneContext(scene: Scene) {
         yield null
       }
     },
+
+    animateVector: function* (
+      property: any,
+      a: Vector,
+      b: Vector,
+      length: number,
+      mode: any
+    ) {
+      const aCopy = new Vector(a.x, a.y, a.z, a.w)
+
+      for (let i = 1; i <= Math.ceil(length * scene.engine.frameRate); i++) {
+        const frameResult = aCopy.lerp(
+          b,
+          mode(i / Math.ceil(length * scene.engine.frameRate))
+        )
+
+        property.x = frameResult.x
+        property.y = frameResult.y
+        property.z = frameResult.z
+        property.w = frameResult.w
+
+        yield null
+      }
+    },
+
+    wait: function* (length: number) {
+      for (let i = 1; i <= Math.ceil(length * scene.engine.frameRate); i++) {
+        yield null
+      }
+    },
+
+    waitForMarker: function* (name: string) {
+      throw new Error('waitForMarker has not been implemented yet!')
+
+      const targetMarker = scene.engine.markers.find(
+        marker => marker.name == name
+      )
+
+      while (
+        targetMarker == undefined ||
+        targetMarker.frame - 1 != scene.engine.currentFrame
+      ) {
+        yield null
+      }
+    },
+
+    lerp(a: number, b: number, t: number) {
+      return a + (b - a) * t
+    },
+
+    relative(pos: Vector) {
+      return new Vector(pos.x * 1920, pos.y * 1080, pos.z, pos.w)
+    },
+
+    absolute(pos: Vector) {
+      return new Vector(pos.x / 1920, pos.y / 1080, pos.z, pos.w)
+    },
   }
 }
 
@@ -315,14 +375,19 @@ export class Engine {
 
   markers: {
     name: string
+    id: string
     frame: number
   }[] = []
 
   volumePerFrame: number[] = []
   audioBuffer: AudioBuffer | null = null
 
-  constructor(runtime: Runtime) {
+  constructor(
+    runtime: Runtime,
+    markers: { name: string; id: string; frame: number }[]
+  ) {
     this.runtime = runtime
+    this.markers = markers
   }
 
   async load() {
@@ -449,74 +514,6 @@ export class Engine {
   }
 }
 
-import { Vector } from '@/engine/engine-core'
-
-function initAnimateVector(frameRate: number) {
-  return function* (
-    a: Vector,
-    b: Vector,
-    length: number,
-    mode: any,
-    operator: any
-  ) {
-    for (let i = 1; i <= length * frameRate; i++) {
-      operator(a.lerp(b, mode(i / (length * frameRate))))
-
-      yield null
-    }
-  }
-}
-
-function initAnimateNumber(frameRate: number) {
-  return function* (
-    a: number,
-    b: number,
-    length: number,
-    mode: any,
-    operator: any
-  ) {
-    for (let i = 1; i <= length * frameRate; i++) {
-      operator(lerp(a, b, mode(i / (length * frameRate))))
-
-      yield null
-    }
-  }
-}
-
-function initAnimateVectorProperty(frameRate: number) {
-  return function* (
-    obj: any,
-    property: string,
-    a: Vector,
-    b: Vector,
-    length: number,
-    mode: any
-  ) {
-    for (let i = 1; i <= length * frameRate; i++) {
-      obj[property] = a.lerp(b, mode(i / (length * frameRate)))
-
-      yield null
-    }
-  }
-}
-
-function initAnimateNumberProperty(frameRate: number) {
-  return function* (
-    obj: any,
-    property: string,
-    a: number,
-    b: number,
-    length: number,
-    mode: any
-  ) {
-    for (let i = 1; i <= length * frameRate; i++) {
-      obj[property] = lerp(a, b, mode(i / (length * frameRate)))
-
-      yield null
-    }
-  }
-}
-
 function initTransitionTo(frameRate: number, scene: Scene, engine: Engine) {
   return function (
     sceneName: string,
@@ -632,14 +629,6 @@ function* any(contexts: any) {
   }
 }
 
-function initWait(frameRate: number) {
-  return function* (length: number) {
-    for (let i = 1; i <= length * frameRate; i++) {
-      yield null
-    }
-  }
-}
-
 function* aside(contexts: any) {
   if (!Array.isArray(contexts)) contexts = arguments
 
@@ -660,22 +649,6 @@ function* forever(context: any) {
 
 function* waitWhile(condition: any) {
   while (condition()) yield null
-}
-
-function initWaitForMarker(
-  engine: Engine,
-  markers: { name: string; frame: number }[]
-) {
-  return function* (name: string) {
-    const targetMarker = markers.find(marker => marker.name == name)
-
-    while (
-      targetMarker == undefined ||
-      targetMarker.frame - 1 != engine.currentFrame
-    ) {
-      yield null
-    }
-  }
 }
 
 function initGetAsset(assets: any) {
@@ -703,16 +676,4 @@ function initGetAsset(assets: any) {
 
     return asset.content
   }
-}
-
-function relative(pos: Vector) {
-  return new Vector(pos.x * 1920, pos.y * 1080, pos.z, pos.w)
-}
-
-function absolute(pos: Vector) {
-  return new Vector(pos.x / 1920, pos.y / 1080, pos.z, pos.w)
-}
-
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t
 }

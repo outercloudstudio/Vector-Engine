@@ -503,7 +503,7 @@ function loop() {
 }
 
 let startFrame = ref(-5)
-let endFrame = ref(59 + 5)
+let endFrame = ref(WorkspaceStore.length + 5)
 
 watch(
   () => WorkspaceStore.length,
