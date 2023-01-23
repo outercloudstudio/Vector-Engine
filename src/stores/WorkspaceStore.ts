@@ -24,6 +24,17 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
       latencyHint: 'interactive',
     })
   )
+  const audioGain: Ref<GainNode> = ref(audioContext.value.createGain())
+  const audioDestination: Ref<AudioNode> = ref(audioContext.value.createGain())
+  const setupAudio: Ref<boolean> = ref(false)
+
+  if (!setupAudio.value) {
+    setupAudio.value
+
+    audioGain.value.connect(audioContext.value.destination)
+
+    audioDestination.value = audioGain.value
+  }
 
   async function loadProject(name: string) {
     projectFolder.value = (await getProjectFolder(name)) || undefined
@@ -231,5 +242,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     volumePerFrame,
     getAudioBuffer,
     audioContext,
+    audioGain,
+    audioDestination,
   }
 })

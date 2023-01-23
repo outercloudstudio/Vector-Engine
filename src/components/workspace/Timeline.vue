@@ -15,7 +15,12 @@
       </div>
 
       <div class="control-bar-group">
-        <span class="material-symbols-outlined icon-button"> volume_up </span>
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="() => (muted = !muted)"
+        >
+          {{ muted ? 'volume_off' : 'volume_up' }}
+        </span>
       </div>
 
       <div class="control-bar-group">
@@ -84,11 +89,17 @@ import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 
 const WorkspaceStore = useWorkspaceStore()
 
+const muted = ref(false)
+
+watch(muted, muted => {
+  WorkspaceStore.audioGain.gain.value = muted ? 0 : 1
+})
+
 async function createMarker() {
   WorkspaceStore.createMarker(`Marker`, WorkspaceStore.frame)
 }
 
-let playing = ref(false)
+const playing = ref(false)
 let startedPlayingTime = 0
 let startedFrame = 0
 let audioBufferSource: null | AudioBufferSourceNode = null
@@ -100,7 +111,7 @@ async function startAudioPlayback(time: number) {
 
   audioBufferSource = WorkspaceStore.audioContext.createBufferSource()
   audioBufferSource.buffer = audioBuffer
-  audioBufferSource.connect(WorkspaceStore.audioContext.destination)
+  audioBufferSource.connect(WorkspaceStore.audioDestination)
   WorkspaceStore.audioContext.resume()
   audioBufferSource.start(0, time)
 
