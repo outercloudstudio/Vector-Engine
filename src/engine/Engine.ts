@@ -216,6 +216,8 @@ function useSceneContext(scene: Scene) {
 
     addElement(element: Element) {
       scene.addElement(element)
+
+      return element
     },
 
     animate: function* (length: number, mode: any, operator: any) {
@@ -234,10 +236,11 @@ function useSceneContext(scene: Scene) {
       mode: any
     ) {
       const aCopy = new Vector(a.x, a.y, a.z, a.w)
+      const bCopy = new Vector(b.x, b.y, b.z, b.w)
 
       for (let i = 1; i <= Math.ceil(length * scene.engine.frameRate); i++) {
         const frameResult = aCopy.lerp(
-          b,
+          bCopy,
           mode(i / Math.ceil(length * scene.engine.frameRate))
         )
 
@@ -257,18 +260,17 @@ function useSceneContext(scene: Scene) {
     },
 
     waitForMarker: function* (name: string) {
-      throw new Error('waitForMarker has not been implemented yet!')
-
-      const targetMarker = scene.engine.markers.find(
-        marker => marker.name == name
-      )
-
       while (
-        targetMarker == undefined ||
-        targetMarker.frame - 1 != scene.engine.currentFrame
+        !scene.engine.markers.find(
+          marker => marker.name == name && marker.frame == scene.engine.frame
+        )
       ) {
         yield null
       }
+    },
+
+    waitWhile: function* (condition: any) {
+      while (condition()) yield null
     },
 
     lerp(a: number, b: number, t: number) {
@@ -281,6 +283,96 @@ function useSceneContext(scene: Scene) {
 
     absolute(pos: Vector) {
       return new Vector(pos.x / 1920, pos.y / 1080, pos.z, pos.w)
+    },
+
+    seconds(seconds: number) {
+      return Math.ceil(seconds * scene.engine.frameRate)
+    },
+
+    minutes(minutes: number) {
+      return minutes * 60
+    },
+
+    minutesFrames(minutes: number) {
+      return Math.ceil(minutes * 60 * scene.engine.frameRate)
+    },
+
+    frames(frames: number) {
+      return frames / scene.engine.frameRate
+    },
+
+    waitForAll: function* () {
+      let contexts = []
+
+      for (let i = 0; i < arguments.length; i++) {
+        contexts.push(arguments[i])
+      }
+
+      let allDone = false
+
+      while (!allDone) {
+        allDone = true
+
+        for (let i = 0; i < contexts.length; i++) {
+          const context = contexts[i]
+
+          const result = context.next()
+
+          if (result.done) {
+            contexts.splice(i, 1)
+            i--
+          } else {
+            allDone = false
+          }
+        }
+
+        if (!allDone) {
+          yield null
+        }
+      }
+    },
+
+    waitForAny: function* () {
+      let contexts = []
+
+      for (let i = 0; i < arguments.length; i++) {
+        const context = arguments[i]
+
+        contexts.push(context)
+      }
+
+      let anyDone = false
+
+      while (!anyDone) {
+        for (let i = 0; i < contexts.length; i++) {
+          const context = contexts[i]
+
+          const result = context.next()
+
+          if (result.done) {
+            contexts.splice(i, 1)
+            i--
+
+            anyDone = true
+          }
+        }
+
+        if (!anyDone) {
+          yield null
+        }
+      }
+
+      for (const context of contexts) {
+        yield context
+      }
+    },
+
+    loop: function* (contextLambda: any) {
+      while (true) {
+        const context = contextLambda()
+
+        yield* context
+      }
     },
   }
 }
@@ -371,7 +463,7 @@ export class Engine {
 
   frameRate: number = 60
   length: number = 60
-  currentFrame: number = -1
+  frame: number = -1
 
   markers: {
     name: string
@@ -400,7 +492,7 @@ export class Engine {
 
     this.project.project(useProjectContext(this))
 
-    this.currentFrame = -1
+    this.frame = -1
 
     if (!this.initialScene) return
 
@@ -433,7 +525,7 @@ export class Engine {
 
     this.project.project(useProjectContext(this))
 
-    this.currentFrame = -1
+    this.frame = -1
 
     if (!this.initialScene) return
 
@@ -451,7 +543,7 @@ export class Engine {
       console.error(err)
     }
 
-    this.currentFrame++
+    this.frame++
   }
 
   async loadAudioTrack(path: string) {
@@ -562,93 +654,6 @@ const Transition = {
 
     targetCtx.globalAlpha = prevAlpha
   },
-}
-
-function* all(contexts: any) {
-  if (!Array.isArray(contexts)) contexts = arguments
-
-  let builtContexts = []
-
-  for (let i = 0; i < contexts.length; i++) {
-    const context = contexts[i]
-
-    builtContexts.push(context)
-  }
-
-  let allDone = false
-
-  while (!allDone) {
-    allDone = true
-
-    for (let i = 0; i < builtContexts.length; i++) {
-      const context = builtContexts[i]
-
-      const result = context.next()
-
-      if (result.done) {
-        builtContexts.splice(i, 1)
-        i--
-      } else {
-        allDone = false
-      }
-    }
-
-    if (!allDone) {
-      yield null
-    }
-  }
-}
-
-function* any(contexts: any) {
-  if (!Array.isArray(contexts)) contexts = arguments
-
-  let builtContexts = []
-
-  for (let i = 0; i < contexts.length; i++) {
-    const context = contexts[i]
-
-    builtContexts.push(context)
-  }
-
-  let anyDone = false
-
-  while (!anyDone) {
-    for (let i = 0; i < builtContexts.length; i++) {
-      const context = builtContexts[i]
-
-      const result = context.next()
-
-      if (result.done) {
-        anyDone = true
-      }
-    }
-
-    if (!anyDone) {
-      yield null
-    }
-  }
-}
-
-function* aside(contexts: any) {
-  if (!Array.isArray(contexts)) contexts = arguments
-
-  for (let i = 0; i < contexts.length; i++) {
-    const context = contexts[i]
-
-    yield* context
-  }
-}
-
-function* forever(context: any) {
-  while (true) {
-    yield* context()
-
-    yield null
-  }
-}
-
-function* waitWhile(condition: any) {
-  while (condition()) yield null
 }
 
 function initGetAsset(assets: any) {
