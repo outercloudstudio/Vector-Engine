@@ -212,6 +212,41 @@ function useSceneContext(scene: Scene) {
       },
     },
 
+    Transitions: {
+      Cut: function* ({ load, unload }: any) {
+        unload()
+        load()
+      },
+
+      Fade: function* ({ load, unload, defineModifier }: any) {
+        load()
+
+        let time = 0
+
+        defineModifier((render: CanvasImageSource) => {
+          const canvas = document.createElement('canvas')
+          canvas.width = 1920
+          canvas.height = 1080
+          const ctx = canvas.getContext('2d')!
+
+          ctx.globalAlpha = time
+          ctx.drawImage(render, 0, 0)
+
+          return canvas
+        })
+
+        for (let i = 1; i <= 20; i++) {
+          time = i / 20
+
+          console.log(i)
+
+          yield null
+        }
+
+        unload()
+      },
+    },
+
     Element,
 
     addElement(element: Element) {
@@ -375,11 +410,28 @@ function useSceneContext(scene: Scene) {
       }
     },
 
-    transition: async function* (name: string) {
+    transition: async function* (name: string, transition: any) {
       const targetScene = new Scene(scene.engine.scenes[name], scene.engine)
       await targetScene.load()
 
-      scene.engine.activeScenes.push(targetScene)
+      yield* transition({
+        load() {
+          console.log('Loading scene!')
+
+          scene.engine.activeScenes.push(targetScene)
+        },
+        unload() {
+          console.log('Unloading scene!')
+
+          scene.engine.activeScenes.splice(
+            scene.engine.activeScenes.findIndex(s => s == scene),
+            1
+          )
+        },
+        defineModifier(modifier: any) {
+          targetScene.transitionRenderModifier = modifier
+        },
+      })
     },
   }
 }
@@ -405,6 +457,7 @@ class Scene {
   engine: Engine
   elements: Element[] = []
   sideContexts: any[] = []
+  transitionRenderModifier: any = null
 
   constructor(path: string, engine: Engine) {
     this.path = path
@@ -440,6 +493,11 @@ class Scene {
 
       ctx.resetTransform()
     }
+
+    console.log(this.transitionRenderModifier)
+
+    if (this.transitionRenderModifier)
+      return this.transitionRenderModifier(canvas)
 
     return canvas
   }
@@ -623,47 +681,5 @@ export class Engine {
     this.volumePerFrame = volumePerFrame
 
     ctx.close()
-  }
-}
-
-const Transition = {
-  Cut(sceneCtx: any, targetCtx: any, time: number) {
-    targetCtx.drawImage(sceneCtx.canvas, 0, 0)
-  },
-  Fade(sceneCtx: any, targetCtx: any, time: number) {
-    const prevAlpha = targetCtx.globalAlpha
-
-    targetCtx.globalAlpha = 1 - time
-
-    targetCtx.drawImage(sceneCtx.canvas, 0, 0)
-
-    targetCtx.globalAlpha = prevAlpha
-  },
-}
-
-function initGetAsset(assets: any) {
-  return async function getAsset(name: string) {
-    const asset = assets.find((a: any) => a.name == name)
-
-    console.log('Getting asset...')
-    console.log(name)
-    console.log(asset)
-
-    if (asset == undefined) return null
-
-    if (name.endsWith('.png')) {
-      const blob = new Blob([asset.content])
-      const url = URL.createObjectURL(blob)
-      const img = new Image()
-      img.src = url
-
-      await new Promise(res => {
-        img.addEventListener('load', res, false)
-      })
-
-      return img
-    }
-
-    return asset.content
   }
 }
