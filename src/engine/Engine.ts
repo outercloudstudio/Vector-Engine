@@ -374,7 +374,29 @@ function useSceneContext(scene: Scene) {
         yield* context
       }
     },
+
+    transition: async function* (name: string) {
+      const targetScene = new Scene(scene.engine.scenes[name], scene.engine)
+      await targetScene.load()
+
+      scene.engine.activeScenes.push(targetScene)
+    },
   }
+}
+
+function isGenerator(obj: any) {
+  if (!obj) return false
+
+  if (!obj.constructor) return false
+
+  if (!obj.constructor.constructor) return false
+
+  if (!obj.constructor.constructor.name) return false
+
+  return (
+    obj.constructor.constructor.name == 'GeneratorFunction' ||
+    obj.constructor.constructor.name == 'AsyncGeneratorFunction'
+  )
 }
 
 class Scene {
@@ -393,6 +415,8 @@ class Scene {
     this.context = (await this.engine.runtime.run(this.path)).scene(
       useSceneContext(this)
     )
+
+    await this.next()
   }
 
   async render() {
@@ -435,11 +459,9 @@ class Scene {
 
     let result = (await this.context.next()).value
 
-    while (
-      result != null &&
-      result != undefined &&
-      typeof result[Symbol.iterator] === 'function'
-    ) {
+    while (result != null && result != undefined && isGenerator(result)) {
+      await result.next()
+
       this.sideContexts.push(result)
 
       result = (await this.context.next()).value
@@ -492,14 +514,12 @@ export class Engine {
 
     this.project.project(useProjectContext(this))
 
-    this.frame = -1
+    this.frame = 0
 
     if (!this.initialScene) return
 
     this.activeScenes = [new Scene(this.scenes[this.initialScene], this)]
     await this.activeScenes[0].load()
-
-    await this.next()
   }
 
   async render() {
@@ -525,7 +545,7 @@ export class Engine {
 
     this.project.project(useProjectContext(this))
 
-    this.frame = -1
+    this.frame = 0
 
     if (!this.initialScene) return
 
@@ -603,41 +623,6 @@ export class Engine {
     this.volumePerFrame = volumePerFrame
 
     ctx.close()
-  }
-}
-
-function initTransitionTo(frameRate: number, scene: Scene, engine: Engine) {
-  return function (
-    sceneName: string,
-    length: number,
-    mode: any,
-    transition: any
-  ) {
-    const targetScene = engine.scenes.find(s => s.name == sceneName)
-
-    if (targetScene == undefined) {
-      console.warn(
-        `Could not find target scene '${sceneName}' to transtiion to!`
-      )
-
-      return
-    }
-
-    if (
-      engine.transitionScenes.find(tran => tran.scene == scene) != undefined
-    ) {
-      console.warn('Scene is already transitioning!')
-
-      return
-    }
-
-    engine.transitionScenes.push({
-      scene: new Scene(targetScene.content, sceneName, frameRate, engine),
-      transition,
-      leftFrames: length * frameRate,
-      length: length * frameRate,
-      mode,
-    })
   }
 }
 

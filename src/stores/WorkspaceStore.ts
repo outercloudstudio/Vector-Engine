@@ -7,9 +7,6 @@ import { Runtime } from '@/Runtime'
 export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   let projectFolder: Ref<FileSystemDirectoryHandle | undefined> = ref(undefined)
   let engine: Ref<Engine | undefined> = ref(undefined)
-  let frame: Ref<number> = ref(0)
-  let length: Ref<number> = ref(60)
-  let reloadCount: Ref<number> = ref(0)
   let data: Ref<any> = ref({
     project: {
       markers: [],
@@ -19,6 +16,10 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     },
   })
   let error: Ref<string | null> = ref(null)
+  let loaded: Ref<boolean> = ref(false)
+  let frame: Ref<number> = ref(0)
+  let length: Ref<number> = ref(60)
+  let reloadCount: Ref<number> = ref(0)
   const audioContext: Ref<AudioContext> = ref(
     new AudioContext({
       latencyHint: 'interactive',
@@ -106,6 +107,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     loadData()
 
     reloadCount.value++
+
+    loaded.value = true
   }
 
   async function loadProjectFromCache() {
@@ -124,7 +127,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     if (frameNumber < frame.value) {
       await engine.value.reloadContext()
 
-      for (let frameOffset = 0; frameOffset <= frameNumber; frameOffset++) {
+      for (let frameOffset = 0; frameOffset < frameNumber; frameOffset++) {
         await engine.value.next()
       }
 
@@ -252,5 +255,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     audioContext,
     audioGain,
     audioDestination,
+    loaded,
   }
 })
