@@ -17,9 +17,10 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   })
   let error: Ref<string | null> = ref(null)
   let loaded: Ref<boolean> = ref(false)
+
   let frame: Ref<number> = ref(0)
   let length: Ref<number> = ref(60)
-  let reloadCount: Ref<number> = ref(0)
+
   const audioContext: Ref<AudioContext> = ref(
     new AudioContext({
       latencyHint: 'interactive',
@@ -28,6 +29,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   const audioGain: Ref<GainNode> = ref(audioContext.value.createGain())
   const audioDestination: Ref<AudioNode> = ref(audioContext.value.createGain())
   const setupAudio: Ref<boolean> = ref(false)
+
+  const sceneInference: Ref<{ name: string; frame: number }[]> = ref([])
 
   if (!setupAudio.value) {
     setupAudio.value
@@ -87,6 +90,35 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     }
   }
 
+  async function runInferences(engine: Engine) {
+    sceneInference.value = []
+
+    for (let frame = 0; frame < length.value; frame++) {
+      const scene = engine.activeScenes[engine.activeScenes.length - 1]
+
+      if (scene) {
+        const sceneName = Object.values(engine.scenes).includes(scene.path)
+          ? Object.keys(engine.scenes)[
+              Object.values(engine.scenes).findIndex(path => path == scene.path)
+            ]
+          : scene.path
+
+        if (
+          sceneInference.value[sceneInference.value.length - 1] == undefined ||
+          sceneInference.value[sceneInference.value.length - 1].name !=
+            sceneName
+        ) {
+          sceneInference.value.push({
+            name: sceneName,
+            frame,
+          })
+        }
+      }
+
+      await engine.next()
+    }
+  }
+
   async function loadProject(name: string) {
     projectFolder.value = (await getProjectFolder(name)) || undefined
 
@@ -106,7 +138,14 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
     loadData()
 
-    reloadCount.value++
+    const inferenceEngine = new Engine(
+      runtime,
+      data.value.project.markers,
+      true
+    )
+    await inferenceEngine.load()
+
+    runInferences(inferenceEngine)
 
     loaded.value = true
   }
@@ -242,7 +281,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     render,
     frame,
     length,
-    reloadCount,
     updateFrame,
     frameRate,
     projectFolder,
@@ -256,5 +294,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     audioGain,
     audioDestination,
     loaded,
+    sceneInference,
   }
 })

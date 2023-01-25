@@ -1,6 +1,6 @@
 <template>
   <div id="component" v-if="openMenu != 'none'">
-    <div ref="export" v-if="openMenu == 'export'" class="menu">
+    <div v-if="openMenu == 'export'" class="menu">
       <input placeholder="Export name" v-model="exportName" />
 
       <div id="alert" v-if="exportNameValidationResult.status != 'none'">
@@ -24,6 +24,17 @@
 
       <div id="loading-bar-wrapper" v-if="exportInProgress">
         <div id="loading-bar" :style="{ width: exportProgress + '%' }"></div>
+      </div>
+    </div>
+
+    <div v-if="openMenu == 'settings'" class="menu">
+      <p class="label">Volume:</p>
+      <input id="volume-slider" type="range" min="0" max="100" value="100" />
+
+      <p class="label">Scene Inference:</p>
+      <div class="switch">
+        <input type="checkbox" />
+        <span></span>
       </div>
     </div>
   </div>
@@ -57,7 +68,7 @@ async function runExport() {
 
   const runtime = new Runtime(WorkspaceStore.projectFolder)
 
-  const engine = new Engine(runtime)
+  const engine = new Engine(runtime, WorkspaceStore.markers)
   await engine.load()
 
   const exportsFolder = await WorkspaceStore.projectFolder.getDirectoryHandle(
@@ -132,6 +143,32 @@ defineExpose({
   flex-direction: column;
   align-items: flex-start;
   gap: 0.5rem;
+}
+
+#volume-slider {
+  appearance: none;
+  height: 0.4rem;
+  background-color: var(--secondary);
+  outline: none;
+
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.label {
+  font-size: x-small;
+  margin: 0;
+  padding: 0;
+}
+
+#volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--grab);
+  cursor: pointer;
+  border-radius: 50%;
 }
 
 input {

@@ -20,7 +20,12 @@
         >
           save
         </span>
-        <span class="material-symbols-outlined icon-button"> settings </span>
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="() => sideMenu?.open('settings')"
+        >
+          settings
+        </span>
         <span class="material-symbols-outlined icon-button"> colorize </span>
       </div>
     </div>

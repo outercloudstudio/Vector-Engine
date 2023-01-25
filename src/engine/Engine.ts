@@ -218,32 +218,36 @@ function useSceneContext(scene: Scene) {
         load()
       },
 
-      Fade: function* ({ load, unload, defineModifier }: any) {
-        load()
+      Fade(length: number) {
+        return function* ({ load, unload, defineModifier }: any) {
+          load()
 
-        let time = 0
+          let time = 0
 
-        defineModifier((render: CanvasImageSource) => {
-          const canvas = document.createElement('canvas')
-          canvas.width = 1920
-          canvas.height = 1080
-          const ctx = canvas.getContext('2d')!
+          defineModifier((render: CanvasImageSource) => {
+            const canvas = document.createElement('canvas')
+            canvas.width = 1920
+            canvas.height = 1080
+            const ctx = canvas.getContext('2d')!
 
-          ctx.globalAlpha = time
-          ctx.drawImage(render, 0, 0)
+            ctx.globalAlpha = time
+            ctx.drawImage(render, 0, 0)
 
-          return canvas
-        })
+            return canvas
+          })
 
-        for (let i = 1; i <= 20; i++) {
-          time = i / 20
+          for (
+            let frame = 1;
+            frame <= Math.ceil(length * scene.engine.frameRate);
+            frame++
+          ) {
+            time = frame / Math.ceil(length * scene.engine.frameRate)
 
-          console.log(i)
+            yield null
+          }
 
-          yield null
+          unload()
         }
-
-        unload()
       },
     },
 
@@ -416,13 +420,9 @@ function useSceneContext(scene: Scene) {
 
       yield* transition({
         load() {
-          console.log('Loading scene!')
-
           scene.engine.activeScenes.push(targetScene)
         },
         unload() {
-          console.log('Unloading scene!')
-
           scene.engine.activeScenes.splice(
             scene.engine.activeScenes.findIndex(s => s == scene),
             1
@@ -494,8 +494,6 @@ class Scene {
       ctx.resetTransform()
     }
 
-    console.log(this.transitionRenderModifier)
-
     if (this.transitionRenderModifier)
       return this.transitionRenderModifier(canvas)
 
@@ -554,12 +552,17 @@ export class Engine {
   volumePerFrame: number[] = []
   audioBuffer: AudioBuffer | null = null
 
+  lightMode: boolean = false
+
   constructor(
     runtime: Runtime,
-    markers: { name: string; id: string; frame: number }[]
+    markers: { name: string; id: string; frame: number }[],
+    lightMode?: boolean
   ) {
     this.runtime = runtime
     this.markers = markers
+
+    if (lightMode) this.lightMode = lightMode
   }
 
   async load() {
@@ -625,6 +628,8 @@ export class Engine {
   }
 
   async loadAudioTrack(path: string) {
+    if (this.lightMode) return
+
     const audioFile = await this.runtime.readFile(path)
 
     const ctx = new AudioContext()

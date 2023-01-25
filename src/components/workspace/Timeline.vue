@@ -622,6 +622,42 @@ function render() {
     )
   }
 
+  // Scenes
+  for (
+    let sceneIndex = 0;
+    sceneIndex < WorkspaceStore.sceneInference.length;
+    sceneIndex++
+  ) {
+    const scene = WorkspaceStore.sceneInference[sceneIndex]
+
+    ctx.font = '10px JetBrainsMono'
+    const textWidth = ctx.measureText(scene.name).width + 8
+    const frameWidth = WorkspaceStore.sceneInference[sceneIndex + 1]
+      ? frameToRelativeX(WorkspaceStore.sceneInference[sceneIndex + 1].frame) -
+        frameToRelativeX(scene.frame)
+      : frameToRelativeX(WorkspaceStore.length) - frameToRelativeX(scene.frame)
+
+    ctx.fillStyle = secondaryColor
+    ctx.beginPath()
+    ctx.roundRect(
+      frameToRelativeX(scene.frame),
+      38,
+      Math.max(0, frameWidth - 4),
+      16,
+      [0, 6, 6, 6]
+    )
+    ctx.fill()
+
+    if (textWidth > frameWidth) continue
+
+    ctx.fillStyle = textColor
+    ctx.fillText(
+      scene.name,
+      frameToRelativeX(scene.frame) + 4,
+      40 + ctx.measureText(scene.name).fontBoundingBoxAscent
+    )
+  }
+
   // Markers
   for (const marker of WorkspaceStore.markers) {
     if (marker.id == heldMarker.value) continue
@@ -760,6 +796,13 @@ watch(
 
 watch(
   () => WorkspaceStore.volumePerFrame,
+  () => {
+    render()
+  }
+)
+
+watch(
+  () => WorkspaceStore.sceneInference,
   () => {
     render()
   }
