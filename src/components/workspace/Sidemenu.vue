@@ -1,5 +1,5 @@
 <template>
-  <div id="component" v-if="openMenu != 'none'">
+  <div id="sidemenu" v-if="openMenu != 'none'">
     <div v-if="openMenu == 'export'" class="menu">
       <input placeholder="Export name" v-model="exportName" />
 
@@ -28,25 +28,53 @@
     </div>
 
     <div v-if="openMenu == 'settings'" class="menu">
-      <p class="label">Volume:</p>
-      <input id="volume-slider" type="range" min="0" max="100" value="100" />
+      <p class="label">Volume</p>
+      <input
+        id="volume-slider"
+        type="range"
+        min="0"
+        max="100"
+        v-model="volumeBuffer"
+      />
 
-      <p class="label">Scene Inference:</p>
-      <div class="switch">
-        <input type="checkbox" />
-        <span></span>
-      </div>
+      <p class="label">Audio Inference</p>
+      <Toggle v-model="inferenceAudio" />
+
+      <p class="label">Scene Inference</p>
+      <Toggle v-model="inferenceScenes" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import Toggle from '@/components/Toggle.vue'
 import { Runtime } from '@/Runtime'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { Engine } from '@/engine/Engine'
 import { computed, ref } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
+
+const inferenceAudio = computed({
+  get: () => WorkspaceStore.inferenceAudio,
+  set: (inference: boolean) => {
+    WorkspaceStore.updateInferenceAudio(inference)
+  },
+})
+
+const inferenceScenes = computed({
+  get: () => WorkspaceStore.inferenceScenes,
+  set: (inference: boolean) => {
+    WorkspaceStore.updateInferenceScenes(inference)
+  },
+})
+
+const volumeBuffer = computed({
+  get: () => WorkspaceStore.volume * 100,
+  set: (volume: number) => {
+    WorkspaceStore.updateVolume(volume / 100)
+  },
+})
 
 const exportName = ref('')
 
@@ -128,7 +156,7 @@ defineExpose({
 </script>
 
 <style scoped>
-#component {
+#sidemenu {
   min-width: 14rem;
   max-width: 14rem;
 

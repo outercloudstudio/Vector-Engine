@@ -6,6 +6,7 @@ import { Runtime } from '@/Runtime'
 
 export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   let projectFolder: Ref<FileSystemDirectoryHandle | undefined> = ref(undefined)
+  let runtime: any = ref(new Runtime(null))
   let engine: Ref<Engine | undefined> = ref(undefined)
   let data: Ref<any> = ref({
     project: {
@@ -81,7 +82,21 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
         Array.isArray(loadedData.editor) ||
         loadedData.editor == null
       )
-        if (typeof loadedData.editor.volume != 'number') throw new Error()
+        throw new Error()
+
+      if (typeof loadedData.editor.volume != 'number') throw new Error()
+
+      if (
+        typeof loadedData.editor.inference != 'object' ||
+        Array.isArray(loadedData.editor.inference) ||
+        loadedData.editor.inference == null
+      )
+        throw new Error()
+
+      if (typeof loadedData.editor.inference.audio != 'boolean')
+        throw new Error()
+      if (typeof loadedData.editor.inference.scenes != 'boolean')
+        throw new Error()
 
       data.value = loadedData
     } catch {
@@ -92,6 +107,10 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
   async function runInferences(engine: Engine) {
     sceneInference.value = []
+
+    if (!inferenceScenes.value) return
+
+    let inference: { name: string; frame: number }[] = []
 
     for (let frame = 0; frame < length.value; frame++) {
       const scene = engine.activeScenes[engine.activeScenes.length - 1]
@@ -104,11 +123,10 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
           : scene.path
 
         if (
-          sceneInference.value[sceneInference.value.length - 1] == undefined ||
-          sceneInference.value[sceneInference.value.length - 1].name !=
-            sceneName
+          inference[inference.length - 1] == undefined ||
+          inference[inference.length - 1].name != sceneName
         ) {
-          sceneInference.value.push({
+          inference.push({
             name: sceneName,
             frame,
           })
@@ -117,6 +135,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
       await engine.next()
     }
+
+    sceneInference.value = inference
   }
 
   async function loadProject(name: string) {
@@ -128,9 +148,13 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
     await loadData()
 
-    const runtime = new Runtime(projectFolder.value)
+    runtime.value.reload(projectFolder.value)
 
-    engine.value = new Engine(runtime, data.value.project.markers)
+    engine.value = new Engine(
+      runtime.value,
+      data.value.project.markers,
+      inferenceAudio.value
+    )
     await engine.value.load()
 
     length.value = engine.value.length
@@ -139,9 +163,9 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     loadData()
 
     const inferenceEngine = new Engine(
-      runtime,
+      runtime.value,
       data.value.project.markers,
-      true
+      false
     )
     await inferenceEngine.load()
 
@@ -275,6 +299,57 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     return engine.value.volumePerFrame
   })
 
+  const volume = computed(() => {
+    return data.value.editor.volume
+  })
+
+  async function updateVolume(volume: number) {
+    if (!projectFolder.value) return
+
+    data.value.editor.volume = volume
+
+    const dataFile = await projectFolder.value.getFileHandle('data.json')
+
+    // @ts-ignore
+    const writable = await dataFile.createWritable()
+    await writable.write(JSON.stringify(data.value, null, 2))
+    await writable.close()
+  }
+
+  const inferenceAudio = computed(() => {
+    return data.value.editor.inference.audio
+  })
+
+  async function updateInferenceAudio(inference: boolean) {
+    if (!projectFolder.value) return
+
+    data.value.editor.inference.audio = inference
+
+    const dataFile = await projectFolder.value.getFileHandle('data.json')
+
+    // @ts-ignore
+    const writable = await dataFile.createWritable()
+    await writable.write(JSON.stringify(data.value, null, 2))
+    await writable.close()
+  }
+
+  const inferenceScenes = computed(() => {
+    return data.value.editor.inference.scenes
+  })
+
+  async function updateInferenceScenes(inference: boolean) {
+    if (!projectFolder.value) return
+
+    data.value.editor.inference.scenes = inference
+
+    const dataFile = await projectFolder.value.getFileHandle('data.json')
+
+    // @ts-ignore
+    const writable = await dataFile.createWritable()
+    await writable.write(JSON.stringify(data.value, null, 2))
+    await writable.close()
+  }
+
   return {
     loadProject,
     loadProjectFromCache,
@@ -295,5 +370,11 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     audioDestination,
     loaded,
     sceneInference,
+    volume,
+    updateVolume,
+    inferenceAudio,
+    updateInferenceAudio,
+    inferenceScenes,
+    updateInferenceScenes,
   }
 })

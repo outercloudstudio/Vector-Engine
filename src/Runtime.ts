@@ -6,7 +6,7 @@ export class Runtime extends JsRuntime {
   protected directory: FileSystemDirectoryHandle | null = null
 
   constructor(
-    rootDirectoryHandle: FileSystemDirectoryHandle,
+    rootDirectoryHandle: FileSystemDirectoryHandle | null,
     modules?: [string, TBaseModule][]
   ) {
     super(modules)
@@ -14,7 +14,14 @@ export class Runtime extends JsRuntime {
     this.directory = rootDirectoryHandle
   }
 
+  reload(directory: FileSystemDirectoryHandle) {
+    this.directory = directory
+    this.clearCache()
+  }
+
   async readFile(filePath: string) {
+    if (this.directory == null) return new File([], 'voidFile.error')
+
     const readPath: string[] = filePath.split('/')
 
     if (readPath.length == 0) return new File([], 'voidFile.error')

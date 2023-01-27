@@ -66,6 +66,8 @@ async function loadWithPermissions() {
 
   displayAccessPopup.value = false
   renderPreview.value = true
+
+  window.addEventListener('focus', focus)
 }
 
 async function focus() {
@@ -79,8 +81,6 @@ onMounted(() => {
   displayAccessPopup.value = !WorkspaceStore.loaded
 
   if (WorkspaceStore.loaded) loadWithPermissions()
-
-  window.addEventListener('focus', focus)
 })
 
 onUnmounted(() => {

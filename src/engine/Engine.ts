@@ -552,17 +552,17 @@ export class Engine {
   volumePerFrame: number[] = []
   audioBuffer: AudioBuffer | null = null
 
-  lightMode: boolean = false
+  inferenceAudio: boolean = false
 
   constructor(
     runtime: Runtime,
     markers: { name: string; id: string; frame: number }[],
-    lightMode?: boolean
+    inferenceAudio?: boolean
   ) {
     this.runtime = runtime
     this.markers = markers
 
-    if (lightMode) this.lightMode = lightMode
+    if (inferenceAudio) this.inferenceAudio = inferenceAudio
   }
 
   async load() {
@@ -628,7 +628,7 @@ export class Engine {
   }
 
   async loadAudioTrack(path: string) {
-    if (this.lightMode) return
+    if (!this.inferenceAudio) return
 
     const audioFile = await this.runtime.readFile(path)
 

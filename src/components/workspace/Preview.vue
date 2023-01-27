@@ -92,7 +92,7 @@ async function renderCanvas() {
 
 watch(
   () => props.render,
-  async render => {
+  render => {
     if (!render) return
 
     renderCanvas()
@@ -116,15 +116,6 @@ watch(zoom, async () => {
 
   renderCanvas()
 })
-
-watch(
-  () => WorkspaceStore.reloadCount,
-  async () => {
-    if (!render) return
-
-    renderCanvas()
-  }
-)
 
 watch(
   () => WorkspaceStore.frame,

@@ -7,9 +7,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import router from '@/router'
-
 defineProps(['title', 'selected'])
 </script>
 
