@@ -1,6 +1,7 @@
 import { Runtime as JsRuntime } from 'bridge-js-runtime'
 import { TBaseModule } from 'bridge-js-runtime/dist/Runtime'
 import path from 'path-browserify'
+import AudioInferenceWorker from '@/workers/AudioInferenceWorker?worker'
 
 export class Runtime extends JsRuntime {
   protected directory: FileSystemDirectoryHandle | null = null
@@ -57,5 +58,9 @@ export class Runtime extends JsRuntime {
       }),
       fileContent
     )
+  }
+
+  createAudioInferenceWorker() {
+    return new AudioInferenceWorker()
   }
 }

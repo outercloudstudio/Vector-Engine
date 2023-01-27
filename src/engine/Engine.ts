@@ -640,51 +640,29 @@ export class Engine {
 
     this.audioBuffer = audioBuffer
 
-    let volumePerFrame: number[] = []
+    const channels = []
 
-    const samplesPerFrame = audioBuffer.sampleRate / this.frameRate
-
-    let peak = 0
-
-    for (let frame = 0; frame < this.length; frame++) {
-      const startingSample = Math.floor(samplesPerFrame * frame)
-      let frameValue = 0
-
-      for (
-        let channelIndex = 0;
-        channelIndex < audioBuffer.numberOfChannels;
-        channelIndex++
-      ) {
-        const channel = audioBuffer.getChannelData(channelIndex)
-        for (
-          let sample = startingSample;
-          sample <
-          Math.min(
-            startingSample + Math.floor(samplesPerFrame),
-            channel.length
-          );
-          sample++
-        ) {
-          frameValue = Math.max(Math.abs(channel[sample]), frameValue)
-        }
-      }
-
-      const squaredValue = Math.pow(frameValue, 3)
-
-      volumePerFrame.push(squaredValue)
-
-      peak = Math.max(squaredValue, peak)
+    for (
+      let channelIndex = 0;
+      channelIndex < this.audioBuffer.numberOfChannels;
+      channelIndex++
+    ) {
+      channels.push(this.audioBuffer.getChannelData(channelIndex))
     }
 
-    for (let frame = 0; frame < this.length; frame++) {
-      volumePerFrame[frame] = Math.min(
-        volumePerFrame[frame] / Math.max(peak, 0.0001),
-        1
-      )
+    const worker = this.runtime.createAudioInferenceWorker()
+
+    worker.onmessage = message => {
+      this.volumePerFrame = message.data
+
+      ctx.close()
     }
 
-    this.volumePerFrame = volumePerFrame
-
-    ctx.close()
+    worker.postMessage({
+      sampleRate: this.audioBuffer.sampleRate,
+      frameRate: this.frameRate,
+      length: this.length,
+      channels,
+    })
   }
 }
