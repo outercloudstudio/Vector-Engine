@@ -41,7 +41,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     audioDestination.value = audioGain.value
   }
 
-  let audioInferenceCache: Ref<number[]> = ref([])
+  let audioInferenceVolumeCache: Ref<number[]> = ref([])
 
   async function loadData() {
     if (!projectFolder.value) return
@@ -302,7 +302,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
       engine.value.audioBuffer == null ||
       engine.value.volumePerFrame.length == 0
     )
-      return audioInferenceCache.value
+      return audioInferenceVolumeCache.value
 
     return engine.value.volumePerFrame
   })
@@ -312,7 +312,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
     if (engine.value.audioBuffer == null) return
 
-    audioInferenceCache.value = volumePerFrame
+    audioInferenceVolumeCache.value = volumePerFrame
   })
 
   const volume = computed(() => {
