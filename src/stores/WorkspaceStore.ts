@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { Ref, ref, computed } from 'vue'
+import { Ref, ref, computed, watch } from 'vue'
 import { getProjectFolder, cacheProjectFolder } from '@/fs'
 import { Engine } from '@/engine/engine'
 import { Runtime } from '@/Runtime'
@@ -40,6 +40,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
     audioDestination.value = audioGain.value
   }
+
+  let audioInferenceCache: Ref<number[]> = ref([])
 
   async function loadData() {
     if (!projectFolder.value) return
@@ -296,7 +298,21 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   const volumePerFrame = computed(() => {
     if (!engine.value) return []
 
+    if (
+      engine.value.audioBuffer == null ||
+      engine.value.volumePerFrame.length == 0
+    )
+      return audioInferenceCache.value
+
     return engine.value.volumePerFrame
+  })
+
+  watch(volumePerFrame, volumePerFrame => {
+    if (!engine.value) return
+
+    if (engine.value.audioBuffer == null) return
+
+    audioInferenceCache.value = volumePerFrame
   })
 
   const volume = computed(() => {
