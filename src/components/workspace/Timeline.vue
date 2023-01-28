@@ -17,9 +17,9 @@
       <div class="control-bar-group">
         <span
           class="material-symbols-outlined icon-button"
-          @click="() => (muted = !muted)"
+          @click="() => (WorkspaceStore.muted = !WorkspaceStore.muted)"
         >
-          {{ muted ? 'volume_off' : 'volume_up' }}
+          {{ WorkspaceStore.muted ? 'volume_off' : 'volume_up' }}
         </span>
       </div>
 
@@ -89,11 +89,12 @@ import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 
 const WorkspaceStore = useWorkspaceStore()
 
-const muted = ref(false)
-
-watch(muted, muted => {
-  WorkspaceStore.audioGain.gain.value = muted ? 0 : 1
-})
+watch(
+  () => WorkspaceStore.muted,
+  muted => {
+    WorkspaceStore.audioGain.gain.value = muted ? 0 : WorkspaceStore.volume
+  }
+)
 
 async function createMarker() {
   WorkspaceStore.createMarker(`Marker`, WorkspaceStore.frame)

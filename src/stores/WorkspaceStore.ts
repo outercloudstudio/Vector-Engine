@@ -28,6 +28,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     })
   )
   const audioGain: Ref<GainNode> = ref(audioContext.value.createGain())
+  const muted: Ref<boolean> = ref(false)
   const audioDestination: Ref<AudioNode> = ref(audioContext.value.createGain())
   const setupAudio: Ref<boolean> = ref(false)
 
@@ -323,6 +324,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     if (!projectFolder.value) return
 
     data.value.editor.volume = volume
+    if (!muted.value) audioGain.value.gain.value = volume
 
     const dataFile = await projectFolder.value.getFileHandle('data.json')
 
@@ -392,5 +394,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     updateInferenceAudio,
     inferenceScenes,
     updateInferenceScenes,
+    muted,
   }
 })
