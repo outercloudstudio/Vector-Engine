@@ -1,7 +1,7 @@
 import { Runtime } from '@/Runtime'
 import { Vector } from '@/engine/engine-core'
 
-function useProjectContext(engine: Engine) {
+function useProjectContext(engine: Engine, forReload?: boolean) {
   return {
     frameRate(frameRate: number) {
       engine.frameRate = frameRate
@@ -28,6 +28,8 @@ function useProjectContext(engine: Engine) {
     },
 
     audioTrack(path: string) {
+      if (forReload) return
+
       engine.loadAudioTrack(path)
     },
   }
@@ -604,7 +606,7 @@ export class Engine {
     this.scenes = {}
     this.initialScene = undefined
 
-    this.project.project(useProjectContext(this))
+    this.project.project(useProjectContext(this, true))
 
     this.frame = 0
 
