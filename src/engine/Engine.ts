@@ -261,9 +261,9 @@ function useSceneContext(scene: Scene) {
       return element
     },
 
-    animate: function* (length: number, mode: any, operator: any) {
+    animate: async function* (length: number, mode: any, operator: any) {
       for (let i = 1; i <= Math.ceil(length * scene.engine.frameRate); i++) {
-        operator(mode(i / Math.ceil(length * scene.engine.frameRate)))
+        await operator(mode(i / Math.ceil(length * scene.engine.frameRate)))
 
         yield null
       }
@@ -310,8 +310,8 @@ function useSceneContext(scene: Scene) {
       }
     },
 
-    waitWhile: function* (condition: any) {
-      while (condition()) yield null
+    waitWhile: async function* (condition: any) {
+      while (await condition()) yield null
     },
 
     lerp(a: number, b: number, t: number) {
@@ -342,7 +342,7 @@ function useSceneContext(scene: Scene) {
       return frames / scene.engine.frameRate
     },
 
-    waitForAll: function* () {
+    waitForAll: async function* () {
       let contexts = []
 
       for (let i = 0; i < arguments.length; i++) {
@@ -357,7 +357,7 @@ function useSceneContext(scene: Scene) {
         for (let i = 0; i < contexts.length; i++) {
           const context = contexts[i]
 
-          const result = context.next()
+          const result = await context.next()
 
           if (result.done) {
             contexts.splice(i, 1)
@@ -373,7 +373,7 @@ function useSceneContext(scene: Scene) {
       }
     },
 
-    waitForAny: function* () {
+    waitForAny: async function* () {
       let contexts = []
 
       for (let i = 0; i < arguments.length; i++) {
@@ -388,7 +388,7 @@ function useSceneContext(scene: Scene) {
         for (let i = 0; i < contexts.length; i++) {
           const context = contexts[i]
 
-          const result = context.next()
+          const result = await context.next()
 
           if (result.done) {
             contexts.splice(i, 1)
@@ -408,9 +408,10 @@ function useSceneContext(scene: Scene) {
       }
     },
 
-    loop: function* (contextLambda: any) {
+    loop: async function* (contextLambda: any) {
       while (true) {
-        const context = contextLambda()
+        // may not need to be async
+        const context = await contextLambda()
 
         yield* context
       }
