@@ -58,6 +58,8 @@ function scroll(event: any) {
   zoom.value = Math.max(zoom.value, 0.0001)
 }
 
+const canvasScale = 2
+
 async function renderCanvas() {
   if (!wrapper.value) return
   if (!preview.value) return
@@ -66,9 +68,11 @@ async function renderCanvas() {
 
   if (!render) return
 
-  preview.value
-    .getContext('2d')
-    ?.clearRect(0, 0, preview.value.width, preview.value.height)
+  const ctx = preview.value.getContext('2d')!
+
+  ctx.imageSmoothingEnabled = false
+
+  ctx.clearRect(0, 0, preview.value.width, preview.value.height)
 
   const ratioWidth = preview.value.width
   const ratioHeight = preview.value.height * (16 / 9)
@@ -79,15 +83,17 @@ async function renderCanvas() {
   const scaledWidth = bestWidth * zoom.value
   const scaledHeight = bestHeight * zoom.value
 
-  preview.value
-    .getContext('2d')
-    ?.drawImage(
-      render,
-      wrapper.value.offsetWidth / 2 + offsetX.value - scaledWidth / 2,
-      wrapper.value.offsetHeight / 2 + offsetY.value - scaledHeight / 2,
-      scaledWidth,
-      scaledHeight
-    )
+  ctx.drawImage(
+    render,
+    (wrapper.value.offsetWidth * canvasScale) / 2 +
+      offsetX.value * canvasScale -
+      scaledWidth / 2,
+    (wrapper.value.offsetHeight * canvasScale) / 2 +
+      offsetY.value * canvasScale -
+      scaledHeight / 2,
+    scaledWidth,
+    scaledHeight
+  )
 }
 
 watch(
@@ -130,8 +136,10 @@ function fixPreviewSize() {
   if (!wrapper.value) return
   if (!preview.value) return
 
-  preview.value.width = wrapper.value.offsetWidth
-  preview.value.height = wrapper.value.offsetHeight
+  preview.value.width = wrapper.value.offsetWidth * canvasScale
+  preview.value.height = wrapper.value.offsetHeight * canvasScale
+  preview.value.style.maxWidth = wrapper.value.offsetWidth + 'px'
+  preview.value.style.maxHeight = wrapper.value.offsetHeight + 'px'
 
   renderCanvas()
 }
@@ -163,5 +171,7 @@ onMounted(() => {
   margin: 0;
 
   position: absolute;
+
+  image-rendering: pixelated;
 }
 </style>
