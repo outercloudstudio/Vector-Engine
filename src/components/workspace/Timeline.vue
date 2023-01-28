@@ -279,6 +279,8 @@ const lengthTime = computed(() => {
   return `${minutes}:${leftSeconds}`
 })
 
+const canvasScale = 2
+
 let mouse = false
 let mouseAlt = false
 
@@ -308,7 +310,8 @@ function XtoFrame(x: number) {
   if (!canvas.value) return -1
 
   const factor =
-    (x - canvas.value.getBoundingClientRect().left) / canvas.value.width
+    (x * canvasScale - canvas.value.getBoundingClientRect().left) /
+    canvas.value.width
 
   return Math.round(
     factor * (endFrame.value - startFrame.value) + startFrame.value
@@ -327,16 +330,22 @@ function mouseDown(event: MouseEvent) {
       const ctx = canvas.value.getContext('2d')!
 
       for (const marker of WorkspaceStore.markers) {
-        if (event.clientX < frameToRelativeX(marker.frame)) continue
+        if (event.clientX < frameToRelativeX(marker.frame) / canvasScale)
+          continue
 
-        ctx.font = '10px JetBrainsMono'
+        ctx.font = `10px JetBrainsMono`
         const width = ctx.measureText(marker.name).width + 8
 
-        if (event.clientX > frameToRelativeX(marker.frame) + width) continue
+        if (
+          event.clientX >
+          frameToRelativeX(marker.frame) / canvasScale + width
+        )
+          continue
 
         heldMarker.value = marker.id
 
-        heldMarkerOffset = frameToRelativeX(marker.frame) - event.clientX
+        heldMarkerOffset =
+          frameToRelativeX(marker.frame) / canvasScale - event.clientX
 
         highlightedMarker.value = null
       }
@@ -345,17 +354,19 @@ function mouseDown(event: MouseEvent) {
     if (
       heldMarker.value == null &&
       event.clientY - canvas.value.getBoundingClientRect().top >=
-        canvas.value.height - 8
+        canvas.value.height / canvasScale - 8
     ) {
       const relativeX =
         event.clientX - canvas.value.getBoundingClientRect().left
 
       let scrollBarStart = Math.floor(
-        (canvas.value.width * startFrame.value) / WorkspaceStore.length
+        ((canvas.value.width / canvasScale) * startFrame.value) /
+          WorkspaceStore.length
       )
 
       const scrollBarWidth = Math.floor(
-        (canvas.value.width * (endFrame.value - startFrame.value)) /
+        ((canvas.value.width / canvasScale) *
+          (endFrame.value - startFrame.value)) /
           WorkspaceStore.length
       )
 
@@ -366,14 +377,16 @@ function mouseDown(event: MouseEvent) {
         const viewRange = endFrame.value - startFrame.value
 
         const targetFrame = Math.round(
-          (relativeX / canvas.value.width) * WorkspaceStore.length
+          (relativeX / (canvas.value.width / canvasScale)) *
+            WorkspaceStore.length
         )
 
         startFrame.value = targetFrame - Math.floor(viewRange / 2)
         endFrame.value = targetFrame + Math.ceil(viewRange / 2)
 
         scrollBarStart = Math.floor(
-          (canvas.value.width * startFrame.value) / WorkspaceStore.length
+          ((canvas.value.width / canvasScale) * startFrame.value) /
+            WorkspaceStore.length
         )
       }
 
@@ -432,21 +445,22 @@ async function mouseMove(event: MouseEvent) {
         )
       } else {
         heldMarkerX.value = Math.min(
-          Math.max(event.clientX + heldMarkerOffset, frameToRelativeX(0)),
-          frameToRelativeX(WorkspaceStore.length - 1)
+          Math.max(
+            event.clientX + heldMarkerOffset,
+            frameToRelativeX(0) / canvasScale
+          ),
+          frameToRelativeX(WorkspaceStore.length - 1) / canvasScale
         )
       }
     } else {
       const relativeX =
         event.clientX - canvas.value.getBoundingClientRect().left
-
       const newScrollbarPosition = relativeX + grabbedScrollbarOffset
-
       const newScrollBarFrame = Math.round(
-        (newScrollbarPosition / canvas.value.width) * WorkspaceStore.length
+        (newScrollbarPosition / (canvas.value.width / canvasScale)) *
+          WorkspaceStore.length
       )
       const viewRange = endFrame.value - startFrame.value
-
       startFrame.value = newScrollBarFrame
       endFrame.value = newScrollBarFrame + viewRange
     }
@@ -472,12 +486,13 @@ async function mouseMove(event: MouseEvent) {
     const ctx = canvas.value.getContext('2d')!
 
     for (const marker of WorkspaceStore.markers) {
-      if (event.clientX < frameToRelativeX(marker.frame)) continue
+      if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
 
       ctx.font = '10px JetBrainsMono'
       const width = ctx.measureText(marker.name).width + 8
 
-      if (event.clientX > frameToRelativeX(marker.frame) + width) continue
+      if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
+        continue
 
       highlightedMarker.value = marker.id
     }
@@ -568,10 +583,10 @@ function render() {
 
   // Seperator Bar
   ctx.strokeStyle = secondaryColor
-  ctx.lineWidth = 1
+  ctx.lineWidth = 1 * canvasScale
   ctx.beginPath()
-  ctx.moveTo(0.5, 32.5)
-  ctx.lineTo(canvas.value.width, 32)
+  ctx.moveTo(0, 32 * canvasScale)
+  ctx.lineTo(canvas.value.width, 32 * canvasScale)
   ctx.stroke()
 
   const labelInterval = Math.max(
@@ -593,18 +608,18 @@ function render() {
 
     // Frame bar
     ctx.strokeStyle = alternateTextColor
-    ctx.lineWidth = 1
+    ctx.lineWidth = 1 * canvasScale
     ctx.beginPath()
-    ctx.moveTo(x, frame % labelInterval == 0 ? 16 : 24)
-    ctx.lineTo(x, 32)
+    ctx.moveTo(x, (frame % labelInterval == 0 ? 16 : 24) * canvasScale)
+    ctx.lineTo(x, 32 * canvasScale)
     ctx.stroke()
 
     if (frame % labelInterval != 0) continue
 
     // Frame numbers
     ctx.fillStyle = alternateTextColor
-    ctx.font = '10px JetBrainsMono'
-    ctx.fillText(frame.toString(), x + 4, 24)
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+    ctx.fillText(frame.toString(), x + 4 * canvasScale, 24 * canvasScale)
   }
 
   // Volume
@@ -614,10 +629,12 @@ function render() {
 
     const size =
       (WorkspaceStore.volumePerFrame[frame] || 0) *
-      ((canvas.value.height - 72) / 2)
+      ((canvas.value.height - 72 * canvasScale) / 2)
     ctx.fillRect(
       frameToRelativeX(frame),
-      (canvas.value.height - 72) / 2 - size / 2 + 72,
+      (canvas.value.height - 72 * canvasScale) / 2 -
+        size / 2 +
+        72 * canvasScale,
       frameToRelativeX(frame + 1) - frameToRelativeX(frame),
       size
     )
@@ -631,8 +648,8 @@ function render() {
   ) {
     const scene = WorkspaceStore.sceneInference[sceneIndex]
 
-    ctx.font = '10px JetBrainsMono'
-    const textWidth = ctx.measureText(scene.name).width + 8
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+    const textWidth = ctx.measureText(scene.name).width + 8 * canvasScale
     const frameWidth = WorkspaceStore.sceneInference[sceneIndex + 1]
       ? frameToRelativeX(WorkspaceStore.sceneInference[sceneIndex + 1].frame) -
         frameToRelativeX(scene.frame)
@@ -642,10 +659,10 @@ function render() {
     ctx.beginPath()
     ctx.roundRect(
       frameToRelativeX(scene.frame),
-      38,
-      Math.max(0, frameWidth - 4),
-      16,
-      [0, 6, 6, 6]
+      38 * canvasScale,
+      Math.max(0, frameWidth - 4 * canvasScale),
+      16 * canvasScale,
+      [0, 6 * canvasScale, 6 * canvasScale, 6 * canvasScale]
     )
     ctx.fill()
 
@@ -654,8 +671,8 @@ function render() {
     ctx.fillStyle = textColor
     ctx.fillText(
       scene.name,
-      frameToRelativeX(scene.frame) + 4,
-      40 + ctx.measureText(scene.name).fontBoundingBoxAscent
+      frameToRelativeX(scene.frame) + 4 * canvasScale,
+      40 * canvasScale + ctx.measureText(scene.name).fontBoundingBoxAscent
     )
   }
 
@@ -663,21 +680,21 @@ function render() {
   for (const marker of WorkspaceStore.markers) {
     if (marker.id == heldMarker.value) continue
 
-    ctx.font = '10px JetBrainsMono'
-    const width = ctx.measureText(marker.name).width + 8
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+    const width = ctx.measureText(marker.name).width + 8 * canvasScale
 
     if (highlightedMarker.value == marker.id && heldMarker.value == null) {
       ctx.strokeStyle = textColor
-      ctx.lineWidth = 1
+      ctx.lineWidth = 1 * canvasScale
     }
 
     ctx.fillStyle = alternateGrab
     ctx.beginPath()
     ctx.roundRect(
       frameToRelativeX(marker.frame),
-      58,
+      58 * canvasScale,
       width,
-      16,
+      16 * canvasScale,
       [0, 9999, 9999, 9999]
     )
     ctx.fill()
@@ -687,8 +704,8 @@ function render() {
     ctx.fillStyle = textColor
     ctx.fillText(
       marker.name,
-      frameToRelativeX(marker.frame) + 4,
-      60 + ctx.measureText(marker.name).fontBoundingBoxAscent
+      frameToRelativeX(marker.frame) + 4 * canvasScale,
+      60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
     )
   }
 
@@ -697,22 +714,28 @@ function render() {
       marker => marker.id == heldMarker.value
     )
 
-    ctx.font = '10px JetBrainsMono'
-    const width = ctx.measureText(marker.name).width + 8
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+    const width = ctx.measureText(marker.name).width + 8 * canvasScale
 
     ctx.strokeStyle = textColor
-    ctx.lineWidth = 1
+    ctx.lineWidth = 1 * canvasScale
     ctx.fillStyle = alternateGrab
     ctx.beginPath()
-    ctx.roundRect(heldMarkerX.value, 58, width, 16, [0, 9999, 9999, 9999])
+    ctx.roundRect(
+      heldMarkerX.value * canvasScale,
+      58 * canvasScale,
+      width,
+      16 * canvasScale,
+      [0, 9999, 9999, 9999]
+    )
     ctx.fill()
     ctx.stroke()
 
     ctx.fillStyle = textColor
     ctx.fillText(
       marker.name,
-      heldMarkerX.value + 4,
-      60 + ctx.measureText(marker.name).fontBoundingBoxAscent
+      heldMarkerX.value * canvasScale + 4 * canvasScale,
+      60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
     )
   }
 
@@ -759,7 +782,7 @@ function render() {
 
   // Playhead
   ctx.strokeStyle = grabColor
-  ctx.lineWidth = 1
+  ctx.lineWidth = 1 * canvasScale
   ctx.beginPath()
   ctx.moveTo(frameToRelativeX(WorkspaceStore.frame), 0)
   ctx.lineTo(frameToRelativeX(WorkspaceStore.frame), canvas.value.height)
@@ -767,7 +790,7 @@ function render() {
 
   // Scrollbar
   ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
-  ctx.fillRect(0, canvas.value.height, canvas.value.width, -8)
+  ctx.fillRect(0, canvas.value.height, canvas.value.width, -8 * canvasScale)
 
   ctx.fillStyle = '#242424'
   ctx.fillRect(
@@ -777,7 +800,7 @@ function render() {
       (canvas.value.width * (endFrame.value - startFrame.value)) /
         WorkspaceStore.length
     ),
-    -8
+    -8 * canvasScale
   )
 }
 
@@ -852,8 +875,10 @@ function fixCanvasSize() {
   if (!canvasWrapper.value) return
   if (!canvas.value) return
 
-  canvas.value.width = canvasWrapper.value.offsetWidth
-  canvas.value.height = canvasWrapper.value.offsetHeight
+  canvas.value.width = canvasWrapper.value.offsetWidth * canvasScale
+  canvas.value.height = canvasWrapper.value.offsetHeight * canvasScale
+  canvas.value.style.maxWidth = canvasWrapper.value.offsetWidth + 'px'
+  canvas.value.style.maxHeight = canvasWrapper.value.offsetHeight + 'px'
 
   render()
 }
