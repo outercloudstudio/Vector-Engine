@@ -21,6 +21,12 @@
         >
           {{ WorkspaceStore.muted ? 'volume_off' : 'volume_up' }}
         </span>
+
+        <input
+          id="speed-input"
+          v-model.lazy="speedInputBuffer"
+          @blur="speedInputBuffer = (<any>$event).target.value"
+        />
       </div>
 
       <div class="control-bar-group">
@@ -86,6 +92,7 @@
 import { onMounted, Ref, ref, watch, computed } from 'vue'
 
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
+import { read } from 'fs'
 
 const WorkspaceStore = useWorkspaceStore()
 
@@ -131,14 +138,52 @@ function stopAudioPlayback() {
   audioBufferSource.stop()
 }
 
+const speed = ref(1)
+
+const speedInputBuffer = computed({
+  get: () => {
+    return `${speed.value}x`
+  },
+  set: passedSpeed => {
+    if (/^(([0-9]*\.[0-9]+)|([0-9]+))x?$/.test(passedSpeed)) {
+      const readSpeed = passedSpeed.endsWith('x')
+        ? parseFloat(passedSpeed.substring(0, passedSpeed.length - 1))
+        : parseFloat(passedSpeed)
+
+      if (readSpeed == 0) {
+        console.log(passedSpeed, 'fail 2')
+
+        const originalSpeed = speed.value
+
+        speed.value = -1
+
+        speed.value = originalSpeed
+      } else {
+        speed.value = readSpeed
+      }
+    } else {
+      console.log(passedSpeed, 'fail 1')
+
+      const originalSpeed = speed.value
+
+      speed.value = -1
+
+      speed.value = originalSpeed
+    }
+  },
+})
+
 async function playUpdate() {
   if (!playing.value) return
 
   const now = Date.now()
 
   const newFrame =
-    Math.floor(((now - startedPlayingTime) / 1000) * WorkspaceStore.frameRate) +
-    startedFrame
+    Math.floor(
+      ((now - startedPlayingTime) / 1000) *
+        speed.value *
+        WorkspaceStore.frameRate
+    ) + startedFrame
 
   await WorkspaceStore.updateFrame(newFrame)
 
@@ -897,6 +942,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
+#speed-input {
+  font-size: x-small;
+  width: 3rem;
+  background: none;
+  padding: 0;
+}
+
 #component {
   min-height: 18rem;
 
