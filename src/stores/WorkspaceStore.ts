@@ -18,6 +18,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   })
   let error: Ref<string | null> = ref(null)
   let loaded: Ref<boolean> = ref(false)
+  let loadedUpdate: Ref<number> = ref(0)
 
   let frame: Ref<number> = ref(0)
   let length: Ref<number> = ref(60)
@@ -192,6 +193,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     runInferences(inferenceEngine)
 
     loaded.value = true
+    loadedUpdate.value++
   }
 
   async function loadProjectFromCache() {
@@ -431,5 +433,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     errors,
     selectedMarker,
     deleteMarker,
+    loadedUpdate,
   }
 })

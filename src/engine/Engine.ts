@@ -51,153 +51,159 @@ class Element {
   }
 }
 
+const Builders = {
+  Rect: {
+    setup(element: Element, options: any) {
+      element.position = new Vector(0, 0)
+      element.origin = new Vector(0.5, 0.5)
+      element.size = new Vector(100, 100)
+      element.color = new Vector(0, 0, 0, 1)
+      element.rotation = 0
+      element.radius = 0
+      element.priority = 0
+
+      if (options != null) {
+        for (const option of Object.keys(options)) {
+          element[option] = options[option]
+        }
+      }
+    },
+
+    initRender(me: Element) {
+      return async (ctx: any) => {
+        const red = me.color.x * 255
+        const blue = me.color.y * 255
+        const green = me.color.z * 255
+        const alpha = me.color.w
+
+        ctx.translate(
+          me.position.x + me.size.x / 2,
+          me.position.y + me.size.y / 2
+        )
+        ctx.rotate((me.rotation * Math.PI) / 180)
+
+        ctx.translate(
+          -me.position.x + -me.size.x / 2,
+          -me.position.y + -me.size.y / 2
+        )
+
+        ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
+        ctx.beginPath()
+        ctx.roundRect(
+          me.position.x - me.size.x * me.origin.x,
+          me.position.y - me.size.y * me.origin.y,
+          me.size.x,
+          me.size.y,
+          me.radius
+        )
+        ctx.fill()
+      }
+    },
+  },
+  Circle: {
+    setup(element: Element, options: any) {
+      element.position = new Vector(0, 0)
+      element.origin = new Vector(0.5, 0.5)
+      element.size = 50
+      element.color = new Vector(0, 0, 0, 1)
+      element.priority = 0
+
+      if (options != null) {
+        for (const option of Object.keys(options)) {
+          element[option] = options[option]
+        }
+      }
+    },
+
+    initRender(me: Element) {
+      return async (ctx: any) => {
+        const red = me.color.x * 255
+        const blue = me.color.y * 255
+        const green = me.color.z * 255
+        const alpha = me.color.w
+
+        ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
+        ctx.beginPath()
+        ctx.arc(
+          me.position.x - me.size * 2 * (me.origin.x - 0.5),
+          me.position.y - me.size * 2 * (me.origin.y - 0.5),
+          me.size,
+          0,
+          2 * Math.PI
+        )
+        ctx.fill()
+      }
+    },
+  },
+  Image: {
+    setup(element: Element, options: any) {
+      element.position = new Vector(0, 0)
+      element.origin = new Vector(0.5, 0.5)
+      element.size = new Vector(100, 100)
+      element.rotation = 0
+      element.priority = 0
+      element.image = null
+
+      if (options != null) {
+        for (const option of Object.keys(options)) {
+          element[option] = options[option]
+        }
+      }
+    },
+
+    initRender(me: Element) {
+      return async (ctx: any) => {
+        if (me.image == null) return
+
+        const xScale = me.image.width / me.size.x
+        const yScale = me.image.height / me.size.y
+
+        let scale = xScale < yScale ? xScale : yScale
+
+        const targetW = me.image.width / xScale
+        const targetH = me.image.height / yScale
+
+        const uncroppedW = me.image.width / scale
+        const uncroppedH = me.image.height / scale
+
+        const offsetX = ((uncroppedW - targetW) * scale) / 2
+        const offsetY = ((uncroppedH - targetH) * scale) / 2
+
+        ctx.translate(
+          me.position.x + me.size.x / 2,
+          me.position.y + me.size.y / 2
+        )
+        ctx.rotate((me.rotation * Math.PI) / 180)
+
+        ctx.translate(
+          -me.position.x + -me.size.x / 2,
+          -me.position.y + -me.size.y / 2
+        )
+
+        ctx.translate(0, targetH)
+        ctx.scale(1, -1)
+
+        ctx.drawImage(
+          me.image,
+          offsetX,
+          offsetY,
+          me.image.width - offsetX * 2,
+          me.image.height - offsetY * 2,
+          me.position.x - me.size.x * me.origin.x,
+          -me.position.y + me.size.y * me.origin.y,
+          targetW,
+          targetH
+        )
+      }
+    },
+  },
+}
+
 function useSceneContext(scene: Scene) {
   return {
     Vector,
 
-    Builders: {
-      Rect: {
-        setup(element: Element, options: any) {
-          element.position = new Vector(0, 0)
-          element.origin = new Vector(0.5, 0.5)
-          element.size = new Vector(100, 100)
-          element.color = new Vector(0, 0, 0, 1)
-          element.rotation = 0
-          element.priority = 0
-
-          if (options != null) {
-            for (const option of Object.keys(options)) {
-              element[option] = options[option]
-            }
-          }
-        },
-
-        initRender(me: Element) {
-          return async (ctx: any) => {
-            const red = me.color.x * 255
-            const blue = me.color.y * 255
-            const green = me.color.z * 255
-            const alpha = me.color.w
-
-            ctx.translate(
-              me.position.x + me.size.x / 2,
-              me.position.y + me.size.y / 2
-            )
-            ctx.rotate((me.rotation * Math.PI) / 180)
-
-            ctx.translate(
-              -me.position.x + -me.size.x / 2,
-              -me.position.y + -me.size.y / 2
-            )
-
-            ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
-            ctx.fillRect(
-              me.position.x - me.size.x * me.origin.x,
-              me.position.y - me.size.y * me.origin.y,
-              me.size.x,
-              me.size.y
-            )
-          }
-        },
-      },
-      Circle: {
-        setup(element: Element, options: any) {
-          element.position = new Vector(0, 0)
-          element.origin = new Vector(0.5, 0.5)
-          element.size = 50
-          element.color = new Vector(0, 0, 0, 1)
-          element.priority = 0
-
-          if (options != null) {
-            for (const option of Object.keys(options)) {
-              element[option] = options[option]
-            }
-          }
-        },
-
-        initRender(me: Element) {
-          return async (ctx: any) => {
-            const red = me.color.x * 255
-            const blue = me.color.y * 255
-            const green = me.color.z * 255
-            const alpha = me.color.w
-
-            ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
-            ctx.beginPath()
-            ctx.arc(
-              me.position.x - me.size * 2 * (me.origin.x - 0.5),
-              me.position.y - me.size * 2 * (me.origin.y - 0.5),
-              me.size,
-              0,
-              2 * Math.PI
-            )
-            ctx.fill()
-          }
-        },
-      },
-      Image: {
-        setup(element: Element, options: any) {
-          element.position = new Vector(0, 0)
-          element.origin = new Vector(0.5, 0.5)
-          element.size = new Vector(100, 100)
-          element.rotation = 0
-          element.priority = 0
-          element.image = null
-
-          if (options != null) {
-            for (const option of Object.keys(options)) {
-              element[option] = options[option]
-            }
-          }
-        },
-
-        initRender(me: Element) {
-          return async (ctx: any) => {
-            if (me.image == null) return
-
-            const xScale = me.image.width / me.size.x
-            const yScale = me.image.height / me.size.y
-
-            let scale = xScale < yScale ? xScale : yScale
-
-            const targetW = me.image.width / xScale
-            const targetH = me.image.height / yScale
-
-            const uncroppedW = me.image.width / scale
-            const uncroppedH = me.image.height / scale
-
-            const offsetX = ((uncroppedW - targetW) * scale) / 2
-            const offsetY = ((uncroppedH - targetH) * scale) / 2
-
-            ctx.translate(
-              me.position.x + me.size.x / 2,
-              me.position.y + me.size.y / 2
-            )
-            ctx.rotate((me.rotation * Math.PI) / 180)
-
-            ctx.translate(
-              -me.position.x + -me.size.x / 2,
-              -me.position.y + -me.size.y / 2
-            )
-
-            ctx.translate(0, targetH)
-            ctx.scale(1, -1)
-
-            ctx.drawImage(
-              me.image,
-              offsetX,
-              offsetY,
-              me.image.width - offsetX * 2,
-              me.image.height - offsetY * 2,
-              me.position.x - me.size.x * me.origin.x,
-              -me.position.y + me.size.y * me.origin.y,
-              targetW,
-              targetH
-            )
-          }
-        },
-      },
-    },
+    Builders,
 
     Modes: {
       Linear(time: number): number {

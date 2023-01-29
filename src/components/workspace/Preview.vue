@@ -132,6 +132,15 @@ watch(
   }
 )
 
+watch(
+  () => WorkspaceStore.loadedUpdate,
+  async () => {
+    if (!render) return
+
+    renderCanvas()
+  }
+)
+
 function fixPreviewSize() {
   if (!wrapper.value) return
   if (!preview.value) return

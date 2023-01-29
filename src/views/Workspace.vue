@@ -66,7 +66,7 @@ import Preview from '@/components/workspace/Preview.vue'
 import Sidemenu from '@/components/workspace/Sidemenu.vue'
 import AlertPopup from '@/components/popups/AlertPopup.vue'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
-import { ref, onMounted, Ref, onUnmounted } from 'vue'
+import { ref, onMounted, Ref, onUnmounted, nextTick } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
 
@@ -88,6 +88,7 @@ async function focus() {
   const originalFrame = WorkspaceStore.frame
 
   await WorkspaceStore.loadProjectFromCache()
+
   await WorkspaceStore.updateFrame(originalFrame)
 }
 
