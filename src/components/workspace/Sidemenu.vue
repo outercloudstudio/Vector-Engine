@@ -48,17 +48,43 @@
       <Toggle v-model="inferenceScenes" />
     </div>
 
+    <div v-if="openMenu == 'inspector'" class="menu">
+      <input
+        placeholder="Marker name"
+        v-model.lazy="markerNameInputBuffer"
+        @blur="markerNameInputBuffer = (<any>$event).target.value"
+      />
+
+      <p class="label">Frame</p>
+      <input
+        placeholder="Marker frame"
+        v-model.lazy="markerFrameInputBuffer"
+        @blur="markerFrameInputBuffer = (<any>$event).target.value"
+      />
+
+      <span
+        id="delete-marker-button"
+        class="material-symbols-outlined icon-button"
+        @click="deleteMarker"
+        >delete</span
+      >
+    </div>
+
     <div
       v-show="openMenu == 'console'"
       ref="consoleMenu"
       id="console"
       class="menu"
     >
-      <span
-        class="material-symbols-outlined icon-button"
-        @click="() => (WorkspaceStore.errors = [])"
-        >delete_forever</span
-      >
+      <div id="console-label">
+        <p>Console</p>
+
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="() => (WorkspaceStore.errors = [])"
+          >delete_forever</span
+        >
+      </div>
 
       <div ref="logs" id="logs">
         <p v-for="error in WorkspaceStore.errors">{{ error }}</p>
@@ -72,9 +98,107 @@ import Toggle from '@/components/Toggle.vue'
 import { Runtime } from '@/Runtime'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { Engine } from '@/engine/Engine'
-import { computed, onMounted, Ref, ref } from 'vue'
+import { computed, onMounted, Ref, ref, watch } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
+
+function deleteMarker() {
+  if (!WorkspaceStore.selectedMarker) return
+
+  WorkspaceStore.deleteMarker(WorkspaceStore.selectedMarker)
+}
+
+let markerName = ref('')
+let markerFrame = ref(0)
+
+watch(
+  () => WorkspaceStore.selectedMarker,
+  markerId => {
+    if (markerId == null) {
+      if (openMenu.value == 'inspector') open('inspector')
+
+      return
+    }
+
+    const marker = WorkspaceStore.markers.find(marker => marker.id == markerId)
+
+    markerName.value = marker.name
+    markerFrame.value = marker.frame
+  }
+)
+
+watch(
+  () => WorkspaceStore.markers,
+  () => {
+    const marker = WorkspaceStore.markers.find(
+      marker => marker.id == WorkspaceStore.selectedMarker
+    )
+
+    if (!marker) {
+      if (openMenu.value == 'inspector') open('inspector')
+
+      WorkspaceStore.selectedMarker = null
+
+      return
+    }
+
+    markerName.value = marker.name
+    markerFrame.value = marker.frame
+  }
+)
+
+const markerNameInputBuffer = computed({
+  get: () => {
+    return markerName.value
+  },
+  set: passedMarkerName => {
+    if (passedMarkerName != '') {
+      markerName.value = passedMarkerName
+
+      if (WorkspaceStore.selectedMarker == null) return
+
+      WorkspaceStore.updateMarker(
+        WorkspaceStore.selectedMarker,
+        markerName.value,
+        markerFrame.value
+      )
+    } else {
+      const originalName = markerName.value
+
+      markerName.value = ''
+
+      markerName.value = originalName
+    }
+  },
+})
+
+const markerFrameInputBuffer = computed({
+  get: () => {
+    return markerFrame.value.toString()
+  },
+  set: passedMarkerFrame => {
+    if (/^[0-9]+$/.test(passedMarkerFrame)) {
+      const readMarkerFrame = Math.min(
+        Math.max(parseInt(passedMarkerFrame), 0),
+        WorkspaceStore.length - 1
+      )
+
+      markerFrame.value = readMarkerFrame
+
+      if (WorkspaceStore.selectedMarker == null) return
+
+      WorkspaceStore.updateMarker(
+        WorkspaceStore.selectedMarker,
+        markerName.value,
+        markerFrame.value
+      )
+    } else {
+      const originalFrame = markerFrame.value
+      markerFrame.value = -1
+      markerFrame.value = originalFrame
+    }
+  },
+})
 
 const inferenceAudio = computed({
   get: () => WorkspaceStore.inferenceAudio,
@@ -168,6 +292,8 @@ function open(menu: string) {
     return
   }
 
+  if (menu == 'inspector' && !WorkspaceStore.selectedMarker) return
+
   openMenu.value = menu
 }
 
@@ -195,12 +321,34 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.menu > input {
+  width: calc(100% - 0.5rem);
+}
+
+#delete-marker-button {
+  margin-left: auto;
+}
+
 #console {
   height: 100%;
 }
 
-#console > span {
-  margin-left: auto;
+#console-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  width: 100%;
+}
+
+#console-label > p {
+  margin: 0;
+
+  font-size: x-small;
+}
+
+#console-label > span {
+  scale: 0.8;
 }
 
 #logs {

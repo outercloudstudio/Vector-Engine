@@ -66,6 +66,13 @@
         >
           add
         </span>
+
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="deleteMarker"
+        >
+          delete
+        </span>
       </div>
 
       <div class="control-bar-group">
@@ -95,6 +102,12 @@ import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { read } from 'fs'
 
 const WorkspaceStore = useWorkspaceStore()
+
+function deleteMarker() {
+  if (!WorkspaceStore.selectedMarker) return
+
+  WorkspaceStore.deleteMarker(WorkspaceStore.selectedMarker)
+}
 
 watch(
   () => WorkspaceStore.muted,
@@ -151,8 +164,6 @@ const speedInputBuffer = computed({
         : parseFloat(passedSpeed)
 
       if (readSpeed == 0) {
-        console.log(passedSpeed, 'fail 2')
-
         const originalSpeed = speed.value
 
         speed.value = -1
@@ -162,8 +173,6 @@ const speedInputBuffer = computed({
         speed.value = readSpeed
       }
     } else {
-      console.log(passedSpeed, 'fail 1')
-
       const originalSpeed = speed.value
 
       speed.value = -1
@@ -387,6 +396,7 @@ function mouseDown(event: MouseEvent) {
         )
           continue
 
+        WorkspaceStore.selectedMarker = marker.id
         heldMarker.value = marker.id
 
         heldMarkerOffset =
@@ -458,12 +468,12 @@ function mouseUp(event: MouseEvent) {
     if (heldMarker.value != null) {
       const droppedFrame = XtoFrame(heldMarkerX.value)
 
-      WorkspaceStore.updateMarker(
-        heldMarker.value,
-        WorkspaceStore.markers.find(marker => marker.id == heldMarker.value)
-          .name,
-        droppedFrame
+      const marker = WorkspaceStore.markers.find(
+        marker => marker.id == heldMarker.value
       )
+
+      if (marker.frame != droppedFrame)
+        WorkspaceStore.updateMarker(heldMarker.value, marker.name, droppedFrame)
 
       heldMarker.value = null
     }
@@ -728,7 +738,10 @@ function render() {
     ctx.font = `${10 * canvasScale}px JetBrainsMono`
     const width = ctx.measureText(marker.name).width + 8 * canvasScale
 
-    if (highlightedMarker.value == marker.id && heldMarker.value == null) {
+    if (
+      (highlightedMarker.value == marker.id && heldMarker.value == null) ||
+      WorkspaceStore.selectedMarker == marker.id
+    ) {
       ctx.strokeStyle = textColor
       ctx.lineWidth = 1 * canvasScale
     }
@@ -743,7 +756,10 @@ function render() {
       [0, 9999, 9999, 9999]
     )
     ctx.fill()
-    if (highlightedMarker.value == marker.id && heldMarker.value == null)
+    if (
+      (highlightedMarker.value == marker.id && heldMarker.value == null) ||
+      WorkspaceStore.selectedMarker == marker.id
+    )
       ctx.stroke()
 
     ctx.fillStyle = textColor

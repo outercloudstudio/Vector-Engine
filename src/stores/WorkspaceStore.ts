@@ -44,6 +44,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
   let audioInferenceVolumeCache: Ref<number[]> = ref([])
 
+  let selectedMarker: Ref<null | string> = ref(null)
+
   async function loadData() {
     if (!projectFolder.value) return
 
@@ -268,6 +270,22 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     await writable.close()
   }
 
+  async function deleteMarker(id: string) {
+    if (!projectFolder.value) return
+
+    data.value.project.markers.splice(
+      data.value.project.markers.findIndex((marker: any) => marker.id == id),
+      1
+    )
+
+    const dataFile = await projectFolder.value.getFileHandle('data.json')
+
+    // @ts-ignore
+    const writable = await dataFile.createWritable()
+    await writable.write(JSON.stringify(data.value, null, 2))
+    await writable.close()
+  }
+
   async function updateMarker(id: string, name: string, frame: number) {
     if (!projectFolder.value) return
 
@@ -411,5 +429,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     updateInferenceScenes,
     muted,
     errors,
+    selectedMarker,
+    deleteMarker,
   }
 })
