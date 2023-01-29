@@ -58,8 +58,10 @@ const Builders = {
       element.origin = new Vector(0.5, 0.5)
       element.size = new Vector(100, 100)
       element.color = new Vector(0, 0, 0, 1)
+      element.outlineColor = new Vector(0, 0, 0, 0)
       element.rotation = 0
       element.radius = 0
+      element.outlineWidth = 0
       element.priority = 0
 
       if (options != null) {
@@ -76,6 +78,11 @@ const Builders = {
         const green = me.color.z * 255
         const alpha = me.color.w
 
+        const outlineRed = me.outlineColor.x * 255
+        const outlineBlue = me.outlineColor.y * 255
+        const outlineGreen = me.outlineColor.z * 255
+        const outlineAlpha = me.outlineColor.w
+
         ctx.translate(
           me.position.x + me.size.x / 2,
           me.position.y + me.size.y / 2
@@ -88,15 +95,20 @@ const Builders = {
         )
 
         ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
+        ctx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
+        ctx.lineWidth = me.outlineWidth
         ctx.beginPath()
         ctx.roundRect(
-          me.position.x - me.size.x * me.origin.x,
-          me.position.y - me.size.y * me.origin.y,
+          me.position.x - me.size.x * (me.origin.x - 0.5),
+          me.position.y - me.size.y * (me.origin.y - 0.5),
           me.size.x,
           me.size.y,
           me.radius
         )
         ctx.fill()
+        ctx.stroke()
+
+        ctx.resetTransform()
       }
     },
   },

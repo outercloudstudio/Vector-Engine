@@ -82,14 +82,39 @@ async function loadWithPermissions() {
   renderPreview.value = true
 
   window.addEventListener('focus', focus)
+  window.addEventListener('blur', blur)
 }
 
+let focused = true
+
 async function focus() {
+  focused = true
+
   const originalFrame = WorkspaceStore.frame
 
   await WorkspaceStore.loadProjectFromCache()
 
   await WorkspaceStore.updateFrame(originalFrame)
+}
+
+async function blurUpdate() {
+  console.log(focused)
+
+  if (focused) return
+
+  const originalFrame = WorkspaceStore.frame
+
+  await WorkspaceStore.loadProjectFromCache()
+
+  await WorkspaceStore.updateFrame(originalFrame)
+
+  setTimeout(blurUpdate, 1000)
+}
+
+async function blur() {
+  focused = false
+
+  setTimeout(blurUpdate, 1000)
 }
 
 onMounted(() => {
@@ -100,6 +125,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('focus', focus)
+  window.removeEventListener('blur', blur)
 })
 </script>
 
