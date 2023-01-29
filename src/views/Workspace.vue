@@ -20,13 +20,27 @@
         >
           save
         </span>
+
         <span
           class="material-symbols-outlined icon-button"
           @click="() => sideMenu?.open('settings')"
         >
           settings
         </span>
-        <span class="material-symbols-outlined icon-button"> colorize </span>
+
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="() => sideMenu?.open('inspector')"
+        >
+          colorize
+        </span>
+
+        <span
+          class="material-symbols-outlined icon-button"
+          @click="() => sideMenu?.open('console')"
+        >
+          terminal
+        </span>
       </div>
     </div>
   </div>

@@ -142,6 +142,8 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     sceneInference.value = inference
   }
 
+  let errors: Ref<string[]> = ref([])
+
   async function loadProject(name: string) {
     projectFolder.value = (await getProjectFolder(name)) || undefined
 
@@ -156,7 +158,20 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     engine.value = new Engine(
       runtime.value,
       data.value.project.markers,
-      inferenceAudio.value
+      inferenceAudio.value,
+      (error: string) => {
+        console.log(error)
+
+        errors.value.push(
+          error
+            .toString()
+            .replaceAll('\x1b[0m', '')
+            .replaceAll('\x1b[31m', '')
+            .replaceAll('\x1b[31;1m', '')
+            .replaceAll('\x1b[2m', '')
+            .replaceAll('\x1b[36;1;4m', '')
+        )
+      }
     )
     await engine.value.load()
 
@@ -395,5 +410,6 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     inferenceScenes,
     updateInferenceScenes,
     muted,
+    errors,
   }
 })

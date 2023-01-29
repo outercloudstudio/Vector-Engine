@@ -1,5 +1,9 @@
 <template>
-  <div id="sidemenu" v-if="openMenu != 'none'">
+  <div
+    v-show="openMenu != 'none'"
+    id="sidemenu"
+    :class="{ large: openMenu == 'console' }"
+  >
     <div v-if="openMenu == 'export'" class="menu">
       <input placeholder="Export name" v-model="exportName" />
 
@@ -43,6 +47,23 @@
       <p class="label">Scene Inference</p>
       <Toggle v-model="inferenceScenes" />
     </div>
+
+    <div
+      v-show="openMenu == 'console'"
+      ref="consoleMenu"
+      id="console"
+      class="menu"
+    >
+      <span
+        class="material-symbols-outlined icon-button"
+        @click="() => (WorkspaceStore.errors = [])"
+        >delete_forever</span
+      >
+
+      <div ref="logs" id="logs">
+        <p v-for="error in WorkspaceStore.errors">{{ error }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -51,7 +72,7 @@ import Toggle from '@/components/Toggle.vue'
 import { Runtime } from '@/Runtime'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
 import { Engine } from '@/engine/Engine'
-import { computed, ref } from 'vue'
+import { computed, onMounted, Ref, ref } from 'vue'
 
 const WorkspaceStore = useWorkspaceStore()
 
@@ -153,9 +174,54 @@ function open(menu: string) {
 defineExpose({
   open,
 })
+
+const consoleMenu: Ref<null | HTMLDivElement> = ref(null)
+const logs: Ref<null | HTMLDivElement> = ref(null)
+
+function fixLogsSize() {
+  if (!consoleMenu.value) return
+  if (!logs.value) return
+
+  logs.value.style.height = `calc(${consoleMenu.value.offsetHeight}px - 2rem)`
+}
+
+onMounted(() => {
+  if (!consoleMenu.value) return
+
+  new ResizeObserver(fixLogsSize).observe(consoleMenu.value)
+
+  fixLogsSize()
+})
 </script>
 
 <style scoped>
+#console {
+  height: 100%;
+}
+
+#console > span {
+  margin-left: auto;
+}
+
+#logs {
+  overflow-y: scroll;
+
+  max-width: 31rem;
+  width: 31rem;
+
+  position: absolute;
+
+  margin-top: 2rem;
+}
+
+#logs > p {
+  font-size: x-small;
+  border-bottom: 1px solid var(--secondary);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  white-space: pre-wrap;
+}
+
 #sidemenu {
   min-width: 14rem;
   max-width: 14rem;
@@ -164,6 +230,11 @@ defineExpose({
 
   padding: 0.5rem;
   box-sizing: border-box;
+}
+
+#sidemenu.large {
+  min-width: 32rem;
+  max-width: 32rem;
 }
 
 .menu {

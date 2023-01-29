@@ -468,9 +468,15 @@ class Scene {
   }
 
   async load() {
-    this.context = (await this.engine.runtime.run(this.path)).scene(
-      useSceneContext(this)
-    )
+    try {
+      this.context = (await this.engine.runtime.run(this.path)).scene(
+        useSceneContext(this)
+      )
+    } catch (error) {
+      if (this.engine.errorListener) this.engine.errorListener(<string>error)
+
+      return
+    }
 
     await this.next()
   }
@@ -484,46 +490,54 @@ class Scene {
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, 1920, 1080)
 
-    let sortedElements = this.elements.sort((a: any, b: any) => {
-      return (a.priority || 0) - (b.priority || 0)
-    })
+    try {
+      let sortedElements = this.elements.sort((a: any, b: any) => {
+        return (a.priority || 0) - (b.priority || 0)
+      })
 
-    for (const element of sortedElements) {
-      ctx.translate(0, 1080)
-      ctx.scale(1, -1)
+      for (const element of sortedElements) {
+        ctx.translate(0, 1080)
+        ctx.scale(1, -1)
 
-      await element.render(ctx)
+        await element.render(ctx)
 
-      ctx.resetTransform()
+        ctx.resetTransform()
+      }
+
+      if (this.transitionRenderModifier)
+        return this.transitionRenderModifier(canvas)
+    } catch (error) {
+      if (this.engine.errorListener) this.engine.errorListener(<string>error)
     }
-
-    if (this.transitionRenderModifier)
-      return this.transitionRenderModifier(canvas)
 
     return canvas
   }
 
   async next() {
-    for (let i = 0; i < this.sideContexts.length; i++) {
-      const generator = this.sideContexts[i]
+    try {
+      for (let i = 0; i < this.sideContexts.length; i++) {
+        const generator = this.sideContexts[i]
 
-      await generator.next()
+        await generator.next()
 
-      if (generator.done == 'true') {
-        this.sideContexts.splice(i, 1)
+        if (generator.done == 'true') {
+          this.sideContexts.splice(i, 1)
 
-        i--
+          i--
+        }
       }
-    }
 
-    let result = (await this.context.next()).value
+      let result = (await this.context.next()).value
 
-    while (result != null && result != undefined && isGenerator(result)) {
-      await result.next()
+      while (result != null && result != undefined && isGenerator(result)) {
+        await result.next()
 
-      this.sideContexts.push(result)
+        this.sideContexts.push(result)
 
-      result = (await this.context.next()).value
+        result = (await this.context.next()).value
+      }
+    } catch (error) {
+      if (this.engine.errorListener) this.engine.errorListener(<string>error)
     }
   }
 
@@ -557,15 +571,20 @@ export class Engine {
 
   inferenceAudio: boolean = false
 
+  errorListener: any
+
   constructor(
     runtime: Runtime,
     markers: { name: string; id: string; frame: number }[],
-    inferenceAudio?: boolean
+    inferenceAudio?: boolean,
+    errorListener?: any
   ) {
     this.runtime = runtime
     this.markers = markers
 
     if (inferenceAudio) this.inferenceAudio = inferenceAudio
+
+    this.errorListener = errorListener
   }
 
   async load() {
@@ -574,9 +593,15 @@ export class Engine {
     this.scenes = {}
     this.initialScene = undefined
 
-    this.project = await this.runtime.run('project.ts')
+    try {
+      this.project = await this.runtime.run('project.ts')
 
-    this.project.project(useProjectContext(this))
+      this.project.project(useProjectContext(this))
+    } catch (error) {
+      if (this.errorListener) this.errorListener(<string>error)
+
+      return
+    }
 
     this.frame = 0
 
@@ -607,7 +632,13 @@ export class Engine {
     this.scenes = {}
     this.initialScene = undefined
 
-    this.project.project(useProjectContext(this, true))
+    try {
+      this.project.project(useProjectContext(this, true))
+    } catch (error) {
+      if (this.errorListener) this.errorListener(<string>error)
+
+      return
+    }
 
     this.frame = 0
 
@@ -619,12 +650,8 @@ export class Engine {
   }
 
   async next() {
-    try {
-      for (const scene of this.activeScenes) {
-        await scene.next()
-      }
-    } catch (err) {
-      console.error(err)
+    for (const scene of this.activeScenes) {
+      await scene.next()
     }
 
     this.frame++
