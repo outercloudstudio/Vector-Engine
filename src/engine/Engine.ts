@@ -1,6 +1,15 @@
 import { Runtime } from '@/Runtime'
-import { Vector, Element } from '@/engine/EngineCore'
-import { Rect, Ellipse, Image } from '@/engine/Builders'
+import { Vector } from '@/engine/Vector'
+import { Element } from '@/engine/Element'
+import {
+  Rect,
+  Ellipse,
+  Image,
+  Link,
+  Builder,
+  TransformBuilder,
+  RenderingBuilder,
+} from '@/engine/Builders'
 
 function useProjectContext(engine: Engine, forReload?: boolean) {
   return {
@@ -44,6 +53,7 @@ function useSceneContext(scene: Scene) {
       Rect,
       Ellipse,
       Image,
+      Link,
     },
 
     Modes: {

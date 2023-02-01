@@ -1,6 +1,7 @@
-import { Vector, Element } from '@/engine/EngineCore'
+import { Vector } from '@/engine/Vector'
+import { Element } from '@/engine/Element'
 
-class Builder {
+export class Builder {
   element: Element
 
   constructor(me: Element) {
@@ -16,14 +17,76 @@ class Builder {
   }
 }
 
-class RenderingBuilder extends Builder {
+export class TransformBuilder extends Builder {
   setup(options: any) {
     this.element.position = new Vector(0, 0)
-    this.element.origin = new Vector(0.5, 0.5)
     this.element.rotation = 0
-    this.element.size = new Vector(100, 100)
-    this.element.priority = 0
 
+    super.setup(options)
+  }
+}
+
+export class Link extends TransformBuilder {
+  setup(options: any) {
+    this.element.links = []
+
+    super.setup(options)
+
+    this.element._position = this.element.position
+    this.element._rotation = this.element.rotation
+
+    Object.defineProperty(this.element, 'position', {
+      get: () => this.element._position,
+      set: (position: Vector) =>
+        this.updateLinkedElements(position, this.element._rotation),
+    })
+
+    Object.defineProperty(this.element, 'rotation', {
+      get: () => this.element._rotation,
+      set: (rotation: number) =>
+        this.updateLinkedElements(this.element._position, rotation),
+    })
+  }
+
+  updateLinkedElements(newPosition: Vector, newRotation: number) {
+    const positionDelta = newPosition.subtract(this.element._position)
+    const rotationDelta = newRotation - this.element._rotation
+    const rotationDeltaRad = (rotationDelta / 180) * Math.PI
+
+    for (const element of this.element.links) {
+      if (!(element.builder instanceof TransformBuilder))
+        throw new Error('Link can not update a non transform buffer')
+
+      element.position = element.position.add(positionDelta)
+      element.rotation = element.rotation + rotationDelta
+
+      const elementPositionDelta = element.position.subtract(newPosition)
+
+      const rotatedElementPositionDeltaX =
+        Math.cos(rotationDeltaRad) * elementPositionDelta.x -
+        Math.sin(rotationDeltaRad) * elementPositionDelta.y
+
+      const rotatedElementPositionDeltaY =
+        Math.cos(rotationDeltaRad) * elementPositionDelta.y +
+        Math.sin(rotationDeltaRad) * elementPositionDelta.x
+
+      element.position = new Vector(
+        newPosition.x + rotatedElementPositionDeltaX,
+        newPosition.y + rotatedElementPositionDeltaY,
+        element.position.z,
+        element.position.w
+      )
+    }
+
+    this.element._position = newPosition
+    this.element._rotation = newRotation
+  }
+}
+
+export class RenderingBuilder extends TransformBuilder {
+  setup(options: any) {
+    this.element.origin = new Vector(0.5, 0.5)
+    this.element.priority = 0
     this.element.isRendering = true
 
     super.setup(options)
@@ -33,17 +96,22 @@ class RenderingBuilder extends Builder {
     throw new Error('bounds() is not implemented on this builder!')
   }
 
-  offset(): Vector {
-    throw new Error('offset() is not implemented on this builder!')
+  extent(): Vector {
+    throw new Error('extent() is not implemented on this builder!')
   }
 
-  async render(ctx: OffscreenCanvasRenderingContext2D) {
+  extentOffset(): Vector {
+    throw new Error('extentOffset() is not implemented on this builder!')
+  }
+
+  async render(ctx: CanvasRenderingContext2D) {
     throw new Error('render() is not implemented on this builder!')
   }
 }
 
 export class Rect extends RenderingBuilder {
   setup(options: any) {
+    this.element.size = new Vector(100, 100)
     this.element.color = new Vector(0, 0, 0, 1)
     this.element.outlineColor = new Vector(0, 0, 0, 0)
     this.element.outlineWidth = 0
@@ -59,14 +127,18 @@ export class Rect extends RenderingBuilder {
     )
   }
 
-  offset() {
+  extent() {
+    return new Vector(this.element.size.x, this.element.size.y)
+  }
+
+  extentOffset() {
     return new Vector(
       this.element.outlineWidth / 2,
       this.element.outlineWidth / 2
     )
   }
 
-  async render(ctx: any) {
+  async render(ctx: CanvasRenderingContext2D) {
     const red = this.element.color.x * 255
     const blue = this.element.color.y * 255
     const green = this.element.color.z * 255
@@ -98,6 +170,7 @@ export class Rect extends RenderingBuilder {
 
 export class Ellipse extends RenderingBuilder {
   setup(options: any) {
+    this.element.size = new Vector(100, 100)
     this.element.color = new Vector(0, 0, 0, 1)
     this.element.outlineColor = new Vector(0, 0, 0, 0)
     this.element.outlineWidth = 0
@@ -112,14 +185,18 @@ export class Ellipse extends RenderingBuilder {
     )
   }
 
-  offset() {
+  extent() {
+    return new Vector(this.element.size.x, this.element.size.y)
+  }
+
+  extentOffset() {
     return new Vector(
       this.element.outlineWidth / 2,
       this.element.outlineWidth / 2
     )
   }
 
-  async render(ctx: any) {
+  async render(ctx: CanvasRenderingContext2D) {
     const red = this.element.color.x * 255
     const blue = this.element.color.y * 255
     const green = this.element.color.z * 255
