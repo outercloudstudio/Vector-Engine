@@ -1,4 +1,4 @@
-import { Vector } from '@/engine/Vector'
+import { ReactiveVector, Vector } from '@/engine/Vector'
 import { Element } from '@/engine/Element'
 
 export class Builder {
@@ -32,25 +32,82 @@ export class Link extends TransformBuilder {
 
     super.setup(options)
 
-    this.element._position = this.element.position
+    this.element._position = new ReactiveVector(
+      (position: Vector, oldPosition: Vector) => {
+        this.updateLinkedElements(
+          position,
+          oldPosition,
+          this.element.rotation,
+          this.element.rotation
+        )
+      },
+      this.element.position.x,
+      this.element.position.y,
+      this.element.position.z,
+      this.element.position.w
+    )
+
     this.element._rotation = this.element.rotation
 
     Object.defineProperty(this.element, 'position', {
       get: () => this.element._position,
-      set: (position: Vector) =>
-        this.updateLinkedElements(position, this.element._rotation),
+      set: (position: Vector) => {
+        const oldPosition = new Vector(
+          this.element._position.x,
+          this.element._position.y,
+          this.element._position.z,
+          this.element._position.w
+        )
+
+        this.element._position = new ReactiveVector(
+          (position: Vector, oldPosition: Vector) => {
+            this.updateLinkedElements(
+              position,
+              oldPosition,
+              this.element.rotation,
+              this.element.rotation
+            )
+          },
+          this.element._position.x,
+          this.element._position.y,
+          this.element._position.z,
+          this.element._position.w
+        )
+
+        this.updateLinkedElements(
+          position,
+          oldPosition,
+          this.element._rotation,
+          this.element._rotation
+        )
+      },
     })
 
     Object.defineProperty(this.element, 'rotation', {
       get: () => this.element._rotation,
-      set: (rotation: number) =>
-        this.updateLinkedElements(this.element._position, rotation),
+      set: (rotation: number) => {
+        const oldRotation = this.element._rotation
+
+        this.element._rotation = rotation
+
+        this.updateLinkedElements(
+          this.element._position,
+          this.element._position,
+          rotation,
+          oldRotation
+        )
+      },
     })
   }
 
-  updateLinkedElements(newPosition: Vector, newRotation: number) {
-    const positionDelta = newPosition.subtract(this.element._position)
-    const rotationDelta = newRotation - this.element._rotation
+  updateLinkedElements(
+    newPosition: Vector,
+    oldPosition: Vector,
+    newRotation: number,
+    oldRotation: number
+  ) {
+    const positionDelta = newPosition.subtract(oldPosition)
+    const rotationDelta = newRotation - oldRotation
     const rotationDeltaRad = (rotationDelta / 180) * Math.PI
 
     for (const element of this.element.links) {
@@ -77,9 +134,6 @@ export class Link extends TransformBuilder {
         element.position.w
       )
     }
-
-    this.element._position = newPosition
-    this.element._rotation = newRotation
   }
 }
 

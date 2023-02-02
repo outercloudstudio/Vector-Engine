@@ -50,3 +50,72 @@ export class Vector {
     )
   }
 }
+
+export class ReactiveVector extends Vector {
+  _x: number = 0
+  _y: number = 0
+  _z: number = 0
+  _w: number = 0
+
+  reactor: (vector: Vector, previousVector: Vector) => void
+
+  constructor(
+    reactor: (vector: Vector, previousVector: Vector) => void,
+    x?: number,
+    y?: number,
+    z?: number,
+    w?: number
+  ) {
+    super(x, y, z, w)
+
+    this.reactor = reactor
+
+    this._x = this.x
+    Object.defineProperty(this, 'x', {
+      get: () => this._x,
+      set: (value: number) => {
+        const original = new Vector(this._x, this._y, this._z, this._w)
+
+        this._x = value
+
+        reactor(this, original)
+      },
+    })
+
+    this._y = this.y
+    Object.defineProperty(this, 'y', {
+      get: () => this._y,
+      set: (value: number) => {
+        const original = new Vector(this._x, this._y, this._z, this._w)
+
+        this._y = value
+
+        reactor(this, original)
+      },
+    })
+
+    this._z = this.z
+    Object.defineProperty(this, 'z', {
+      get: () => this._z,
+      set: (value: number) => {
+        const original = new Vector(this._x, this._y, this._z, this._w)
+
+        this._z = value
+
+        reactor(this, original)
+      },
+    })
+
+    this._w = this.w
+    Object.defineProperty(this, 'w', {
+      get: () => this._w,
+      set: (value: number) => {
+        const original = new Vector(this._x, this._y, this._z, this._w)
+
+        this._w = value
+
+        reactor(this, original)
+      },
+    })
+  }
+}
