@@ -98,7 +98,7 @@ async function focus() {
 }
 
 async function blurUpdate() {
-  if (focused || true) return
+  if (focused) return
 
   const originalFrame = WorkspaceStore.frame
 
