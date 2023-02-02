@@ -10,6 +10,7 @@ import {
   TransformBuilder,
   RenderingBuilder,
 } from '@/engine/Builders'
+import { uuid } from '@/engine/Math'
 
 function useProjectContext(engine: Engine, forReload?: boolean) {
   return {
@@ -112,7 +113,9 @@ function useSceneContext(scene: Scene) {
 
     Element,
 
-    addElement(element: Element) {
+    createElement(builder: typeof Builder, options: object) {
+      const element = new Element(scene, builder, options)
+
       scene.addElement(element)
 
       return element
@@ -169,6 +172,10 @@ function useSceneContext(scene: Scene) {
 
     waitWhile: async function* (condition: any) {
       while (await condition()) yield null
+    },
+
+    waitForTransition: function* () {
+      while (scene.engine.activeScenes[0].id != scene.id) yield null
     },
 
     lerp(a: number, b: number, t: number) {
@@ -311,13 +318,14 @@ function isGenerator(obj: any) {
   )
 }
 
-class Scene {
+export class Scene {
   context: any
   path: string
   engine: Engine
   elements: Element[] = []
   sideContexts: any[] = []
   transitionRenderModifier: any = null
+  id: string = uuid()
 
   constructor(path: string, engine: Engine) {
     this.path = path

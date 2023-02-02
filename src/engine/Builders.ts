@@ -1,5 +1,6 @@
 import { ReactiveVector, Vector } from '@/engine/Vector'
 import { Element } from '@/engine/Element'
+import { lerp } from '@/engine/Math'
 
 export class Builder {
   element: Element
@@ -15,13 +16,66 @@ export class Builder {
       }
     }
   }
+
+  protected defineAnimatedVectorSetter(property: string) {
+    const me = this
+
+    return async function* (vector: Vector, length: number, mode: any) {
+      const oldVectorClone = new Vector(
+        me.element[property].x,
+        me.element[property].y,
+        me.element[property].z,
+        me.element[property].w
+      )
+
+      const newVectorClone = new Vector(vector.x, vector.y, vector.z, vector.w)
+
+      for (
+        let i = 1;
+        i <= Math.ceil(length * me.element.scene.engine.frameRate);
+        i++
+      ) {
+        me.element[property] = oldVectorClone.lerp(
+          newVectorClone,
+          mode(i / Math.ceil(length * me.element.scene.engine.frameRate))
+        )
+
+        yield null
+      }
+    }
+  }
+
+  protected defineAnimatedNumberSetter(property: string) {
+    const me = this
+
+    return async function* (value: number, length: number, mode: any) {
+      const oldValue = me.element[property]
+
+      for (
+        let i = 1;
+        i <= Math.ceil(length * me.element.scene.engine.frameRate);
+        i++
+      ) {
+        me.element[property] = lerp(
+          oldValue,
+          value,
+          mode(i / Math.ceil(length * me.element.scene.engine.frameRate))
+        )
+
+        yield null
+      }
+    }
+  }
 }
 
 export class TransformBuilder extends Builder {
   setup(options: any) {
     this.element.position = new Vector(0, 0)
+    this.element.animatePosition = this.defineAnimatedVectorSetter('position')
     this.element.rotation = 0
+    this.element.animateRotation = this.defineAnimatedNumberSetter('rotation')
     this.element.scale = new Vector(1, 1)
+    this.element.animateScale = this.defineAnimatedVectorSetter('scale')
 
     super.setup(options)
   }
@@ -214,6 +268,7 @@ export class Link extends TransformBuilder {
 export class RenderingBuilder extends TransformBuilder {
   setup(options: any) {
     this.element.origin = new Vector(0.5, 0.5)
+    this.element.animateOrigin = this.defineAnimatedVectorSetter('origin')
     this.element.priority = 0
     this.element.isRendering = true
 
@@ -240,10 +295,17 @@ export class RenderingBuilder extends TransformBuilder {
 export class Rect extends RenderingBuilder {
   setup(options: any) {
     this.element.size = new Vector(100, 100)
+    this.element.animateSize = this.defineAnimatedVectorSetter('size')
     this.element.color = new Vector(0, 0, 0, 1)
+    this.element.animateColor = this.defineAnimatedVectorSetter('color')
     this.element.outlineColor = new Vector(0, 0, 0, 0)
+    this.element.animateOutlineColor =
+      this.defineAnimatedVectorSetter('outlineColor')
     this.element.outlineWidth = 0
+    this.element.animateOutlineWidth =
+      this.defineAnimatedNumberSetter('outlineWidth')
     this.element.radius = 0
+    this.element.animateRadius = this.defineAnimatedNumberSetter('radius')
 
     super.setup(options)
   }
@@ -302,9 +364,15 @@ export class Rect extends RenderingBuilder {
 export class Ellipse extends RenderingBuilder {
   setup(options: any) {
     this.element.size = new Vector(100, 100)
+    this.element.animateSize = this.defineAnimatedVectorSetter('size')
     this.element.color = new Vector(0, 0, 0, 1)
+    this.element.animateColor = this.defineAnimatedVectorSetter('color')
     this.element.outlineColor = new Vector(0, 0, 0, 0)
+    this.element.animateOutlineColor =
+      this.defineAnimatedVectorSetter('outlineColor')
     this.element.outlineWidth = 0
+    this.element.animateOutlineWidth =
+      this.defineAnimatedNumberSetter('outlineWidth')
 
     super.setup(options)
   }

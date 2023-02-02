@@ -1,11 +1,16 @@
 import { Builder, RenderingBuilder } from '@/engine/Builders'
+import { Scene } from '@/engine/Engine'
 
 export class Element {
   builder: Builder
 
   isRendering: boolean = false
 
-  constructor(builder: any, options: any) {
+  scene: Scene
+
+  constructor(scene: Scene, builder: typeof Builder, options: object) {
+    this.scene = scene
+
     if (builder == undefined)
       throw new Error('You must specify a builder when creating an element')
 
@@ -13,7 +18,7 @@ export class Element {
     this.builder.setup(options)
   }
 
-  async render(parentCtx: any) {
+  async render(parentCtx: CanvasRenderingContext2D) {
     if (!(this.builder instanceof RenderingBuilder))
       throw new Error('Can not render a non rendering builder')
 
