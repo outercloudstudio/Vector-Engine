@@ -373,6 +373,8 @@ class Scene {
   }
 
   async next() {
+    if (this.context == undefined) return
+
     try {
       for (let i = 0; i < this.sideContexts.length; i++) {
         const generator = this.sideContexts[i]

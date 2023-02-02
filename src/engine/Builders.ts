@@ -21,6 +21,7 @@ export class TransformBuilder extends Builder {
   setup(options: any) {
     this.element.position = new Vector(0, 0)
     this.element.rotation = 0
+    this.element.scale = new Vector(1, 1)
 
     super.setup(options)
   }
@@ -38,7 +39,9 @@ export class Link extends TransformBuilder {
           position,
           oldPosition,
           this.element.rotation,
-          this.element.rotation
+          this.element.rotation,
+          this.element._scale,
+          this.element._scale
         )
       },
       this.element.position.x,
@@ -48,6 +51,23 @@ export class Link extends TransformBuilder {
     )
 
     this.element._rotation = this.element.rotation
+
+    this.element._scale = new ReactiveVector(
+      (scale: Vector, oldScale: Vector) => {
+        this.updateLinkedElements(
+          this.element._position,
+          this.element._position,
+          this.element._rotation,
+          this.element._rotation,
+          scale,
+          oldScale
+        )
+      },
+      this.element.scale.x,
+      this.element.scale.y,
+      this.element.scale.z,
+      this.element.scale.w
+    )
 
     Object.defineProperty(this.element, 'position', {
       get: () => this.element._position,
@@ -64,21 +84,25 @@ export class Link extends TransformBuilder {
             this.updateLinkedElements(
               position,
               oldPosition,
-              this.element.rotation,
-              this.element.rotation
+              this.element._rotation,
+              this.element._rotation,
+              this.element._scale,
+              this.element._scale
             )
           },
-          this.element._position.x,
-          this.element._position.y,
-          this.element._position.z,
-          this.element._position.w
+          position.x,
+          position.y,
+          position.z,
+          position.w
         )
 
         this.updateLinkedElements(
           position,
           oldPosition,
           this.element._rotation,
-          this.element._rotation
+          this.element._rotation,
+          this.element._scale,
+          this.element._scale
         )
       },
     })
@@ -94,7 +118,47 @@ export class Link extends TransformBuilder {
           this.element._position,
           this.element._position,
           rotation,
-          oldRotation
+          oldRotation,
+          this.element._scale,
+          this.element._scale
+        )
+      },
+    })
+
+    Object.defineProperty(this.element, 'scale', {
+      get: () => this.element._position,
+      set: (scale: Vector) => {
+        const oldScale = new Vector(
+          this.element._scale.x,
+          this.element._scale.y,
+          this.element._scale.z,
+          this.element._scale.w
+        )
+
+        this.element._scale = new ReactiveVector(
+          (scale: Vector, oldScale: Vector) => {
+            this.updateLinkedElements(
+              this.element._position,
+              this.element._position,
+              this.element._rotation,
+              this.element._rotation,
+              scale,
+              oldScale
+            )
+          },
+          scale.x,
+          scale.y,
+          scale.z,
+          scale.w
+        )
+
+        this.updateLinkedElements(
+          this.element._position,
+          this.element._position,
+          this.element._rotation,
+          this.element._rotation,
+          scale,
+          oldScale
         )
       },
     })
@@ -104,11 +168,14 @@ export class Link extends TransformBuilder {
     newPosition: Vector,
     oldPosition: Vector,
     newRotation: number,
-    oldRotation: number
+    oldRotation: number,
+    newScale: Vector,
+    oldScale: Vector
   ) {
     const positionDelta = newPosition.subtract(oldPosition)
     const rotationDelta = newRotation - oldRotation
     const rotationDeltaRad = (rotationDelta / 180) * Math.PI
+    const scaleDelta = newScale.divide(oldScale)
 
     for (const element of this.element.links) {
       if (!(element.builder instanceof TransformBuilder))
@@ -117,7 +184,7 @@ export class Link extends TransformBuilder {
       element.position = element.position.add(positionDelta)
       element.rotation = element.rotation + rotationDelta
 
-      const elementPositionDelta = element.position.subtract(newPosition)
+      let elementPositionDelta = element.position.subtract(newPosition)
 
       const rotatedElementPositionDeltaX =
         Math.cos(rotationDeltaRad) * elementPositionDelta.x -
@@ -133,6 +200,13 @@ export class Link extends TransformBuilder {
         element.position.z,
         element.position.w
       )
+
+      elementPositionDelta = element.position.subtract(newPosition)
+
+      const scaledPositionDelta = elementPositionDelta.multiply(scaleDelta)
+
+      element.position = newPosition.add(scaledPositionDelta)
+      element.scale = element.scale.multiply(scaleDelta)
     }
   }
 }
@@ -176,13 +250,16 @@ export class Rect extends RenderingBuilder {
 
   bounds() {
     return new Vector(
-      this.element.size.x + this.element.outlineWidth,
-      this.element.size.y + this.element.outlineWidth
+      this.element.size.x * this.element.scale.x + this.element.outlineWidth,
+      this.element.size.y * this.element.scale.y + this.element.outlineWidth
     )
   }
 
   extent() {
-    return new Vector(this.element.size.x, this.element.size.y)
+    return new Vector(
+      this.element.size.x * this.element.scale.x,
+      this.element.size.y * this.element.scale.y
+    )
   }
 
   extentOffset() {
@@ -212,8 +289,8 @@ export class Rect extends RenderingBuilder {
     ctx.roundRect(
       this.element.outlineWidth / 2,
       this.element.outlineWidth / 2,
-      this.element.size.x,
-      this.element.size.y,
+      this.element.size.x * this.element.scale.x,
+      this.element.size.y * this.element.scale.y,
       this.element.radius
     )
 
@@ -234,13 +311,16 @@ export class Ellipse extends RenderingBuilder {
 
   bounds() {
     return new Vector(
-      this.element.size.x + this.element.outlineWidth,
-      this.element.size.y + this.element.outlineWidth
+      this.element.size.x * this.element.scale.x + this.element.outlineWidth,
+      this.element.size.y * this.element.scale.y + this.element.outlineWidth
     )
   }
 
   extent() {
-    return new Vector(this.element.size.x, this.element.size.y)
+    return new Vector(
+      this.element.size.x * this.element.scale.x,
+      this.element.size.y * this.element.scale.y
+    )
   }
 
   extentOffset() {
@@ -268,10 +348,12 @@ export class Ellipse extends RenderingBuilder {
     ctx.beginPath()
 
     ctx.ellipse(
-      this.element.size.x / 2 + this.element.outlineWidth / 2,
-      this.element.size.y / 2 + this.element.outlineWidth / 2,
-      this.element.size.x / 2,
-      this.element.size.y / 2,
+      (this.element.size.x / 2) * this.element.scale.x +
+        this.element.outlineWidth / 2,
+      (this.element.size.y / 2) * this.element.scale.y +
+        this.element.outlineWidth / 2,
+      (this.element.size.x / 2) * this.element.scale.x,
+      (this.element.size.y / 2) * this.element.scale.y,
       0,
       0,
       2 * Math.PI
