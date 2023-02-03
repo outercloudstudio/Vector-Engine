@@ -125,7 +125,7 @@ watch(zoom, async () => {
 
 watch(
   () => WorkspaceStore.frame,
-  async () => {
+  async (frame: number) => {
     if (!render) return
 
     renderCanvas()

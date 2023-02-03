@@ -112,9 +112,11 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   }
 
   async function runInferences(engine: Engine) {
-    sceneInference.value = []
+    if (!inferenceScenes.value) {
+      sceneInference.value = []
 
-    if (!inferenceScenes.value) return
+      return
+    }
 
     let inference: { name: string; frame: number }[] = []
 
@@ -179,9 +181,13 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     await engine.value.load()
 
     length.value = engine.value.length
-    frame.value = 0
+    frame.value = frame.value < length.value ? frame.value : 0
 
-    loadData()
+    for (let frameOffset = 0; frameOffset < frame.value; frameOffset++) {
+      await engine.value.next()
+    }
+
+    await loadData()
 
     const inferenceEngine = new Engine(
       runtime.value,
@@ -190,7 +196,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     )
     await inferenceEngine.load()
 
-    runInferences(inferenceEngine)
+    await runInferences(inferenceEngine)
 
     loaded.value = true
     loadedUpdate.value++

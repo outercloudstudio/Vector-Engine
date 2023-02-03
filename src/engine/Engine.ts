@@ -537,6 +537,7 @@ export class Engine {
     this.length = 60
     this.scenes = {}
     this.initialScene = undefined
+    this.frame = 0
 
     try {
       this.project = await this.runtime.run('project.ts')
@@ -547,8 +548,6 @@ export class Engine {
 
       return
     }
-
-    this.frame = 0
 
     if (!this.initialScene) return
 
@@ -576,6 +575,9 @@ export class Engine {
     this.length = 60
     this.scenes = {}
     this.initialScene = undefined
+    this.frame = 0
+
+    if (!this.project) return
 
     try {
       this.project.project(useProjectContext(this, true))
@@ -584,8 +586,6 @@ export class Engine {
 
       return
     }
-
-    this.frame = 0
 
     if (!this.initialScene) return
 
