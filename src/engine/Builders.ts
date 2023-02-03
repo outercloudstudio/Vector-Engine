@@ -271,6 +271,10 @@ export class RenderingBuilder extends TransformBuilder {
     this.element.animateOrigin = this.defineAnimatedVectorSetter('origin')
     this.element.priority = 0
     this.element.isRendering = true
+    this.element.renderingModifier = undefined
+    this.element.transitionProgress = 0
+    this.element.transition = this.defineTransition()
+    this.element.transitionOut = this.defineTransitionOut()
 
     super.setup(options)
   }
@@ -289,6 +293,60 @@ export class RenderingBuilder extends TransformBuilder {
 
   async render(ctx: CanvasRenderingContext2D) {
     throw new Error('render() is not implemented on this builder!')
+  }
+
+  defineTransition() {
+    const me = this
+
+    return async function* (
+      time: number,
+      transition: (
+        canvas: HTMLCanvasElement,
+        element: Element
+      ) => HTMLCanvasElement
+    ) {
+      me.element.renderingModifier = transition
+
+      for (
+        let i = 1;
+        i <= Math.ceil(time * me.element.scene.engine.frameRate);
+        i++
+      ) {
+        me.element.transitionProgress =
+          i / Math.ceil(time * me.element.scene.engine.frameRate)
+
+        yield null
+      }
+
+      me.element.renderingModifier = undefined
+    }
+  }
+
+  defineTransitionOut() {
+    const me = this
+
+    return async function* (
+      time: number,
+      transition: (
+        canvas: HTMLCanvasElement,
+        element: Element
+      ) => HTMLCanvasElement
+    ) {
+      me.element.renderingModifier = transition
+
+      for (
+        let i = 1;
+        i <= Math.ceil(time * me.element.scene.engine.frameRate);
+        i++
+      ) {
+        me.element.transitionProgress =
+          1 - i / Math.ceil(time * me.element.scene.engine.frameRate)
+
+        yield null
+      }
+
+      me.element.renderingModifier = undefined
+    }
   }
 }
 

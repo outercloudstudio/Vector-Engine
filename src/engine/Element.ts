@@ -1,12 +1,12 @@
 import { Builder, RenderingBuilder } from '@/engine/Builders'
 import { Scene } from '@/engine/Engine'
+import { uuid } from '@/engine/Math'
 
 export class Element {
   builder: Builder
-
   isRendering: boolean = false
-
   scene: Scene
+  id: string = uuid()
 
   constructor(scene: Scene, builder: typeof Builder, options: object) {
     this.scene = scene
@@ -37,7 +37,11 @@ export class Element {
     parentCtx.translate(-offset.x, -offset.y)
     parentCtx.translate(-extent.x * this.origin.x, -extent.y * this.origin.y)
 
-    parentCtx.drawImage(canvas, 0, 0)
+    if (this.renderingModifier != undefined) {
+      parentCtx.drawImage(this.renderingModifier(canvas, this), 0, 0)
+    } else {
+      parentCtx.drawImage(canvas, 0, 0)
+    }
 
     parentCtx.resetTransform()
   }

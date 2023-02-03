@@ -111,12 +111,74 @@ function useSceneContext(scene: Scene) {
       },
     },
 
+    ElementTransitions: {
+      Fade: function (inputCanvas: HTMLCanvasElement, element: Element) {
+        const canvas = document.createElement('canvas')
+        const bounds = (<RenderingBuilder>element.builder).bounds()
+        canvas.width = bounds.x
+        canvas.height = bounds.y
+        const ctx = canvas.getContext('2d')!
+
+        ctx.globalAlpha = element.transitionProgress
+
+        ctx.drawImage(inputCanvas, 0, 0)
+
+        return canvas
+      },
+
+      Circle: function (inputCanvas: HTMLCanvasElement, element: Element) {
+        const canvas = document.createElement('canvas')
+        const bounds = (<RenderingBuilder>element.builder).bounds()
+        canvas.width = bounds.x
+        canvas.height = bounds.y
+        const ctx = canvas.getContext('2d')!
+
+        const targetSize = Math.sqrt(
+          Math.pow(bounds.x, 2) + Math.pow(bounds.y, 2)
+        )
+
+        ctx.beginPath()
+        ctx.ellipse(
+          bounds.x / 2,
+          bounds.y / 2,
+          (element.transitionProgress * targetSize) / 2,
+          (element.transitionProgress * targetSize) / 2,
+          0,
+          0,
+          Math.PI * 2
+        )
+        ctx.closePath()
+        ctx.clip()
+        ctx.drawImage(inputCanvas, 0, 0)
+
+        return canvas
+      },
+    },
+
     Element,
 
     createElement(builder: typeof Builder, options: object) {
       const element = new Element(scene, builder, options)
 
       scene.addElement(element)
+
+      return element
+    },
+
+    removeElement(element: Element) {
+      for (
+        let elementIndex = 0;
+        elementIndex < scene.elements.length;
+        elementIndex++
+      ) {
+        if (scene.elements[elementIndex].id == element.id) {
+          scene.elements.splice(elementIndex, 1)
+
+          console.log(scene.elements)
+
+          break
+        }
+      }
 
       return element
     },
@@ -274,7 +336,7 @@ function useSceneContext(scene: Scene) {
 
     loop: async function* (contextLambda: any) {
       while (true) {
-        // may not need to be async
+        // NOTE: may not need to be async
         const context = await contextLambda()
 
         yield* context
