@@ -534,3 +534,83 @@ export class Image extends RenderingBuilder {
     ctx.drawImage(this.element.image, -offsetX, -offsetY, bestWidth, bestHeight)
   }
 }
+
+export class Text extends RenderingBuilder {
+  setup(options: any) {
+    this.element.text = ''
+    this.element.font = 'JetBrainsMono'
+    this.element.color = new Vector(0, 0, 0, 1)
+    this.element.animateColor = this.defineAnimatedVectorSetter('color')
+    this.element.outlineColor = new Vector(0, 0, 0, 0)
+    this.element.animateOutlineColor =
+      this.defineAnimatedVectorSetter('outlineColor')
+    this.element.outlineWidth = 0
+    this.element.animateOutlineWidth =
+      this.defineAnimatedNumberSetter('outlineWidth')
+    this.element.size = 24
+    this.element.animateSize = this.defineAnimatedNumberSetter('size')
+
+    super.setup(options)
+  }
+
+  bounds() {
+    const canvas = document.createElement('canvas')
+    canvas.width = 0
+    canvas.height = 0
+    const ctx = canvas.getContext('2d')!
+    ctx.font = `${this.element.size}px ${this.element.font}`
+    const measure = ctx.measureText(this.element.text)
+
+    return new Vector(
+      measure.width * this.element.scale.x,
+      (measure.actualBoundingBoxDescent + measure.actualBoundingBoxAscent) *
+        this.element.scale.y
+    )
+  }
+
+  extent() {
+    return new Vector(
+      this.element.size.x * this.element.scale.x,
+      this.element.size.y * this.element.scale.y
+    )
+  }
+
+  extentOffset() {
+    return new Vector(0, 0)
+  }
+
+  async render(ctx: CanvasRenderingContext2D) {
+    const red = this.element.color.x * 255
+    const blue = this.element.color.y * 255
+    const green = this.element.color.z * 255
+    const alpha = this.element.color.w
+
+    const outlineRed = this.element.outlineColor.x * 255
+    const outlineBlue = this.element.outlineColor.y * 255
+    const outlineGreen = this.element.outlineColor.z * 255
+    const outlineAlpha = this.element.outlineColor.w
+
+    const bounds = this.bounds()
+
+    const canvas = document.createElement('canvas')
+    canvas.width = bounds.x / this.element.scale.x
+    canvas.height = bounds.y / this.element.scale.y
+    const unscaledCtx = canvas.getContext('2d')!
+
+    unscaledCtx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
+    unscaledCtx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
+    unscaledCtx.lineWidth = this.element.outlineWidth
+    unscaledCtx.font = `${this.element.size}px ${this.element.font}`
+
+    const measure = unscaledCtx.measureText(this.element.text)
+    unscaledCtx.fillText(this.element.text, 0, measure.actualBoundingBoxAscent)
+    if (this.element.outlineWidth != 0)
+      unscaledCtx.strokeText(
+        this.element.text,
+        0,
+        measure.actualBoundingBoxAscent
+      )
+
+    ctx.drawImage(canvas, 0, 0, bounds.x, bounds.y)
+  }
+}

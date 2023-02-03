@@ -5,6 +5,7 @@ import {
   Rect,
   Ellipse,
   Image as ImageBuilder,
+  Text,
   Link,
   Builder,
   TransformBuilder,
@@ -55,6 +56,7 @@ function useSceneContext(scene: Scene) {
       Ellipse,
       Image: ImageBuilder,
       Link,
+      Text,
     },
 
     Modes: {
