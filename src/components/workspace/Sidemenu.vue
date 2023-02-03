@@ -255,7 +255,7 @@ async function runExport() {
     }
   )
 
-  const frameDigits = engine.length.toString.length
+  const frameDigits = engine.length.toString().length
 
   for (let frame = 0; frame < engine.length; frame++) {
     await engine.next()
