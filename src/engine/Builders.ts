@@ -490,65 +490,47 @@ export class Ellipse extends RenderingBuilder {
   }
 }
 
-export const Image = {
-  setup(element: Element, options: any) {
-    element.position = new Vector(0, 0)
-    element.origin = new Vector(0.5, 0.5)
-    element.size = new Vector(100, 100)
-    element.rotation = 0
-    element.priority = 0
-    element.image = null
+export class Image extends RenderingBuilder {
+  setup(options: any) {
+    this.element.image = undefined
+    this.element.size = new Vector(100, 100)
+    this.element.animateSize = this.defineAnimatedVectorSetter('size')
 
-    if (options != null) {
-      for (const option of Object.keys(options)) {
-        element[option] = options[option]
-      }
-    }
-  },
+    super.setup(options)
+  }
 
-  initRender(me: Element) {
-    return async (ctx: any) => {
-      if (me.image == null) return
+  bounds() {
+    return new Vector(
+      this.element.size.x * this.element.scale.x,
+      this.element.size.y * this.element.scale.y
+    )
+  }
 
-      const xScale = me.image.width / me.size.x
-      const yScale = me.image.height / me.size.y
+  extent() {
+    return new Vector(
+      this.element.size.x * this.element.scale.x,
+      this.element.size.y * this.element.scale.y
+    )
+  }
 
-      let scale = xScale < yScale ? xScale : yScale
+  extentOffset() {
+    return new Vector(0, 0)
+  }
 
-      const targetW = me.image.width / xScale
-      const targetH = me.image.height / yScale
+  async render(ctx: CanvasRenderingContext2D) {
+    const imageAspect = this.element.image.width / this.element.image.height
 
-      const uncroppedW = me.image.width / scale
-      const uncroppedH = me.image.height / scale
+    const bounds = this.bounds()
 
-      const offsetX = ((uncroppedW - targetW) * scale) / 2
-      const offsetY = ((uncroppedH - targetH) * scale) / 2
+    const ratioWidth = bounds.x
+    const ratioHeight = bounds.y * imageAspect
 
-      ctx.translate(
-        me.position.x + me.size.x / 2,
-        me.position.y + me.size.y / 2
-      )
-      ctx.rotate((me.rotation * Math.PI) / 180)
+    const bestWidth = Math.max(ratioWidth, ratioHeight)
+    const bestHeight = bestWidth / imageAspect
 
-      ctx.translate(
-        -me.position.x + -me.size.x / 2,
-        -me.position.y + -me.size.y / 2
-      )
+    const offsetX = (bestWidth - bounds.x) / 2
+    const offsetY = (bestHeight - bounds.y) / 2
 
-      ctx.translate(0, targetH)
-      ctx.scale(1, -1)
-
-      ctx.drawImage(
-        me.image,
-        offsetX,
-        offsetY,
-        me.image.width - offsetX * 2,
-        me.image.height - offsetY * 2,
-        me.position.x - me.size.x * me.origin.x,
-        -me.position.y + me.size.y * me.origin.y,
-        targetW,
-        targetH
-      )
-    }
-  },
+    ctx.drawImage(this.element.image, -offsetX, -offsetY, bestWidth, bestHeight)
+  }
 }

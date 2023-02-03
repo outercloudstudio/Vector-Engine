@@ -4,7 +4,7 @@ import { Element } from '@/engine/Element'
 import {
   Rect,
   Ellipse,
-  Image,
+  Image as ImageBuilder,
   Link,
   Builder,
   TransformBuilder,
@@ -53,7 +53,7 @@ function useSceneContext(scene: Scene) {
     Builders: {
       Rect,
       Ellipse,
-      Image,
+      Image: ImageBuilder,
       Link,
     },
 
@@ -173,8 +173,6 @@ function useSceneContext(scene: Scene) {
       ) {
         if (scene.elements[elementIndex].id == element.id) {
           scene.elements.splice(elementIndex, 1)
-
-          console.log(scene.elements)
 
           break
         }
@@ -361,6 +359,22 @@ function useSceneContext(scene: Scene) {
           targetScene.transitionRenderModifier = modifier
         },
       })
+    },
+
+    async importImage(path: string) {
+      const file = await scene.engine.runtime.readFile(path)
+      const img = new Image()
+      img.src = URL.createObjectURL(file)
+
+      await new Promise((res: any) => {
+        img.onload = () => {
+          URL.revokeObjectURL(img.src)
+
+          res()
+        }
+      })
+
+      return img
     },
   }
 }

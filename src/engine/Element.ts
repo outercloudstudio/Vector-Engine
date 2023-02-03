@@ -27,6 +27,9 @@ export class Element {
     canvas.width = bounds.x
     canvas.height = bounds.y
     const ctx = canvas.getContext('2d')!
+    ctx.translate(0, canvas.height)
+    ctx.scale(1, -1)
+
     this.builder.render(ctx)
 
     const extent = this.builder.extent()
