@@ -40,6 +40,12 @@ export class Element {
     parentCtx.translate(-offset.x, -offset.y)
     parentCtx.translate(-extent.x * this.origin.x, -extent.y * this.origin.y)
 
+    if (bounds.x == 0 || bounds.y == 0) {
+      parentCtx.resetTransform()
+
+      return
+    }
+
     if (this.renderingModifier != undefined) {
       parentCtx.drawImage(this.renderingModifier(canvas, this), 0, 0)
     } else {

@@ -1,4 +1,4 @@
-import { ReactiveVector, Vector } from '@/engine/Vector'
+import { Vector } from '@/engine/Vector'
 import { Element } from '@/engine/Element'
 import { lerp } from '@/engine/Math'
 
@@ -87,182 +87,206 @@ export class Link extends TransformBuilder {
 
     super.setup(options)
 
-    this.element._position = new ReactiveVector(
-      (position: Vector, oldPosition: Vector) => {
-        this.updateLinkedElements(
-          position,
-          oldPosition,
-          this.element.rotation,
-          this.element.rotation,
-          this.element._scale,
-          this.element._scale
-        )
-      },
-      this.element.position.x,
-      this.element.position.y,
-      this.element.position.z,
-      this.element.position.w
-    )
-
+    this.element._position = this.element.position
     this.element._rotation = this.element.rotation
-
-    this.element._scale = new ReactiveVector(
-      (scale: Vector, oldScale: Vector) => {
-        this.updateLinkedElements(
-          this.element._position,
-          this.element._position,
-          this.element._rotation,
-          this.element._rotation,
-          scale,
-          oldScale
-        )
-      },
-      this.element.scale.x,
-      this.element.scale.y,
-      this.element.scale.z,
-      this.element.scale.w
-    )
+    this.element._scale = this.element.scale
 
     Object.defineProperty(this.element, 'position', {
       get: () => this.element._position,
       set: (position: Vector) => {
-        const oldPosition = new Vector(
-          this.element._position.x,
-          this.element._position.y,
-          this.element._position.z,
-          this.element._position.w
-        )
-
-        this.element._position = new ReactiveVector(
-          (position: Vector, oldPosition: Vector) => {
-            this.updateLinkedElements(
-              position,
-              oldPosition,
-              this.element._rotation,
-              this.element._rotation,
-              this.element._scale,
-              this.element._scale
-            )
-          },
-          position.x,
-          position.y,
-          position.z,
-          position.w
-        )
-
-        this.updateLinkedElements(
-          position,
-          oldPosition,
-          this.element._rotation,
-          this.element._rotation,
-          this.element._scale,
-          this.element._scale
-        )
+        this.updateCache()
+        this.element._position = position
+        this.updatePosition()
       },
     })
 
     Object.defineProperty(this.element, 'rotation', {
       get: () => this.element._rotation,
       set: (rotation: number) => {
-        const oldRotation = this.element._rotation
-
+        this.updateCache()
         this.element._rotation = rotation
-
-        this.updateLinkedElements(
-          this.element._position,
-          this.element._position,
-          rotation,
-          oldRotation,
-          this.element._scale,
-          this.element._scale
-        )
+        this.updateRotation()
       },
     })
 
     Object.defineProperty(this.element, 'scale', {
-      get: () => this.element._position,
+      get: () => this.element._scale,
       set: (scale: Vector) => {
-        const oldScale = new Vector(
-          this.element._scale.x,
-          this.element._scale.y,
-          this.element._scale.z,
-          this.element._scale.w
-        )
-
-        this.element._scale = new ReactiveVector(
-          (scale: Vector, oldScale: Vector) => {
-            this.updateLinkedElements(
-              this.element._position,
-              this.element._position,
-              this.element._rotation,
-              this.element._rotation,
-              scale,
-              oldScale
-            )
-          },
-          scale.x,
-          scale.y,
-          scale.z,
-          scale.w
-        )
-
-        this.updateLinkedElements(
-          this.element._position,
-          this.element._position,
-          this.element._rotation,
-          this.element._rotation,
-          scale,
-          oldScale
-        )
+        this.updateCache()
+        this.element._scale = scale
+        this.updateScale()
       },
     })
+
+    this.element._relativeTransforms = {}
+
+    this.updateCache()
   }
 
-  updateLinkedElements(
-    newPosition: Vector,
-    oldPosition: Vector,
-    newRotation: number,
-    oldRotation: number,
-    newScale: Vector,
-    oldScale: Vector
-  ) {
-    const positionDelta = newPosition.subtract(oldPosition)
-    const rotationDelta = newRotation - oldRotation
-    const rotationDeltaRad = (rotationDelta / 180) * Math.PI
-    const scaleDelta = newScale.divide(oldScale)
+  rotateVector(vector: Vector, angle: number) {
+    return new Vector(
+      vector.x * Math.cos(angle) - vector.y * Math.sin(angle),
+      vector.y * Math.cos(angle) + vector.x * Math.sin(angle),
+      vector.z,
+      vector.w
+    )
+  }
 
-    for (const element of this.element.links) {
-      if (!(element.builder instanceof TransformBuilder))
-        throw new Error('Link can not update a non transform buffer')
+  updatePosition() {
+    for (const link of this.element.links) {
+      if (!(link.builder instanceof TransformBuilder))
+        throw new Error('Link can not hold a non transform buffer')
 
-      element.position = element.position.add(positionDelta)
-      element.rotation = element.rotation + rotationDelta
+      const angle = (this.element.rotation / 180) * Math.PI
+      const linkRelativePosition =
+        this.element._relativeTransforms[link.id].relativePosition
 
-      let elementPositionDelta = element.position.subtract(newPosition)
-
-      const rotatedElementPositionDeltaX =
-        Math.cos(rotationDeltaRad) * elementPositionDelta.x -
-        Math.sin(rotationDeltaRad) * elementPositionDelta.y
-
-      const rotatedElementPositionDeltaY =
-        Math.cos(rotationDeltaRad) * elementPositionDelta.y +
-        Math.sin(rotationDeltaRad) * elementPositionDelta.x
-
-      element.position = new Vector(
-        newPosition.x + rotatedElementPositionDeltaX,
-        newPosition.y + rotatedElementPositionDeltaY,
-        element.position.z,
-        element.position.w
+      link.position = this.element.position.add(
+        this.rotateVector(linkRelativePosition, angle).multiply(
+          this.element.scale
+        )
       )
 
-      elementPositionDelta = element.position.subtract(newPosition)
-
-      const scaledPositionDelta = elementPositionDelta.multiply(scaleDelta)
-
-      element.position = newPosition.add(scaledPositionDelta)
-      element.scale = element.scale.multiply(scaleDelta)
+      this.element._relativeTransforms[link.id].position = link.position
     }
   }
+
+  updateRotation() {
+    for (const link of this.element.links) {
+      if (!(link.builder instanceof TransformBuilder))
+        throw new Error('Link can not hold a non transform buffer')
+
+      link.rotation =
+        this.element.rotation +
+        this.element._relativeTransforms[link.id].relativeRotation
+
+      this.element._relativeTransforms[link.id].rotation = link.rotation
+    }
+
+    this.updatePosition()
+  }
+
+  updateScale() {
+    for (const link of this.element.links) {
+      if (!(link.builder instanceof TransformBuilder))
+        throw new Error('Link can not hold a non transform buffer')
+
+      link.scale = this.element.scale.multiply(
+        this.element._relativeTransforms[link.id].relativeScale
+      )
+
+      this.element._relativeTransforms[link.id].scale = link.scale
+    }
+
+    this.updatePosition()
+  }
+
+  updateCache() {
+    let updatedRelativeTransform: any = {}
+
+    for (const link of this.element.links) {
+      if (!(link.builder instanceof TransformBuilder))
+        throw new Error('Link can not hold a non transform buffer')
+
+      if (
+        this.element._relativeTransforms[link.id] == undefined ||
+        !this.element._relativeTransforms[link.id].position.equals(
+          link.position
+        ) ||
+        !this.element._relativeTransforms[link.id].rotation == link.rotation ||
+        !this.element._relativeTransforms[link.id].scale.equals(link.scale)
+      ) {
+        const deltaPosition = link.position.subtract(this.element.position)
+        const deltaMagnitude = deltaPosition.magnitude()
+        const angle =
+          Math.atan2(deltaPosition.y, deltaPosition.x) -
+          (this.element.rotation / 180) * Math.PI
+
+        const projectedDeltaPosition = new Vector(
+          deltaMagnitude * Math.cos(angle),
+          deltaMagnitude * Math.sin(angle),
+          deltaPosition.z,
+          deltaPosition.w
+        )
+
+        const newTransformData = {
+          position: link.position.clone(),
+          rotation: link.rotation,
+          scale: link.scale.clone(),
+          relativePosition: projectedDeltaPosition.divide(this.element.scale),
+          relativeRotation: link.rotation - this.element.rotation,
+          relativeScale: link.scale.divide(this.element.scale),
+        }
+
+        updatedRelativeTransform[link.id] = newTransformData
+      } else {
+        updatedRelativeTransform[link.id] =
+          this.element._relativeTransforms[link.id]
+      }
+    }
+
+    this.element._relativeTransforms = updatedRelativeTransform
+  }
+
+  // updateLinkedElements(
+  //   newPosition: Vector,
+  //   oldPosition: Vector,
+  //   newRotation: number,
+  //   oldRotation: number,
+  //   newScale: Vector,
+  //   oldScale: Vector
+  // ) {
+  //   const positionDelta = newPosition.subtract(oldPosition)
+  //   const rotationDelta = newRotation - oldRotation
+  //   const rotationDeltaRad = (rotationDelta / 180) * Math.PI
+  //   const scaleDelta = newScale.divide(oldScale)
+
+  //   for (
+  //     let linkIndex = 0;
+  //     linkIndex < this.element.links.length;
+  //     linkIndex++
+  //   ) {
+  //     const link = this.element.links[linkIndex]
+
+  //     if (!(link.builder instanceof TransformBuilder))
+  //       throw new Error('Link can not update a non transform buffer')
+
+  //     link.rotation =
+  //       this.element._rotation + this.element._relativeRotations[linkIndex]
+
+  //     link.scale = this.element._scale.multiply(
+  //       this.element._relativeScales[linkIndex]
+  //     )
+
+  //     link.position = this.element._position.add(
+  //       this.element._relativePositions[linkIndex]
+  //     )
+
+  //     // const rotatedElementPositionDeltaX =
+  //     //   Math.cos(rotationDeltaRad) * this.element._relativePositions[linkIndex].x -
+  //     //   Math.sin(rotationDeltaRad) * this.element._relativePositions[linkIndex].y
+
+  //     // const rotatedElementPositionDeltaY =
+  //     //   Math.cos(rotationDeltaRad) * this.element._relativePositions[linkIndex].y +
+  //     //   Math.sin(rotationDeltaRad) * this.element._relativePositions[linkIndex].x
+
+  //     // let elementPositionDelta = link.position.subtract(newPosition)
+
+  //     // link.position = new Vector(
+  //     //   newPosition.x + rotatedElementPositionDeltaX,
+  //     //   newPosition.y + rotatedElementPositionDeltaY,
+  //     //   link.position.z,
+  //     //   link.position.w
+  //     // )
+
+  //     // elementPositionDelta = link.position.subtract(newPosition)
+
+  //     // const scaledPositionDelta = elementPositionDelta.multiply(scaleDelta)
+
+  //     // link.position = newPosition.add(scaledPositionDelta)
+  //     // link.scale = link.scale.multiply(scaleDelta)
+  // }
+  // }
 }
 
 export class RenderingBuilder extends TransformBuilder {
@@ -303,7 +327,8 @@ export class RenderingBuilder extends TransformBuilder {
       transition: (
         canvas: HTMLCanvasElement,
         element: Element
-      ) => HTMLCanvasElement
+      ) => HTMLCanvasElement,
+      mode: any
     ) {
       me.element.renderingModifier = transition
 
@@ -312,8 +337,9 @@ export class RenderingBuilder extends TransformBuilder {
         i <= Math.ceil(time * me.element.scene.engine.frameRate);
         i++
       ) {
-        me.element.transitionProgress =
+        me.element.transitionProgress = mode(
           i / Math.ceil(time * me.element.scene.engine.frameRate)
+        )
 
         yield null
       }
@@ -569,9 +595,17 @@ export class Text extends RenderingBuilder {
   }
 
   extent() {
+    const canvas = document.createElement('canvas')
+    canvas.width = 0
+    canvas.height = 0
+    const ctx = canvas.getContext('2d')!
+    ctx.font = `${this.element.size}px ${this.element.font}`
+    const measure = ctx.measureText(this.element.text)
+
     return new Vector(
-      this.element.size.x * this.element.scale.x,
-      this.element.size.y * this.element.scale.y
+      measure.width * this.element.scale.x,
+      (measure.actualBoundingBoxDescent + measure.actualBoundingBoxAscent) *
+        this.element.scale.y
     )
   }
 
@@ -610,6 +644,8 @@ export class Text extends RenderingBuilder {
         0,
         measure.actualBoundingBoxAscent
       )
+
+    if (bounds.x == 0 || bounds.y == 0) return
 
     ctx.drawImage(canvas, 0, 0, bounds.x, bounds.y)
   }
