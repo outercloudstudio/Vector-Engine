@@ -155,6 +155,35 @@ function useSceneContext(scene: Scene) {
 
         return canvas
       },
+
+      CircleCut: function (inputCanvas: HTMLCanvasElement, element: Element) {
+        const canvas = document.createElement('canvas')
+        const bounds = (<RenderingBuilder>element.builder).bounds()
+        canvas.width = bounds.x
+        canvas.height = bounds.y
+        const ctx = canvas.getContext('2d')!
+
+        const targetSize = Math.sqrt(
+          Math.pow(bounds.x, 2) + Math.pow(bounds.y, 2)
+        )
+
+        ctx.beginPath()
+        ctx.rect(0, 0, bounds.x, bounds.y)
+        ctx.ellipse(
+          bounds.x / 2,
+          bounds.y / 2,
+          (element.transitionProgress * targetSize) / 2,
+          (element.transitionProgress * targetSize) / 2,
+          0,
+          0,
+          Math.PI * 2
+        )
+        ctx.closePath()
+        ctx.clip('evenodd')
+        ctx.drawImage(inputCanvas, 0, 0)
+
+        return canvas
+      },
     },
 
     Element,

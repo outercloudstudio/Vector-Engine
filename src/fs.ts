@@ -126,7 +126,11 @@ export async function getProjectFolder(
   if (dbKeys.includes('project-folder')) {
     const projectFolder = await get('project-folder')
 
-    if (projectFolder && (await requestPermissions(projectFolder))) {
+    if (
+      projectFolder &&
+      (await requestPermissions(projectFolder)) &&
+      (projectFolder.name == name || name == '')
+    ) {
       return projectFolder
     }
   }
