@@ -227,66 +227,6 @@ export class Link extends TransformBuilder {
 
     this.element._relativeTransforms = updatedRelativeTransform
   }
-
-  // updateLinkedElements(
-  //   newPosition: Vector,
-  //   oldPosition: Vector,
-  //   newRotation: number,
-  //   oldRotation: number,
-  //   newScale: Vector,
-  //   oldScale: Vector
-  // ) {
-  //   const positionDelta = newPosition.subtract(oldPosition)
-  //   const rotationDelta = newRotation - oldRotation
-  //   const rotationDeltaRad = (rotationDelta / 180) * Math.PI
-  //   const scaleDelta = newScale.divide(oldScale)
-
-  //   for (
-  //     let linkIndex = 0;
-  //     linkIndex < this.element.links.length;
-  //     linkIndex++
-  //   ) {
-  //     const link = this.element.links[linkIndex]
-
-  //     if (!(link.builder instanceof TransformBuilder))
-  //       throw new Error('Link can not update a non transform buffer')
-
-  //     link.rotation =
-  //       this.element._rotation + this.element._relativeRotations[linkIndex]
-
-  //     link.scale = this.element._scale.multiply(
-  //       this.element._relativeScales[linkIndex]
-  //     )
-
-  //     link.position = this.element._position.add(
-  //       this.element._relativePositions[linkIndex]
-  //     )
-
-  //     // const rotatedElementPositionDeltaX =
-  //     //   Math.cos(rotationDeltaRad) * this.element._relativePositions[linkIndex].x -
-  //     //   Math.sin(rotationDeltaRad) * this.element._relativePositions[linkIndex].y
-
-  //     // const rotatedElementPositionDeltaY =
-  //     //   Math.cos(rotationDeltaRad) * this.element._relativePositions[linkIndex].y +
-  //     //   Math.sin(rotationDeltaRad) * this.element._relativePositions[linkIndex].x
-
-  //     // let elementPositionDelta = link.position.subtract(newPosition)
-
-  //     // link.position = new Vector(
-  //     //   newPosition.x + rotatedElementPositionDeltaX,
-  //     //   newPosition.y + rotatedElementPositionDeltaY,
-  //     //   link.position.z,
-  //     //   link.position.w
-  //     // )
-
-  //     // elementPositionDelta = link.position.subtract(newPosition)
-
-  //     // const scaledPositionDelta = elementPositionDelta.multiply(scaleDelta)
-
-  //     // link.position = newPosition.add(scaledPositionDelta)
-  //     // link.scale = link.scale.multiply(scaleDelta)
-  // }
-  // }
 }
 
 export class RenderingBuilder extends TransformBuilder {
@@ -519,6 +459,8 @@ export class Ellipse extends RenderingBuilder {
 export class Image extends RenderingBuilder {
   setup(options: any) {
     this.element.image = undefined
+    this.element.color = new Vector(1, 1, 1, 1)
+    this.element.animateColor = this.defineAnimatedVectorSetter('color')
     this.element.size = new Vector(100, 100)
     this.element.animateSize = this.defineAnimatedVectorSetter('size')
 
@@ -544,6 +486,11 @@ export class Image extends RenderingBuilder {
   }
 
   async render(ctx: CanvasRenderingContext2D) {
+    const red = this.element.color.x * 255
+    const blue = this.element.color.y * 255
+    const green = this.element.color.z * 255
+    const alpha = this.element.color.w
+
     const imageAspect = this.element.image.width / this.element.image.height
 
     const bounds = this.bounds()
@@ -557,7 +504,18 @@ export class Image extends RenderingBuilder {
     const offsetX = (bestWidth - bounds.x) / 2
     const offsetY = (bestHeight - bounds.y) / 2
 
+    ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`
+    ctx.fillRect(0, 0, bounds.x, bounds.y)
+    ctx.globalCompositeOperation = 'multiply'
+
     ctx.drawImage(this.element.image, -offsetX, -offsetY, bestWidth, bestHeight)
+    ctx.globalCompositeOperation = 'destination-atop'
+
+    ctx.drawImage(this.element.image, -offsetX, -offsetY, bestWidth, bestHeight)
+    ctx.globalCompositeOperation = 'destination-in'
+
+    ctx.fillStyle = `rgb(1, 1, 1, ${alpha})`
+    ctx.fillRect(0, 0, bounds.x, bounds.y)
   }
 }
 
