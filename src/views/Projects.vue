@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, Ref } from 'vue'
-import router from '@/router'
+import { useRouter } from 'vue-router'
 import {
   hasProjectsFolderPermissions,
   hasProjectsFolder,
@@ -82,6 +82,8 @@ import ConfirmPopup from '@/components/popups/ConfirmPopup.vue'
 
 import { useProjectsStore } from '@/stores/ProjectsStore'
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
+
+const router = useRouter()
 
 const ProjectsStore = useProjectsStore()
 const WorkspaceStore = useWorkspaceStore()

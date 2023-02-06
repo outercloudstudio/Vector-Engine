@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { initRuntimes } from 'bridge-js-runtime'
 import wasmUrl from '@swc/wasm-web/wasm-web_bg.wasm?url'
-import './style.css'
+import '@/style.css'
 import App from '@/App.vue'
 import router from '@/router'
 

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { Ref, ref, computed, watch } from 'vue'
 import { getProjectFolder, cacheProjectFolder } from '@/fs'
-import { Engine } from '@/engine/engine'
+import { Engine } from '@/engine/Engine'
 import { Runtime } from '@/Runtime'
 
 export const useWorkspaceStore = defineStore('WorkspaceStore', () => {

@@ -1,15 +1,22 @@
 <template>
   <div id="component">
-    <span class="material-symbols-outlined icon-button" @click="router.push({ name: leftLink })"> {{ leftIcon }} </span>
+    <span class="material-symbols-outlined icon-button" @click="navigate">
+      {{ leftIcon }}
+    </span>
 
     <span class="material-symbols-outlined icon-button"> question_mark </span>
   </div>
 </template>
 
 <script setup lang="ts">
-import router from '@/router'
+import { useRouter } from 'vue-router'
+const router = useRouter()
 
 const props = defineProps(['leftIcon', 'leftLink'])
+
+function navigate() {
+  router.push({ name: props.leftLink })
+}
 </script>
 
 <style scoped>

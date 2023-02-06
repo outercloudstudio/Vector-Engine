@@ -1,5 +1,5 @@
-import router from '@/router'
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 export function useTransition(
   pageName: string,
@@ -7,6 +7,8 @@ export function useTransition(
   start?: (() => void) | null,
   finished?: (() => void) | null
 ) {
+  const router = useRouter()
+
   return {
     transitioning: ref(false),
     progress: ref(0),
