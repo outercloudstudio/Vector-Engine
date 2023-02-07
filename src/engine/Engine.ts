@@ -487,6 +487,21 @@ export class Scene {
     return canvas
   }
 
+  async handleNext(generator: any) {
+    if (generator == null || generator == undefined || !isGenerator(generator))
+      return
+
+    this.sideContexts.push(generator)
+
+    let result = (await generator.next()).value
+    await this.handleNext(result)
+
+    while (result != null && result != undefined && isGenerator(result)) {
+      result = (await generator.next()).value
+      await this.handleNext(result)
+    }
+  }
+
   async next() {
     if (this.context == undefined) return
 
@@ -494,7 +509,7 @@ export class Scene {
       for (let i = 0; i < this.sideContexts.length; i++) {
         const generator = this.sideContexts[i]
 
-        await generator.next()
+        await this.handleNext((await generator.next()).value)
 
         if (generator.done == 'true') {
           this.sideContexts.splice(i, 1)
@@ -503,15 +518,7 @@ export class Scene {
         }
       }
 
-      let result = (await this.context.next()).value
-
-      while (result != null && result != undefined && isGenerator(result)) {
-        await result.next()
-
-        this.sideContexts.push(result)
-
-        result = (await this.context.next()).value
-      }
+      await this.handleNext((await this.context.next()).value)
     } catch (error) {
       if (this.engine.errorListener) this.engine.errorListener(<string>error)
     }
