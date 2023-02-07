@@ -99,7 +99,6 @@
 import { onMounted, Ref, ref, watch, computed } from 'vue'
 
 import { useWorkspaceStore } from '@/stores/WorkspaceStore'
-import { read } from 'fs'
 
 const WorkspaceStore = useWorkspaceStore()
 
@@ -351,6 +350,9 @@ let heldMarker: Ref<string | null> = ref(null)
 let heldMarkerX: Ref<number> = ref(0)
 let heldMarkerOffset = 0
 
+let holdingPlayhead: boolean = false
+let holdingPlayheadFrame: Ref<number> = ref(0)
+
 function frameToRelativeX(frame: number): number {
   if (!canvas.value) return -1
 
@@ -448,6 +450,8 @@ function mouseDown(event: MouseEvent) {
       grabbedScrollbar = true
       grabbedScrollbarOffset = scrollBarStart - relativeX
     }
+
+    if (heldMarker.value == null && !grabbedScrollbar) holdingPlayhead = true
   } else if (event.button == 2) {
     mouseAlt = true
 
@@ -459,10 +463,8 @@ function mouseDown(event: MouseEvent) {
   mouseMove(event)
 }
 
-function mouseUp(event: MouseEvent) {
+async function mouseUp(event: MouseEvent) {
   if (event.button == 0) {
-    mouse = false
-
     grabbedScrollbar = false
 
     if (heldMarker.value != null) {
@@ -476,7 +478,14 @@ function mouseUp(event: MouseEvent) {
         WorkspaceStore.updateMarker(heldMarker.value, marker.name, droppedFrame)
 
       heldMarker.value = null
+    } else if (mouse) {
+      pause()
+      await WorkspaceStore.updateFrame(holdingPlayheadFrame.value)
+
+      holdingPlayhead = false
     }
+
+    mouse = false
   } else if (event.button == 2) {
     if (mouseAlt && selectedEnd.value == selectedStart.value) {
       framesSelected.value = false
@@ -491,14 +500,12 @@ async function mouseMove(event: MouseEvent) {
 
   if (mouse) {
     if (!grabbedScrollbar) {
-      if (heldMarker.value == null) {
-        await WorkspaceStore.updateFrame(
-          Math.min(
-            Math.max(XtoFrame(event.clientX), 0),
-            WorkspaceStore.length - 1
-          )
+      if (holdingPlayhead) {
+        holdingPlayheadFrame.value = Math.min(
+          Math.max(XtoFrame(event.clientX), 0),
+          WorkspaceStore.length - 1
         )
-      } else {
+      } else if (heldMarker.value != null) {
         heldMarkerX.value = Math.min(
           Math.max(
             event.clientX + heldMarkerOffset,
@@ -622,6 +629,7 @@ function scroll(event: any) {
 
 watch(startFrame, () => render())
 watch(endFrame, () => render())
+watch(holdingPlayheadFrame, () => render())
 
 const secondaryColor = '#242424'
 const grabColor = '#32a6fc'
@@ -845,8 +853,18 @@ function render() {
   ctx.strokeStyle = grabColor
   ctx.lineWidth = 1 * canvasScale
   ctx.beginPath()
-  ctx.moveTo(frameToRelativeX(WorkspaceStore.frame), 0)
-  ctx.lineTo(frameToRelativeX(WorkspaceStore.frame), canvas.value.height)
+  ctx.moveTo(
+    frameToRelativeX(
+      holdingPlayhead ? holdingPlayheadFrame.value : WorkspaceStore.frame
+    ),
+    0
+  )
+  ctx.lineTo(
+    frameToRelativeX(
+      holdingPlayhead ? holdingPlayheadFrame.value : WorkspaceStore.frame
+    ),
+    canvas.value.height
+  )
   ctx.stroke()
 
   // Scrollbar

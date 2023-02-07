@@ -255,7 +255,7 @@ export class RenderingBuilder extends TransformBuilder {
     throw new Error('extentOffset() is not implemented on this builder!')
   }
 
-  async render(ctx: CanvasRenderingContext2D) {
+  async render(ctx: OffscreenCanvasRenderingContext2D) {
     throw new Error('render() is not implemented on this builder!')
   }
 
@@ -265,9 +265,9 @@ export class RenderingBuilder extends TransformBuilder {
     return async function* (
       time: number,
       transition: (
-        canvas: HTMLCanvasElement,
+        canvas: OffscreenCanvas,
         element: Element
-      ) => HTMLCanvasElement,
+      ) => OffscreenCanvas,
       mode: any
     ) {
       me.element.renderingModifier = transition
@@ -293,10 +293,7 @@ export class RenderingBuilder extends TransformBuilder {
 
     return async function* (
       time: number,
-      transition: (
-        canvas: HTMLCanvasElement,
-        element: Element
-      ) => HTMLCanvasElement
+      transition: (canvas: OffscreenCanvas, element: Element) => OffscreenCanvas
     ) {
       me.element.renderingModifier = transition
 
@@ -355,7 +352,7 @@ export class Rect extends RenderingBuilder {
     )
   }
 
-  async render(ctx: CanvasRenderingContext2D) {
+  async render(ctx: OffscreenCanvasRenderingContext2D) {
     const red = this.element.color.x * 255
     const blue = this.element.color.y * 255
     const green = this.element.color.z * 255
@@ -422,7 +419,7 @@ export class Ellipse extends RenderingBuilder {
     )
   }
 
-  async render(ctx: CanvasRenderingContext2D) {
+  async render(ctx: OffscreenCanvasRenderingContext2D) {
     const red = this.element.color.x * 255
     const blue = this.element.color.y * 255
     const green = this.element.color.z * 255
@@ -485,7 +482,7 @@ export class Image extends RenderingBuilder {
     return new Vector(0, 0)
   }
 
-  async render(ctx: CanvasRenderingContext2D) {
+  async render(ctx: OffscreenCanvasRenderingContext2D) {
     const red = this.element.color.x * 255
     const blue = this.element.color.y * 255
     const green = this.element.color.z * 255
@@ -538,10 +535,10 @@ export class Text extends RenderingBuilder {
   }
 
   bounds() {
-    const canvas = document.createElement('canvas')
-    canvas.width = 0
-    canvas.height = 0
-    const ctx = canvas.getContext('2d')!
+    const canvas = new OffscreenCanvas(0, 0)
+    const ctx: OffscreenCanvasRenderingContext2D = <
+      OffscreenCanvasRenderingContext2D
+    >canvas.getContext('2d')
     ctx.font = `${this.element.size}px ${this.element.font}`
     const measure = ctx.measureText(this.element.text)
 
@@ -553,10 +550,10 @@ export class Text extends RenderingBuilder {
   }
 
   extent() {
-    const canvas = document.createElement('canvas')
-    canvas.width = 0
-    canvas.height = 0
-    const ctx = canvas.getContext('2d')!
+    const canvas = new OffscreenCanvas(0, 0)
+    const ctx: OffscreenCanvasRenderingContext2D = <
+      OffscreenCanvasRenderingContext2D
+    >canvas.getContext('2d')
     ctx.font = `${this.element.size}px ${this.element.font}`
     const measure = ctx.measureText(this.element.text)
 
@@ -571,7 +568,7 @@ export class Text extends RenderingBuilder {
     return new Vector(0, 0)
   }
 
-  async render(ctx: CanvasRenderingContext2D) {
+  async render(ctx: OffscreenCanvasRenderingContext2D) {
     const red = this.element.color.x * 255
     const blue = this.element.color.y * 255
     const green = this.element.color.z * 255
@@ -584,10 +581,13 @@ export class Text extends RenderingBuilder {
 
     const bounds = this.bounds()
 
-    const canvas = document.createElement('canvas')
-    canvas.width = bounds.x / this.element.scale.x
-    canvas.height = bounds.y / this.element.scale.y
-    const unscaledCtx = canvas.getContext('2d')!
+    const canvas = new OffscreenCanvas(
+      bounds.x / this.element.scale.x,
+      bounds.y / this.element.scale.y
+    )
+    const unscaledCtx: OffscreenCanvasRenderingContext2D = <
+      OffscreenCanvasRenderingContext2D
+    >canvas.getContext('2d')
 
     unscaledCtx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
     unscaledCtx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`

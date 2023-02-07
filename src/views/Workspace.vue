@@ -81,8 +81,8 @@ async function loadWithPermissions() {
   displayAccessPopup.value = false
   renderPreview.value = true
 
-  // window.addEventListener('focus', focus)
-  // window.addEventListener('blur', blur)
+  window.addEventListener('focus', focus)
+  window.addEventListener('blur', blur)
 }
 
 let focused = true

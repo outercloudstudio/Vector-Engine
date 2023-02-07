@@ -87,10 +87,10 @@ function useSceneContext(scene: Scene) {
           let time = 0
 
           defineModifier((render: CanvasImageSource) => {
-            const canvas = document.createElement('canvas')
-            canvas.width = 1920
-            canvas.height = 1080
-            const ctx = canvas.getContext('2d')!
+            const canvas = new OffscreenCanvas(1920, 1080)
+            const ctx: OffscreenCanvasRenderingContext2D = <
+              OffscreenCanvasRenderingContext2D
+            >canvas.getContext('2d')
 
             ctx.globalAlpha = time
             ctx.drawImage(render, 0, 0)
@@ -114,12 +114,12 @@ function useSceneContext(scene: Scene) {
     },
 
     ElementTransitions: {
-      Fade: function (inputCanvas: HTMLCanvasElement, element: Element) {
-        const canvas = document.createElement('canvas')
+      Fade: function (inputCanvas: OffscreenCanvas, element: Element) {
         const bounds = (<RenderingBuilder>element.builder).bounds()
-        canvas.width = bounds.x
-        canvas.height = bounds.y
-        const ctx = canvas.getContext('2d')!
+        const canvas = new OffscreenCanvas(bounds.x, bounds.y)
+        const ctx: OffscreenCanvasRenderingContext2D = <
+          OffscreenCanvasRenderingContext2D
+        >canvas.getContext('2d')
 
         ctx.globalAlpha = element.transitionProgress
 
@@ -128,12 +128,12 @@ function useSceneContext(scene: Scene) {
         return canvas
       },
 
-      Circle: function (inputCanvas: HTMLCanvasElement, element: Element) {
-        const canvas = document.createElement('canvas')
+      Circle: function (inputCanvas: OffscreenCanvas, element: Element) {
         const bounds = (<RenderingBuilder>element.builder).bounds()
-        canvas.width = bounds.x
-        canvas.height = bounds.y
-        const ctx = canvas.getContext('2d')!
+        const canvas = new OffscreenCanvas(bounds.x, bounds.y)
+        const ctx: OffscreenCanvasRenderingContext2D = <
+          OffscreenCanvasRenderingContext2D
+        >canvas.getContext('2d')
 
         const targetSize = Math.sqrt(
           Math.pow(bounds.x, 2) + Math.pow(bounds.y, 2)
@@ -156,12 +156,12 @@ function useSceneContext(scene: Scene) {
         return canvas
       },
 
-      CircleCut: function (inputCanvas: HTMLCanvasElement, element: Element) {
-        const canvas = document.createElement('canvas')
+      CircleCut: function (inputCanvas: OffscreenCanvas, element: Element) {
         const bounds = (<RenderingBuilder>element.builder).bounds()
-        canvas.width = bounds.x
-        canvas.height = bounds.y
-        const ctx = canvas.getContext('2d')!
+        const canvas = new OffscreenCanvas(bounds.x, bounds.y)
+        const ctx: OffscreenCanvasRenderingContext2D = <
+          OffscreenCanvasRenderingContext2D
+        >canvas.getContext('2d')
 
         const targetSize = Math.sqrt(
           Math.pow(bounds.x, 2) + Math.pow(bounds.y, 2)
@@ -454,10 +454,10 @@ export class Scene {
   }
 
   async render() {
-    const canvas = document.createElement('canvas')
-    canvas.width = 1920
-    canvas.height = 1080
-    const ctx = canvas.getContext('2d')!
+    const canvas = new OffscreenCanvas(1920, 1080)
+    const ctx: OffscreenCanvasRenderingContext2D = <
+      OffscreenCanvasRenderingContext2D
+    >canvas.getContext('2d')
 
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, 1920, 1080)
@@ -587,10 +587,10 @@ export class Engine {
   }
 
   async render() {
-    const canvas = document.createElement('canvas')
-    canvas.width = 1920
-    canvas.height = 1080
-    const ctx = canvas.getContext('2d')!
+    const canvas = new OffscreenCanvas(1920, 1080)
+    const ctx: OffscreenCanvasRenderingContext2D = <
+      OffscreenCanvasRenderingContext2D
+    >canvas.getContext('2d')
 
     for (const scene of this.activeScenes) {
       const activeSceneRender = await scene.render()

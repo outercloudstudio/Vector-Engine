@@ -18,15 +18,15 @@ export class Element {
     this.builder.setup(options)
   }
 
-  async render(parentCtx: CanvasRenderingContext2D) {
+  async render(parentCtx: OffscreenCanvasRenderingContext2D) {
     if (!(this.builder instanceof RenderingBuilder))
       throw new Error('Can not render a non rendering builder')
 
-    const canvas = document.createElement('canvas')
     const bounds = this.builder.bounds()
-    canvas.width = bounds.x
-    canvas.height = bounds.y
-    const ctx = canvas.getContext('2d')!
+    const canvas = new OffscreenCanvas(bounds.x, bounds.y)
+    const ctx: OffscreenCanvasRenderingContext2D = <
+      OffscreenCanvasRenderingContext2D
+    >canvas.getContext('2d')
     ctx.translate(0, canvas.height)
     ctx.scale(1, -1)
 
