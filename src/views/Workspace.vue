@@ -96,7 +96,7 @@ async function focus() {
 async function blurUpdate() {
   if (focused) return
 
-  await WorkspaceStore.loadProjectFromCache()
+  // await WorkspaceStore.loadProjectFromCache()
 
   setTimeout(blurUpdate, 1000)
 }

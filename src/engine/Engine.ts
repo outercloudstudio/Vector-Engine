@@ -251,10 +251,14 @@ function useSceneContext(scene: Scene) {
       }
     },
 
-    waitForMarker: function* (name: string) {
+    waitForMarker: function* (name: string, offset?: number) {
       while (
         !scene.engine.markers.find(
-          marker => marker.name == name && marker.frame == scene.engine.frame
+          marker =>
+            marker.name == name &&
+            marker.frame ==
+              scene.engine.frame -
+                Math.ceil((offset || 0) * scene.engine.frameRate)
         )
       ) {
         yield null
@@ -488,8 +492,13 @@ export class Scene {
   }
 
   async handleNext(generator: any) {
-    if (generator == null || generator == undefined || !isGenerator(generator))
+    if (
+      generator == null ||
+      generator == undefined ||
+      !isGenerator(generator)
+    ) {
       return
+    }
 
     this.sideContexts.push(generator)
 
@@ -518,7 +527,13 @@ export class Scene {
         }
       }
 
-      await this.handleNext((await this.context.next()).value)
+      let result = (await this.context.next()).value
+      await this.handleNext(result)
+
+      while (result != null && result != undefined && isGenerator(result)) {
+        result = (await this.context.next()).value
+        await this.handleNext(result)
+      }
     } catch (error) {
       if (this.engine.errorListener) this.engine.errorListener(<string>error)
     }

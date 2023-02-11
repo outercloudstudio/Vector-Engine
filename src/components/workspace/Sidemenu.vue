@@ -261,11 +261,8 @@ async function runExport() {
     await engine.next()
     const render = await engine.render()
 
-    const renderBlob = await new Promise(res => {
-      render.toBlob(blob => {
-        res(blob)
-      })
-    })
+    // @ts-ignore
+    const renderBlob = await render.convertToBlob()
 
     const frameFileHandle = await exportFolder.getFileHandle(
       `frame_${frame.toString().padStart(frameDigits, '0')}.png`,
