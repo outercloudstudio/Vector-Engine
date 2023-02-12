@@ -18,6 +18,7 @@ export default async function VectorEngine() {
         },
         configureServer(server) {
             server.middlewares.use((req, res, next) => {
+                console.log(req.url);
                 if (req.url === '/') {
                     res.setHeader('Content-Type', 'text/html');
                     res.end(fs
@@ -26,7 +27,8 @@ export default async function VectorEngine() {
                         .replace('</body>', `<script type="module" src="/@id/__x00__virtual:@vector-engine/test"></script></body>`));
                     return;
                 }
-                else if (req.url.startsWith('/assets/')) {
+                else if (!req.url.startsWith('/@') &&
+                    !req.url.startsWith('/node_modules/')) {
                     if (req.url.endsWith('.js'))
                         res.setHeader('Content-Type', 'text/javascript');
                     res.end(fs.readFileSync(path.join(editorDistFolder, req.url)));

@@ -26,6 +26,8 @@ export default async function VectorEngine() {
     },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
+        console.log(req.url)
+
         if (req.url === '/') {
           res.setHeader('Content-Type', 'text/html')
 
@@ -39,7 +41,10 @@ export default async function VectorEngine() {
               )
           )
           return
-        } else if (req.url.startsWith('/assets/')) {
+        } else if (
+          !req.url.startsWith('/@') &&
+          !req.url.startsWith('/node_modules/')
+        ) {
           if (req.url.endsWith('.js'))
             res.setHeader('Content-Type', 'text/javascript')
 
