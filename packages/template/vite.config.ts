@@ -4,5 +4,8 @@ import vue from '@vitejs/plugin-vue'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [VectorEngine(), vue()],
+  optimizeDeps: {
+    include: ['@vector-engine/vite-plugin'],
+  },
+  plugins: [VectorEngine(import.meta.url), vue()],
 })

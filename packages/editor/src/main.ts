@@ -1,7 +1,4 @@
-import { createApp } from 'vue'
+import inject from './inject.js'
 import './style.css'
-import App from './App.vue'
 
-createApp(App).mount('#app')
-
-export const test = App
+inject('ran from editor')

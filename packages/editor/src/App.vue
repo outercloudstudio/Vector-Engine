@@ -1,7 +1,3 @@
-<script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
   <div>
     <a href="https://vitejs.dev" target="_blank">
@@ -13,6 +9,18 @@ import HelloWorld from './components/HelloWorld.vue'
   </div>
   <HelloWorld msg="Vite + Vue" />
 </template>
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import HelloWorld from './components/HelloWorld.vue'
+
+const props = defineProps(['project'])
+
+onMounted(() => {
+  console.log(props.project)
+  props.project()
+})
+</script>
 
 <style scoped>
 .logo {
