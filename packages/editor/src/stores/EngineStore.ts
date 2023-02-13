@@ -22,13 +22,37 @@ export const useEngineStore = defineStore('EngineStore', () => {
     return await engine.value.render()
   }
 
+  async function setFrame(newFrame: number) {
+    frame.value = newFrame
+
+    if (!loaded) return
+    if (!engine.value) return
+
+    if (engine.value.frame < newFrame) {
+      for (
+        let engineFrame = engine.value.frame;
+        engineFrame < newFrame;
+        engineFrame++
+      ) {
+        await engine.value.next()
+      }
+    }
+
+    console.log(frame.value)
+  }
+
   const loaded = computed(() => engine.value && engine.value.loaded)
+  const frameRate = computed(() => (loaded ? engine.value!.frameRate : 60))
+  const length = computed(() => (loaded ? engine.value!.length : 60))
 
   return {
     makeEngine,
+    loaded,
     render,
     frame,
+    setFrame,
+    frameRate,
+    length,
     blockingErrors,
-    loaded,
   }
 })
