@@ -88,7 +88,7 @@
       </div>
 
       <div class="control-bar-group">
-        <!-- <p id="frame-length">{{ WorkspaceStore.length }}</p> -->
+        <p id="frame-length">{{ EngineStore.length }}</p>
         <p id="length">{{ lengthTime }}</p>
       </div>
     </div>
@@ -157,11 +157,9 @@ function stopAudioPlayback() {
   audioBufferSource.stop()
 }
 
-const speed = ref(1)
-
 const speedInputBuffer = computed({
   get: () => {
-    return `${speed.value}x`
+    return `${EditorStore.speed}x`
   },
   set: passedSpeed => {
     if (/^(([0-9]*\.[0-9]+)|([0-9]+))x?$/.test(passedSpeed)) {
@@ -170,74 +168,70 @@ const speedInputBuffer = computed({
         : parseFloat(passedSpeed)
 
       if (readSpeed == 0) {
-        const originalSpeed = speed.value
-
-        speed.value = -1
-
-        speed.value = originalSpeed
+        const originalSpeed = EditorStore.speed
+        EditorStore.speed = -1
+        EditorStore.speed = originalSpeed
       } else {
-        speed.value = readSpeed
+        EditorStore.speed = readSpeed
       }
     } else {
-      const originalSpeed = speed.value
-
-      speed.value = -1
-
-      speed.value = originalSpeed
+      const originalSpeed = EditorStore.speed
+      EditorStore.speed = -1
+      EditorStore.speed = originalSpeed
     }
   },
 })
 
 const timeInputBuffer = computed({
   get: () => {
-    // const seconds = WorkspaceStore.frame / WorkspaceStore.frameRate
-    // const minutes = Math.floor(seconds / WorkspaceStore.frameRate)
-    // const leftSeconds =
-    //   Math.floor((seconds - minutes * WorkspaceStore.frameRate) * 1000) / 1000
-    // if (Math.floor(leftSeconds).toString().length == 1)
-    //   return `${minutes}:0${leftSeconds}`
-    // return `${minutes}:${leftSeconds}`
+    const seconds = EngineStore.frame / EngineStore.frameRate
+    const minutes = Math.floor(seconds / EngineStore.frameRate)
+    const leftSeconds =
+      Math.floor((seconds - minutes * EngineStore.frameRate) * 1000) / 1000
+    if (Math.floor(leftSeconds).toString().length == 1)
+      return `${minutes}:0${leftSeconds}`
+    return `${minutes}:${leftSeconds}`
   },
   set: frame => {
-    // if (/^(([0-9]+:[0-9]+\.[0-9]{1,3})|([0-9]+:[0-9]+))$/.test(frame)) {
-    //   const minutes = parseInt(frame.split(':')[0])
-    //   const seconds =
-    //     parseFloat(frame.split(':')[1]) + minutes * WorkspaceStore.frameRate
-    //   const frames = Math.floor(seconds * WorkspaceStore.frameRate)
-    //   WorkspaceStore.updateFrame(
-    //     Math.max(Math.min(frames, WorkspaceStore.length - 1), 0)
-    //   )
-    // } else {
-    //   const originalFrame = WorkspaceStore.frame
-    //   WorkspaceStore.frame = -1
-    //   WorkspaceStore.frame = originalFrame
-    // }
+    if (/^(([0-9]+:[0-9]+\.[0-9]{1,3})|([0-9]+:[0-9]+))$/.test(frame)) {
+      const minutes = parseInt(frame.split(':')[0])
+      const seconds =
+        parseFloat(frame.split(':')[1]) + minutes * EngineStore.frameRate
+      const frames = Math.floor(seconds * EngineStore.frameRate)
+      EngineStore.setFrame(
+        Math.max(Math.min(frames, EngineStore.length - 1), 0)
+      )
+    } else {
+      const originalFrame = EngineStore.frame
+      EngineStore.frame = -1
+      EngineStore.frame = originalFrame
+    }
   },
 })
 
 const frameInputBuffer = computed({
-  get: () => 0, //WorkspaceStore.frame,
+  get: () => EngineStore.frame,
   set: (frame: any) => {
-    // if (/^[0-9]+$/.test(frame)) {
-    //   WorkspaceStore.updateFrame(
-    //     Math.min(Math.max(parseInt(frame), 0), WorkspaceStore.length - 1)
-    //   )
-    // } else {
-    //   const originalFrame = WorkspaceStore.frame
-    //   WorkspaceStore.frame = -1
-    //   WorkspaceStore.frame = originalFrame
-    // }
+    if (/^[0-9]+$/.test(frame)) {
+      EngineStore.setFrame(
+        Math.min(Math.max(parseInt(frame), 0), EngineStore.length - 1)
+      )
+    } else {
+      const originalFrame = EngineStore.frame
+      EngineStore.frame = -1
+      EngineStore.frame = originalFrame
+    }
   },
 })
 
 const lengthTime = computed(() => {
-  // const seconds = WorkspaceStore.length / WorkspaceStore.frameRate
-  // const minutes = Math.floor(seconds / WorkspaceStore.frameRate)
-  // const leftSeconds =
-  //   Math.floor((seconds - minutes * WorkspaceStore.frameRate) * 1000) / 1000
-  // if (Math.floor(leftSeconds).toString().length == 1)
-  //   return `${minutes}:0${leftSeconds}`
-  // return `${minutes}:${leftSeconds}`
+  const seconds = EngineStore.length / EngineStore.frameRate
+  const minutes = Math.floor(seconds / EngineStore.frameRate)
+  const leftSeconds =
+    Math.floor((seconds - minutes * EngineStore.frameRate) * 1000) / 1000
+  if (Math.floor(leftSeconds).toString().length == 1)
+    return `${minutes}:0${leftSeconds}`
+  return `${minutes}:${leftSeconds}`
 })
 
 const canvasScale = 2
@@ -282,31 +276,31 @@ function XtoFrame(x: number) {
   )
 }
 
-function mouseDown(event: MouseEvent) {
-  // if (!canvas.value) return
-  // if (event.button == 0) {
-  //   mouse = true
-  //   const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
-  //   if (relativeY >= 58 && relativeY <= 72) {
-  //     const ctx = canvas.value.getContext('2d')!
-  //     for (const marker of WorkspaceStore.markers) {
-  //       if (event.clientX < frameToRelativeX(marker.frame) / canvasScale)
-  //         continue
-  //       ctx.font = `10px JetBrainsMono`
-  //       const width = ctx.measureText(marker.name).width + 8
-  //       if (
-  //         event.clientX >
-  //         frameToRelativeX(marker.frame) / canvasScale + width
-  //       )
-  //         continue
-  //       WorkspaceStore.selectedMarker = marker.id
-  //       heldMarker.value = marker.id
-  //       heldMarkerOffset =
-  //         frameToRelativeX(marker.frame) / canvasScale - event.clientX
-  //       highlightedMarker.value = null
-  //     }
+function handleSelectingMarker(event: MouseEvent) {
+  if (!canvas.value) return
+
+  // const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
+  // if (relativeY >= 58 && relativeY <= 72) {
+  //   const ctx = canvas.value.getContext('2d')!
+  //   for (const marker of WorkspaceStore.markers) {
+  //     if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
+  //     ctx.font = `10px JetBrainsMono`
+  //     const width = ctx.measureText(marker.name).width + 8
+  //     if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
+  //       continue
+  //     WorkspaceStore.selectedMarker = marker.id
+  //     heldMarker.value = marker.id
+  //     heldMarkerOffset =
+  //       frameToRelativeX(marker.frame) / canvasScale - event.clientX
+  //     highlightedMarker.value = null
   //   }
-  //   if (
+  // }
+}
+
+function handleSelectingScrollbar(event: MouseEvent) {
+  if (!canvas.value) return
+
+  // if (
   //     heldMarker.value == null &&
   //     event.clientY - canvas.value.getBoundingClientRect().top >=
   //       canvas.value.height / canvasScale - 8
@@ -342,94 +336,120 @@ function mouseDown(event: MouseEvent) {
   //     grabbedScrollbarOffset = scrollBarStart - relativeX
   //   }
   //   if (heldMarker.value == null && !grabbedScrollbar) holdingPlayhead = true
-  // } else if (event.button == 2) {
-  //   mouseAlt = true
-  //   selectedOriginal.value = XtoFrame(event.clientX)
-  //   selectedStart.value = XtoFrame(event.clientX)
-  //   framesSelected.value = true
   // }
-  // mouseMove(event)
+}
+
+function handleSelectingPlayhead(event: MouseEvent) {
+  if (heldMarker.value == null && !grabbedScrollbar) holdingPlayhead = true
+}
+
+function mouseDown(event: MouseEvent) {
+  if (!canvas.value) return
+
+  if (event.button == 0) {
+    mouse = true
+
+    handleSelectingMarker(event)
+
+    handleSelectingScrollbar(event)
+
+    handleSelectingPlayhead(event)
+  } else if (event.button == 2) {
+    mouseAlt = true
+    selectedOriginal.value = XtoFrame(event.clientX)
+    selectedStart.value = XtoFrame(event.clientX)
+    framesSelected.value = true
+  }
+
+  mouseMove(event)
 }
 
 async function mouseUp(event: MouseEvent) {
-  // if (event.button == 0) {
-  //   grabbedScrollbar = false
-  //   if (heldMarker.value != null) {
-  //     const droppedFrame = XtoFrame(heldMarkerX.value)
-  //     const marker = WorkspaceStore.markers.find(
-  //       marker => marker.id == heldMarker.value
-  //     )
-  //     if (marker.frame != droppedFrame)
-  //       WorkspaceStore.updateMarker(heldMarker.value, marker.name, droppedFrame)
-  //     heldMarker.value = null
-  //   } else if (mouse) {
-  //     pause()
-  //     await WorkspaceStore.updateFrame(holdingPlayheadFrame.value)
-  //     holdingPlayhead = false
-  //   }
-  //   mouse = false
-  // } else if (event.button == 2) {
-  //   if (mouseAlt && selectedEnd.value == selectedStart.value) {
-  //     framesSelected.value = false
-  //   }
-  //   mouseAlt = false
-  // }
+  if (event.button == 0) {
+    grabbedScrollbar = false
+
+    if (heldMarker.value != null) {
+      // const droppedFrame = XtoFrame(heldMarkerX.value)
+      // const marker = WorkspaceStore.markers.find(
+      //   marker => marker.id == heldMarker.value
+      // )
+      // if (marker.frame != droppedFrame)
+      //   WorkspaceStore.updateMarker(heldMarker.value, marker.name, droppedFrame)
+      // heldMarker.value = null
+    } else if (mouse) {
+      EditorStore.pause()
+
+      await EngineStore.setFrame(holdingPlayheadFrame.value)
+
+      holdingPlayhead = false
+    }
+
+    mouse = false
+  } else if (event.button == 2) {
+    if (mouseAlt && selectedEnd.value == selectedStart.value) {
+      framesSelected.value = false
+    }
+    mouseAlt = false
+  }
 }
 
+function handleMoveScrollbar() {}
+
 async function mouseMove(event: MouseEvent) {
-  // if (!canvas.value) return
-  // if (mouse) {
-  //   if (!grabbedScrollbar) {
-  //     if (holdingPlayhead) {
-  //       holdingPlayheadFrame.value = Math.min(
-  //         Math.max(XtoFrame(event.clientX), 0),
-  //         WorkspaceStore.length - 1
-  //       )
-  //     } else if (heldMarker.value != null) {
-  //       heldMarkerX.value = Math.min(
-  //         Math.max(
-  //           event.clientX + heldMarkerOffset,
-  //           frameToRelativeX(0) / canvasScale
-  //         ),
-  //         frameToRelativeX(WorkspaceStore.length - 1) / canvasScale
-  //       )
-  //     }
-  //   } else {
-  //     const relativeX =
-  //       event.clientX - canvas.value.getBoundingClientRect().left
-  //     const newScrollbarPosition = relativeX + grabbedScrollbarOffset
-  //     const newScrollBarFrame = Math.round(
-  //       (newScrollbarPosition / (canvas.value.width / canvasScale)) *
-  //         WorkspaceStore.length
-  //     )
-  //     const viewRange = endFrame.value - startFrame.value
-  //     startFrame.value = newScrollBarFrame
-  //     endFrame.value = newScrollBarFrame + viewRange
-  //   }
-  // } else if (mouseAlt) {
-  //   const frame = XtoFrame(event.clientX)
-  //   if (frame < selectedOriginal.value) {
-  //     selectedEnd.value = selectedOriginal.value
-  //     selectedStart.value = frame
-  //   } else {
-  //     selectedStart.value = selectedOriginal.value
-  //     selectedEnd.value = frame
-  //   }
-  // } else if (heldMarker.value == null) {
-  //   highlightedMarker.value = null
-  //   const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
-  //   if (relativeY < 58) return
-  //   if (relativeY > 72) return
-  //   const ctx = canvas.value.getContext('2d')!
-  //   for (const marker of WorkspaceStore.markers) {
-  //     if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
-  //     ctx.font = '10px JetBrainsMono'
-  //     const width = ctx.measureText(marker.name).width + 8
-  //     if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
-  //       continue
-  //     highlightedMarker.value = marker.id
-  //   }
-  // }
+  if (!canvas.value) return
+
+  if (mouse) {
+    if (!grabbedScrollbar) {
+      if (holdingPlayhead) {
+        holdingPlayheadFrame.value = Math.min(
+          Math.max(XtoFrame(event.clientX), 0),
+          EngineStore.length - 1
+        )
+      } else if (heldMarker.value != null) {
+        // heldMarkerX.value = Math.min(
+        //   Math.max(
+        //     event.clientX + heldMarkerOffset,
+        //     frameToRelativeX(0) / canvasScale
+        //   ),
+        //   frameToRelativeX(WorkspaceStore.length - 1) / canvasScale
+        // )
+      }
+    } else {
+      // const relativeX =
+      //   event.clientX - canvas.value.getBoundingClientRect().left
+      // const newScrollbarPosition = relativeX + grabbedScrollbarOffset
+      // const newScrollBarFrame = Math.round(
+      //   (newScrollbarPosition / (canvas.value.width / canvasScale)) *
+      //     WorkspaceStore.length
+      // )
+      // const viewRange = endFrame.value - startFrame.value
+      // startFrame.value = newScrollBarFrame
+      // endFrame.value = newScrollBarFrame + viewRange
+    }
+  } else if (mouseAlt) {
+    const frame = XtoFrame(event.clientX)
+    if (frame < selectedOriginal.value) {
+      selectedEnd.value = selectedOriginal.value
+      selectedStart.value = frame
+    } else {
+      selectedStart.value = selectedOriginal.value
+      selectedEnd.value = frame
+    }
+  } else if (heldMarker.value == null) {
+    // highlightedMarker.value = null
+    // const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
+    // if (relativeY < 58) return
+    // if (relativeY > 72) return
+    // const ctx = canvas.value.getContext('2d')!
+    // for (const marker of WorkspaceStore.markers) {
+    //   if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
+    //   ctx.font = '10px JetBrainsMono'
+    //   const width = ctx.measureText(marker.name).width + 8
+    //   if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
+    //     continue
+    //   highlightedMarker.value = marker.id
+    // }
+  }
 }
 
 let looping = ref(false)
@@ -452,49 +472,36 @@ function loop() {
 }
 
 let startFrame = ref(-5)
-let endFrame = ref(0) //ref(WorkspaceStore.length + 5)
+let endFrame = ref(EngineStore.length + 5)
 
-// watch(
-//   () => WorkspaceStore.length,
-//   () => {
-//     return (endFrame.value = WorkspaceStore.length - 1 + 5)
-//   }
-// )
+watch(
+  () => EngineStore.length,
+  () => {
+    return (endFrame.value = EngineStore.length - 1 + 5)
+  }
+)
 
 function scroll(event: any) {
-  const scrollX = Math.ceil(event.deltaX / 100)
-  const scrollY = Math.ceil(event.deltaY / 100)
+  const scrollX = event.deltaX / 1000
+  const scrollY = event.deltaY / 10000
 
   let viewRange = endFrame.value - startFrame.value
 
   if (scrollY != 0) {
-    let zoomAmount =
-      (Math.ceil(
-        Math.abs(Math.pow(Math.log(viewRange / 59), Math.abs(scrollY)))
-      ) *
-        scrollY) /
-      Math.abs(scrollY)
+    let zoom = Math.pow(Math.pow(viewRange, 1 / 10) + scrollY, 10)
+    zoom = Math.max(zoom, 1)
 
-    if (zoomAmount == 0) zoomAmount = 1 * (scrollY / Math.abs(scrollY))
+    const mid = startFrame.value + (endFrame.value - startFrame.value) / 2
 
-    const midPoint = Math.floor(
-      startFrame.value + (endFrame.value - startFrame.value) / 2
-    )
-
-    startFrame.value = startFrame.value - zoomAmount
-    endFrame.value = endFrame.value + zoomAmount
-
-    if (endFrame.value - startFrame.value <= 1) {
-      startFrame.value = midPoint
-      endFrame.value = midPoint + 1
-    }
+    startFrame.value = mid - zoom / 2
+    endFrame.value = mid + zoom / 2
   }
 
   if (scrollX != 0) {
     viewRange = endFrame.value - startFrame.value
 
-    startFrame.value += Math.ceil((scrollX * viewRange) / 10)
-    endFrame.value += Math.ceil((scrollX * viewRange) / 10)
+    startFrame.value += viewRange * scrollX
+    endFrame.value += viewRange * scrollX
   }
 }
 
@@ -509,44 +516,52 @@ const textColor = '#d9d9d9'
 const alternateTextColor = '#a7a7a7'
 
 function render() {
-  // if (!canvas.value) return
-  // const ctx = canvas.value.getContext('2d')!
-  // ctx.clearRect(0, 0, canvas.value.width, canvas.value.height)
-  // // Seperator Bar
-  // ctx.strokeStyle = secondaryColor
-  // ctx.lineWidth = 1 * canvasScale
-  // ctx.beginPath()
-  // ctx.moveTo(0, 32 * canvasScale)
-  // ctx.lineTo(canvas.value.width, 32 * canvasScale)
-  // ctx.stroke()
-  // const labelInterval = Math.max(
-  //   Math.floor((endFrame.value - startFrame.value) / 60) * 5,
-  //   1
-  // )
-  // const lineInterval = Math.max(
-  //   Math.floor((endFrame.value - startFrame.value) / 60),
-  //   1
-  // )
-  // for (let frame = startFrame.value; frame < endFrame.value; frame++) {
-  //   if (frame % lineInterval != 0) continue
-  //   const x = Math.floor(
-  //     ((frame - startFrame.value) / (endFrame.value - startFrame.value)) *
-  //       canvas.value.width
-  //   )
-  //   // Frame bar
-  //   ctx.strokeStyle = alternateTextColor
-  //   ctx.lineWidth = 1 * canvasScale
-  //   ctx.beginPath()
-  //   ctx.moveTo(x, (frame % labelInterval == 0 ? 16 : 24) * canvasScale)
-  //   ctx.lineTo(x, 32 * canvasScale)
-  //   ctx.stroke()
-  //   if (frame % labelInterval != 0) continue
-  //   // Frame numbers
-  //   ctx.fillStyle = alternateTextColor
-  //   ctx.font = `${10 * canvasScale}px JetBrainsMono`
-  //   ctx.fillText(frame.toString(), x + 4 * canvasScale, 24 * canvasScale)
-  // }
-  // // Volume
+  if (!canvas.value) return
+  const ctx = canvas.value.getContext('2d')!
+  ctx.clearRect(0, 0, canvas.value.width, canvas.value.height)
+
+  // Seperator Bar
+  ctx.strokeStyle = secondaryColor
+  ctx.lineWidth = 1 * canvasScale
+  ctx.beginPath()
+  ctx.moveTo(0, 32 * canvasScale)
+  ctx.lineTo(canvas.value.width, 32 * canvasScale)
+  ctx.stroke()
+  const labelInterval = Math.max(
+    Math.floor(
+      (Math.ceil(endFrame.value) - Math.floor(startFrame.value)) / 60
+    ) * 5,
+    1
+  )
+  const lineInterval = Math.max(
+    Math.floor((Math.ceil(endFrame.value) - Math.floor(startFrame.value)) / 60),
+    1
+  )
+
+  for (
+    let frame =
+      Math.floor(Math.floor(startFrame.value) / lineInterval) * lineInterval;
+    frame < Math.ceil(endFrame.value);
+    frame += lineInterval
+  ) {
+    const x = frameToRelativeX(frame)
+    // Frame bar
+    ctx.strokeStyle = alternateTextColor
+    ctx.lineWidth = 1 * canvasScale
+    ctx.beginPath()
+    ctx.moveTo(x, (frame % labelInterval == 0 ? 16 : 24) * canvasScale)
+    ctx.lineTo(x, 32 * canvasScale)
+    ctx.stroke()
+
+    if (frame % labelInterval != 0) continue
+
+    // Frame numbers
+    ctx.fillStyle = alternateTextColor
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+    ctx.fillText(frame.toString(), x + 4 * canvasScale, 24 * canvasScale)
+  }
+
+  // Volume
   // for (let frame = startFrame.value; frame < endFrame.value; frame++) {
   //   // Frame bar
   //   ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
@@ -562,7 +577,7 @@ function render() {
   //     size
   //   )
   // }
-  // // Scenes
+  // Scenes
   // for (
   //   let sceneIndex = 0;
   //   sceneIndex < WorkspaceStore.sceneInference.length;
@@ -593,133 +608,141 @@ function render() {
   //     40 * canvasScale + ctx.measureText(scene.name).fontBoundingBoxAscent
   //   )
   // }
-  // // Markers
-  // for (const marker of WorkspaceStore.markers) {
-  //   if (marker.id == heldMarker.value) continue
-  //   ctx.font = `${10 * canvasScale}px JetBrainsMono`
-  //   const width = ctx.measureText(marker.name).width + 8 * canvasScale
-  //   if (
-  //     (highlightedMarker.value == marker.id && heldMarker.value == null) ||
-  //     WorkspaceStore.selectedMarker == marker.id
-  //   ) {
-  //     ctx.strokeStyle = textColor
-  //     ctx.lineWidth = 1 * canvasScale
-  //   }
-  //   ctx.fillStyle = alternateGrab
-  //   ctx.beginPath()
-  //   ctx.roundRect(
-  //     frameToRelativeX(marker.frame),
-  //     58 * canvasScale,
-  //     width,
-  //     16 * canvasScale,
-  //     [0, 9999, 9999, 9999]
-  //   )
-  //   ctx.fill()
-  //   if (
-  //     (highlightedMarker.value == marker.id && heldMarker.value == null) ||
-  //     WorkspaceStore.selectedMarker == marker.id
-  //   )
-  //     ctx.stroke()
-  //   ctx.fillStyle = textColor
-  //   ctx.fillText(
-  //     marker.name,
-  //     frameToRelativeX(marker.frame) + 4 * canvasScale,
-  //     60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
-  //   )
-  // }
-  // if (heldMarker.value != null) {
-  //   const marker = WorkspaceStore.markers.find(
-  //     marker => marker.id == heldMarker.value
-  //   )
-  //   ctx.font = `${10 * canvasScale}px JetBrainsMono`
-  //   const width = ctx.measureText(marker.name).width + 8 * canvasScale
-  //   ctx.strokeStyle = textColor
-  //   ctx.lineWidth = 1 * canvasScale
-  //   ctx.fillStyle = alternateGrab
-  //   ctx.beginPath()
-  //   ctx.roundRect(
-  //     heldMarkerX.value * canvasScale,
-  //     58 * canvasScale,
-  //     width,
-  //     16 * canvasScale,
-  //     [0, 9999, 9999, 9999]
-  //   )
-  //   ctx.fill()
-  //   ctx.stroke()
-  //   ctx.fillStyle = textColor
-  //   ctx.fillText(
-  //     marker.name,
-  //     heldMarkerX.value * canvasScale + 4 * canvasScale,
-  //     60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
-  //   )
-  // }
-  // // Left Side
-  // if (startFrame.value < 0) {
-  //   ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-  //   ctx.fillRect(0, 0, frameToRelativeX(0), canvas.value.height)
-  // }
-  // // Right Side
-  // if (endFrame.value >= WorkspaceStore.length) {
-  //   ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-  //   ctx.fillRect(
-  //     frameToRelativeX(WorkspaceStore.length),
-  //     0,
-  //     frameToRelativeX(endFrame.value) -
-  //       frameToRelativeX(WorkspaceStore.length),
-  //     canvas.value.height
-  //   )
-  // }
-  // // Selected Area
-  // if (framesSelected.value) {
-  //   ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-  //   ctx.fillRect(
-  //     frameToRelativeX(selectedStart.value),
-  //     0,
-  //     frameToRelativeX(selectedEnd.value) -
-  //       frameToRelativeX(selectedStart.value),
-  //     canvas.value.height
-  //   )
-  // }
-  // // Looping Area
-  // if (looping.value) {
-  //   ctx.fillStyle = 'rgba(50, 166, 252, 0.3)'
-  //   ctx.fillRect(
-  //     frameToRelativeX(loopingStart.value),
-  //     0,
-  //     frameToRelativeX(loopingEnd.value) - frameToRelativeX(loopingStart.value),
-  //     canvas.value.height
-  //   )
-  // }
-  // // Playhead
-  // ctx.strokeStyle = grabColor
-  // ctx.lineWidth = 1 * canvasScale
-  // ctx.beginPath()
-  // ctx.moveTo(
-  //   frameToRelativeX(
-  //     holdingPlayhead ? holdingPlayheadFrame.value : WorkspaceStore.frame
-  //   ),
-  //   0
-  // )
-  // ctx.lineTo(
-  //   frameToRelativeX(
-  //     holdingPlayhead ? holdingPlayheadFrame.value : WorkspaceStore.frame
-  //   ),
-  //   canvas.value.height
-  // )
-  // ctx.stroke()
-  // // Scrollbar
-  // ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
-  // ctx.fillRect(0, canvas.value.height, canvas.value.width, -8 * canvasScale)
-  // ctx.fillStyle = '#242424'
-  // ctx.fillRect(
-  //   Math.floor((canvas.value.width * startFrame.value) / WorkspaceStore.length),
-  //   canvas.value.height,
-  //   Math.floor(
-  //     (canvas.value.width * (endFrame.value - startFrame.value)) /
-  //       WorkspaceStore.length
-  //   ),
-  //   -8 * canvasScale
-  // )
+
+  // Markers
+  for (const marker of EngineStore.markers) {
+    if (marker.id == heldMarker.value) continue
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+    const width = ctx.measureText(marker.name).width + 8 * canvasScale
+    if (
+      (highlightedMarker.value == marker.id && heldMarker.value == null) ||
+      EditorStore.selectedMarker == marker.id
+    ) {
+      ctx.strokeStyle = textColor
+      ctx.lineWidth = 1 * canvasScale
+    }
+    ctx.fillStyle = alternateGrab
+    ctx.beginPath()
+    ctx.roundRect(
+      frameToRelativeX(marker.frame),
+      58 * canvasScale,
+      width,
+      16 * canvasScale,
+      [0, 9999, 9999, 9999]
+    )
+    ctx.fill()
+    if (
+      (highlightedMarker.value == marker.id && heldMarker.value == null) ||
+      EditorStore.selectedMarker == marker.id
+    )
+      ctx.stroke()
+    ctx.fillStyle = textColor
+    ctx.fillText(
+      marker.name,
+      frameToRelativeX(marker.frame) + 4 * canvasScale,
+      60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
+    )
+  }
+
+  if (heldMarker.value != null) {
+    const marker = EngineStore.markers.find(
+      marker => marker.id == heldMarker.value
+    )!
+
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+    const width = ctx.measureText(marker.name).width + 8 * canvasScale
+    ctx.strokeStyle = textColor
+    ctx.lineWidth = 1 * canvasScale
+    ctx.fillStyle = alternateGrab
+    ctx.beginPath()
+    ctx.roundRect(
+      heldMarkerX.value * canvasScale,
+      58 * canvasScale,
+      width,
+      16 * canvasScale,
+      [0, 9999, 9999, 9999]
+    )
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = textColor
+    ctx.fillText(
+      marker.name,
+      heldMarkerX.value * canvasScale + 4 * canvasScale,
+      60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
+    )
+  }
+
+  // Left Side
+  if (startFrame.value < 0) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillRect(0, 0, frameToRelativeX(0), canvas.value.height)
+  }
+
+  // Right Side
+  if (endFrame.value >= EngineStore.length) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillRect(
+      frameToRelativeX(EngineStore.length),
+      0,
+      frameToRelativeX(endFrame.value) - frameToRelativeX(EngineStore.length),
+      canvas.value.height
+    )
+  }
+
+  // Selected Area
+  if (framesSelected.value) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.fillRect(
+      frameToRelativeX(selectedStart.value),
+      0,
+      frameToRelativeX(selectedEnd.value) -
+        frameToRelativeX(selectedStart.value),
+      canvas.value.height
+    )
+  }
+
+  // Looping Area
+  if (looping.value) {
+    ctx.fillStyle = 'rgba(50, 166, 252, 0.3)'
+    ctx.fillRect(
+      frameToRelativeX(loopingStart.value),
+      0,
+      frameToRelativeX(loopingEnd.value) - frameToRelativeX(loopingStart.value),
+      canvas.value.height
+    )
+  }
+
+  // Playhead
+  ctx.strokeStyle = grabColor
+  ctx.lineWidth = 1 * canvasScale
+  ctx.beginPath()
+  ctx.moveTo(
+    frameToRelativeX(
+      holdingPlayhead ? holdingPlayheadFrame.value : EngineStore.frame
+    ),
+    0
+  )
+  ctx.lineTo(
+    frameToRelativeX(
+      holdingPlayhead ? holdingPlayheadFrame.value : EngineStore.frame
+    ),
+    canvas.value.height
+  )
+  ctx.stroke()
+
+  // Scrollbar
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
+  ctx.fillRect(0, canvas.value.height, canvas.value.width, -8 * canvasScale)
+  ctx.fillStyle = '#242424'
+  ctx.fillRect(
+    Math.floor((canvas.value.width * startFrame.value) / EngineStore.length),
+    canvas.value.height,
+    Math.floor(
+      (canvas.value.width * (endFrame.value - startFrame.value)) /
+        EngineStore.length
+    ),
+    -8 * canvasScale
+  )
 }
 
 // watch(

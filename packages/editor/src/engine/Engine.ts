@@ -99,7 +99,7 @@ export class Engine {
     return canvas
   }
 
-  async reloadContext() {
+  async reload() {
     this.frameRate = 60
     this.length = 60
     this.scenes = []
@@ -108,8 +108,10 @@ export class Engine {
     if (!this.project) return
 
     try {
-      this.project.project(useProjectContext(this, true))
+      await this.project(useProjectContext(this))
     } catch (error) {
+      console.error(error)
+
       if (this.errorListener) this.errorListener(<string>error)
 
       return

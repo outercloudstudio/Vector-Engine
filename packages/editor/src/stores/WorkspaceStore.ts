@@ -201,7 +201,7 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
     if (frameNumber == frame.value) return
 
     if (frameNumber < frame.value) {
-      await engine.value.reloadContext()
+      await engine.value.reload()
 
       for (let frameOffset = 0; frameOffset < frameNumber; frameOffset++) {
         await engine.value.next()

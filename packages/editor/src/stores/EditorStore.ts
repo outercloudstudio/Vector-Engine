@@ -10,6 +10,10 @@ export const useEditorStore = defineStore('EditorStore', () => {
   const startedPlayingTime: Ref<number> = ref(0)
   const startedPlayingFrame: Ref<number> = ref(0)
   const looping: Ref<boolean> = ref(false)
+  const loopingStart = ref(0)
+  const loopingEnd = ref(0)
+
+  const selectedMarker: Ref<string> = ref('')
 
   function play() {
     playing.value = true
@@ -45,20 +49,20 @@ export const useEditorStore = defineStore('EditorStore', () => {
 
     await EngineStore.setFrame(newFrame)
 
-    // if (
-    //   EngineStore.frame >= EngineStore.length - 1 ||
-    //   (looping.value &&
-    //     EngineStore.frame >= loopingEnd.value &&
-    //     loopingEnd.value >= 0)
-    // ) {
-    //   startedPlayingTime = Date.now()
-    //   startedFrame =
-    //     looping.value && loopingStart.value < WorkspaceStore.length
-    //       ? loopingStart.value
-    //       : 0
-    //   stopAudioPlayback()
-    //   await startAudioPlayback(startedFrame / WorkspaceStore.frameRate)
-    // }
+    if (
+      EngineStore.frame >= EngineStore.length - 1 ||
+      (looping.value &&
+        EngineStore.frame >= loopingEnd.value &&
+        loopingEnd.value >= 0)
+    ) {
+      startedPlayingTime.value = Date.now()
+
+      startedPlayingFrame.value =
+        looping.value && loopingStart.value < length ? loopingStart.value : 0
+
+      // stopAudioPlayback()
+      // await startAudioPlayback(startedFrame / WorkspaceStore.frameRate)
+    }
 
     requestAnimationFrame(playUpdate)
   }
@@ -98,5 +102,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     restart,
     next,
     back,
+    speed,
+    selectedMarker,
   }
 })

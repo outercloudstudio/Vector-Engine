@@ -3,7 +3,7 @@ import './style.css'
 
 inject(async ({ frameRate, length, minutes, seconds, loadScene }: any) => {
   frameRate(60)
-  length(seconds(8))
+  length(seconds(1))
   await loadScene(async function* ({
     Vector,
     Builders,
