@@ -53,7 +53,7 @@ export default async function VectorEngine(configURI: string) {
       if (id === resolvedVirtualProjectPackage)
         return `
         import inject from '@vector-engine/editor'
-        import project from '${project}'
+        import { project } from '${project}'
     
         inject(project)
         `
@@ -80,6 +80,8 @@ export default async function VectorEngine(configURI: string) {
           !req.url.startsWith('/node_modules/')
         ) {
           if (fs.existsSync(path.join(editorDistFolder, req.url))) {
+            console.warn('Fetching from fs:', req.url)
+
             if (req.url.endsWith('.js'))
               res.setHeader('Content-Type', 'text/javascript')
 

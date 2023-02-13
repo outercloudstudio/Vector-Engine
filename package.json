@@ -10,6 +10,7 @@
     "dev": "npm run build -w @vector-engine/vite-plugin && npm run build -w @vector-engine/editor && npm run dev -w @vector-engine/template"
   },
   "dependencies": {
-    "import-meta-resolve": "^2.2.1"
+    "import-meta-resolve": "^2.2.1",
+    "pinia": "^2.0.30"
   }
 }

@@ -46,6 +46,7 @@ export default async function VectorEngine(configURI) {
                 else if (!req.url.startsWith('/@') &&
                     !req.url.startsWith('/node_modules/')) {
                     if (fs.existsSync(path.join(editorDistFolder, req.url))) {
+                        console.warn('Fetching from fs:', req.url);
                         if (req.url.endsWith('.js'))
                             res.setHeader('Content-Type', 'text/javascript');
                         res.end(fs.readFileSync(path.join(editorDistFolder, req.url)));
