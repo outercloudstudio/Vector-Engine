@@ -61,14 +61,14 @@ import AlertPopup from '@/components/popups/AlertPopup.vue'
 import { ref, onMounted, Ref } from 'vue'
 import { useEngineStore } from '@/stores/EngineStore'
 
-const props = defineProps(['project'])
+const props = defineProps(['project', 'data'])
 
 const EngineStore = useEngineStore()
 
 const sideMenu: Ref<null | typeof Sidemenu> = ref(null)
 
 onMounted(async () => {
-  await EngineStore.makeEngine(props.project)
+  await EngineStore.makeEngine(props.project, props.data)
 })
 </script>
 

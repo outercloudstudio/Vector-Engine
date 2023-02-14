@@ -101,6 +101,73 @@ export const useEditorStore = defineStore('EditorStore', () => {
     EngineStore.setFrame(EngineStore.frame - 1)
   }
 
+  function uuid() {
+    let d = new Date().getTime()
+    let d2 =
+      (typeof performance !== 'undefined' &&
+        performance.now &&
+        performance.now() * 1000) ||
+      0
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+      /[xy]/g,
+      function (c) {
+        let r = Math.random() * 16
+        if (d > 0) {
+          r = (d + r) % 16 | 0
+          d = Math.floor(d / 16)
+        } else {
+          r = (d2 + r) % 16 | 0
+          d2 = Math.floor(d2 / 16)
+        }
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+      }
+    )
+  }
+
+  function createMarker(name: string, frame: number) {
+    if (!EngineStore.loaded) return
+    if (EngineStore.blockingErrors.length > 0) return
+
+    EngineStore.data.project.markers.push({
+      name,
+      frame,
+      id: uuid(),
+    })
+
+    EngineStore.updatedDataEvent++
+  }
+
+  function deleteMarker(id: string) {
+    EngineStore.data.project.markers.splice(
+      EngineStore.data.project.markers.findIndex(
+        (marker: any) => marker.id == id
+      ),
+      1
+    )
+
+    EngineStore.updatedDataEvent++
+
+    if (import.meta.hot) {
+      import.meta.hot.send('vector-engine:data_update', EngineStore.data)
+    }
+  }
+
+  function updateMarker(id: string, name: string, frame: number) {
+    const index = EngineStore.data.project.markers.findIndex(
+      (marker: any) => marker.id == id
+    )
+
+    if (index == -1) return
+
+    EngineStore.data.project.markers[index] = {
+      name,
+      frame,
+      id,
+    }
+
+    EngineStore.updatedDataEvent++
+  }
+
   return {
     playing,
     play,
@@ -114,5 +181,8 @@ export const useEditorStore = defineStore('EditorStore', () => {
     looping,
     loopingStart,
     loopingEnd,
+    createMarker,
+    deleteMarker,
+    updateMarker,
   }
 })

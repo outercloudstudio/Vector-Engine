@@ -4,11 +4,17 @@ import { Engine } from '@/engine/Engine'
 
 export const useEngineStore = defineStore('EngineStore', () => {
   const engine: Ref<Engine | undefined> = ref(undefined)
+  const data: Ref<any> = ref(undefined)
+  const updatedDataEvent: Ref<number> = ref(0)
   const blockingErrors: Ref<string[]> = ref([])
   const frame: Ref<number> = ref(0)
 
-  async function makeEngine(project: any) {
+  async function makeEngine(project: any, newData: any) {
+    console.log(newData)
+
+    data.value = newData
     engine.value = new Engine(project, [], false)
+
     await engine.value.load()
   }
 
@@ -44,7 +50,11 @@ export const useEngineStore = defineStore('EngineStore', () => {
     loaded.value ? engine.value!.frameRate : 60
   )
   const length = computed(() => (loaded.value ? engine.value!.length : 60))
-  const markers = computed(() => (loaded.value ? engine.value!.markers : []))
+  const markers = computed(() =>
+    loaded.value && blockingErrors.value.length == 0
+      ? data.value!.project.markers
+      : []
+  )
 
   return {
     makeEngine,
@@ -56,5 +66,7 @@ export const useEngineStore = defineStore('EngineStore', () => {
     length,
     blockingErrors,
     markers,
+    data,
+    updatedDataEvent,
   }
 })

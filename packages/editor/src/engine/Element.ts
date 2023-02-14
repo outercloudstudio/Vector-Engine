@@ -1,5 +1,5 @@
 import { Builder, RenderingBuilder } from '@/engine/Builders'
-import { Scene } from '@/engine/Engine'
+import { Scene } from '@/engine/Scene'
 import { uuid } from '@/engine/Math'
 
 export class Element {

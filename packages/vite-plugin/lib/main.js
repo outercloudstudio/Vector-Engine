@@ -21,16 +21,25 @@ export default async function VectorEngine(configURI) {
             if (id === virtualProjectPackage) {
                 return resolvedVirtualProjectPackage;
             }
+            else if (id.startsWith('@/')) {
+                return '/@editor/' + id.substring(2);
+            }
         },
         load(id) {
             console.log('Loading:', id);
-            if (id === resolvedVirtualProjectPackage)
+            if (id === resolvedVirtualProjectPackage) {
                 return `
         import inject from '@vector-engine/editor'
-        import project from '${project}'
+        import { project } from '${project}'
     
         inject(project)
         `;
+            }
+            else if (id.startsWith('/@editor/')) {
+                return fs
+                    .readFileSync(path.posix.join(editorFolder, '/src', path.extname(id) == '' ? id.substring(9) + '.ts' : id.substring(9)))
+                    .toString();
+            }
         },
         configureServer(server) {
             server.middlewares.use((req, res, next) => {
@@ -57,6 +66,10 @@ export default async function VectorEngine(configURI) {
                     }
                 }
                 next();
+            });
+            server.ws.on('vector-engine:update_data', (data, client) => {
+                console.log('Message from client:', data);
+                // client.send('my:ack', { msg: 'Hi! I got your message!' })
             });
         },
     };

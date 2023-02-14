@@ -117,8 +117,9 @@ const EngineStore = useEngineStore()
 const EditorStore = useEditorStore()
 
 function deleteMarker() {
-  // if (!WorkspaceStore.selectedMarker) return
-  // WorkspaceStore.deleteMarker(WorkspaceStore.selectedMarker)
+  if (!EditorStore.selectedMarker) return
+
+  EditorStore.deleteMarker(EditorStore.selectedMarker)
 }
 
 // watch(
@@ -129,7 +130,7 @@ function deleteMarker() {
 // )
 
 async function createMarker() {
-  // WorkspaceStore.createMarker(`Marker`, WorkspaceStore.frame)
+  EditorStore.createMarker(`Marker`, EngineStore.frame)
 }
 
 let audioBufferSource: null | AudioBufferSourceNode = null
@@ -377,13 +378,16 @@ async function mouseUp(event: MouseEvent) {
     grabbedScrollbar = false
 
     if (heldMarker.value != null) {
-      // const droppedFrame = XtoFrame(heldMarkerX.value)
-      // const marker = WorkspaceStore.markers.find(
-      //   marker => marker.id == heldMarker.value
-      // )
-      // if (marker.frame != droppedFrame)
-      //   WorkspaceStore.updateMarker(heldMarker.value, marker.name, droppedFrame)
-      // heldMarker.value = null
+      const droppedFrame = XtoFrame(heldMarkerX.value)
+
+      const marker = EngineStore.markers.find(
+        (marker: any) => marker.id == heldMarker.value
+      )
+
+      if (marker.frame != droppedFrame)
+        EditorStore.updateMarker(heldMarker.value, marker.name, droppedFrame)
+
+      heldMarker.value = null
     } else if (mouse) {
       EditorStore.pause()
 
@@ -647,11 +651,38 @@ function render() {
   //   )
   // }
 
+  function roundRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number[]
+  ) {
+    ctx.moveTo(x + radius[0], y)
+    ctx.lineTo(x + width - radius[3], y)
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius[3])
+    ctx.lineTo(x + width, y + height - radius[2])
+    ctx.quadraticCurveTo(
+      x + width,
+      y + height,
+      x + width - radius[2],
+      y + height
+    )
+    ctx.lineTo(x + radius[1], y + height)
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius[1])
+    ctx.lineTo(x, y + radius[0])
+    ctx.quadraticCurveTo(x, y, x + radius[0], y)
+    ctx.closePath()
+  }
+
   // Markers
   for (const marker of EngineStore.markers) {
     if (marker.id == heldMarker.value) continue
+
     ctx.font = `${10 * canvasScale}px JetBrainsMono`
+
     const width = ctx.measureText(marker.name).width + 8 * canvasScale
+
     if (
       (highlightedMarker.value == marker.id && heldMarker.value == null) ||
       EditorStore.selectedMarker == marker.id
@@ -659,32 +690,40 @@ function render() {
       ctx.strokeStyle = textColor
       ctx.lineWidth = 1 * canvasScale
     }
+
     ctx.fillStyle = alternateGrab
     ctx.beginPath()
-    ctx.roundRect(
+    roundRect(
       frameToRelativeX(marker.frame),
       58 * canvasScale,
       width,
       16 * canvasScale,
-      [0, 9999, 9999, 9999]
+      [
+        0,
+        (16 * canvasScale) / 2,
+        (16 * canvasScale) / 2,
+        (16 * canvasScale) / 2,
+      ]
     )
     ctx.fill()
+
     if (
       (highlightedMarker.value == marker.id && heldMarker.value == null) ||
       EditorStore.selectedMarker == marker.id
     )
       ctx.stroke()
+
     ctx.fillStyle = textColor
     ctx.fillText(
       marker.name,
       frameToRelativeX(marker.frame) + 4 * canvasScale,
-      60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
+      62 * canvasScale + ctx.measureText(marker.name).actualBoundingBoxAscent
     )
   }
 
   if (heldMarker.value != null) {
     const marker = EngineStore.markers.find(
-      marker => marker.id == heldMarker.value
+      (marker: any) => marker.id == heldMarker.value
     )!
 
     ctx.font = `${10 * canvasScale}px JetBrainsMono`
@@ -693,12 +732,17 @@ function render() {
     ctx.lineWidth = 1 * canvasScale
     ctx.fillStyle = alternateGrab
     ctx.beginPath()
-    ctx.roundRect(
+    roundRect(
       heldMarkerX.value * canvasScale,
       58 * canvasScale,
       width,
       16 * canvasScale,
-      [0, 9999, 9999, 9999]
+      [
+        0,
+        (16 * canvasScale) / 2,
+        (16 * canvasScale) / 2,
+        (16 * canvasScale) / 2,
+      ]
     )
     ctx.fill()
     ctx.stroke()
@@ -706,7 +750,7 @@ function render() {
     ctx.fillText(
       marker.name,
       heldMarkerX.value * canvasScale + 4 * canvasScale,
-      60 * canvasScale + ctx.measureText(marker.name).fontBoundingBoxAscent
+      62 * canvasScale + ctx.measureText(marker.name).actualBoundingBoxAscent
     )
   }
 
@@ -792,7 +836,7 @@ watch(
 )
 
 watch(
-  () => EngineStore.markers,
+  () => EngineStore.updatedDataEvent,
   () => {
     render()
   }

@@ -117,29 +117,29 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
 
     let inference: { name: string; frame: number }[] = []
 
-    for (let frame = 0; frame < length.value; frame++) {
-      const scene = engine.activeScenes[engine.activeScenes.length - 1]
+    // for (let frame = 0; frame < length.value; frame++) {
+    //   const scene = engine.activeScenes[engine.activeScenes.length - 1]
 
-      if (scene) {
-        const sceneName = Object.values(engine.scenes).includes(scene.path)
-          ? Object.keys(engine.scenes)[
-              Object.values(engine.scenes).findIndex(path => path == scene.path)
-            ]
-          : scene.path
+    //   if (scene) {
+    //     const sceneName = Object.values(engine.scenes).includes(scene.path)
+    //       ? Object.keys(engine.scenes)[
+    //           Object.values(engine.scenes).findIndex(path => path == scene.path)
+    //         ]
+    //       : scene.path
 
-        if (
-          inference[inference.length - 1] == undefined ||
-          inference[inference.length - 1].name != sceneName
-        ) {
-          inference.push({
-            name: sceneName,
-            frame,
-          })
-        }
-      }
+    //     if (
+    //       inference[inference.length - 1] == undefined ||
+    //       inference[inference.length - 1].name != sceneName
+    //     ) {
+    //       inference.push({
+    //         name: sceneName,
+    //         frame,
+    //       })
+    //     }
+    //   }
 
-      await engine.next()
-    }
+    //   await engine.next()
+    // }
 
     sceneInference.value = inference
   }
