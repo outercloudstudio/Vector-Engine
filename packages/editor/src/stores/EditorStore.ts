@@ -15,20 +15,22 @@ export const useEditorStore = defineStore('EditorStore', () => {
 
   const selectedMarker: Ref<string> = ref('')
 
-  function play() {
+  const muted: Ref<boolean> = ref(false)
+
+  async function play() {
     playing.value = true
     startedPlayingTime.value = Date.now()
 
     if (looping.value) {
-      // if (
-      //   EngineStore.frame < loopingStart.value &&
-      //   loopingStart.value < WorkspaceStore.length
-      // ) {
-      //   await WorkspaceStore.updateFrame(loopingStart.value)
-      // }
-      // if (WorkspaceStore.frame > loopingEnd.value && loopingEnd.value >= 0) {
-      //   await WorkspaceStore.updateFrame(loopingEnd.value)
-      // }
+      if (
+        EngineStore.frame < loopingStart.value &&
+        loopingStart.value < EngineStore.length
+      ) {
+        await EngineStore.setFrame(loopingStart.value)
+      }
+      if (EngineStore.frame > loopingEnd.value && loopingEnd.value >= 0) {
+        await EngineStore.setFrame(loopingEnd.value)
+      }
     }
 
     startedPlayingFrame.value = EngineStore.frame
@@ -58,7 +60,11 @@ export const useEditorStore = defineStore('EditorStore', () => {
       startedPlayingTime.value = Date.now()
 
       startedPlayingFrame.value =
-        looping.value && loopingStart.value < length ? loopingStart.value : 0
+        looping.value &&
+        loopingStart.value < EngineStore.length &&
+        loopingStart.value >= 0
+          ? loopingStart.value
+          : 0
 
       // stopAudioPlayback()
       // await startAudioPlayback(startedFrame / WorkspaceStore.frameRate)
@@ -104,5 +110,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
     back,
     speed,
     selectedMarker,
+    muted,
+    looping,
+    loopingStart,
+    loopingEnd,
   }
 })

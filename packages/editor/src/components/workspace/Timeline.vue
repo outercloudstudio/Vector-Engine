@@ -15,12 +15,12 @@
       </div>
 
       <div class="control-bar-group">
-        <!-- <span
+        <span
           class="material-symbols-outlined icon-button"
-          @click="() => (WorkspaceStore.muted = !WorkspaceStore.muted)"
+          @click="() => (EditorStore.muted = !EditorStore.muted)"
         >
-          {{ WorkspaceStore.muted ? 'volume_off' : 'volume_up' }}
-        </span> -->
+          {{ EditorStore.muted ? 'volume_off' : 'volume_up' }}
+        </span>
 
         <input
           id="speed-input"
@@ -66,7 +66,7 @@
         <span
           id="redo"
           class="material-symbols-outlined icon-button"
-          :class="{ looping }"
+          :class="{ looping: EditorStore.looping }"
           @click="loop"
         >
           redo
@@ -279,64 +279,72 @@ function XtoFrame(x: number) {
 function handleSelectingMarker(event: MouseEvent) {
   if (!canvas.value) return
 
-  // const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
-  // if (relativeY >= 58 && relativeY <= 72) {
-  //   const ctx = canvas.value.getContext('2d')!
-  //   for (const marker of WorkspaceStore.markers) {
-  //     if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
-  //     ctx.font = `10px JetBrainsMono`
-  //     const width = ctx.measureText(marker.name).width + 8
-  //     if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
-  //       continue
-  //     WorkspaceStore.selectedMarker = marker.id
-  //     heldMarker.value = marker.id
-  //     heldMarkerOffset =
-  //       frameToRelativeX(marker.frame) / canvasScale - event.clientX
-  //     highlightedMarker.value = null
-  //   }
-  // }
+  const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
+
+  if (relativeY >= 58 && relativeY <= 72) {
+    const ctx = canvas.value.getContext('2d')!
+
+    for (const marker of EngineStore.markers) {
+      if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
+
+      ctx.font = `10px JetBrainsMono`
+      const width = ctx.measureText(marker.name).width + 8
+
+      if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
+        continue
+
+      EditorStore.selectedMarker = marker.id
+
+      heldMarker.value = marker.id
+      heldMarkerOffset =
+        frameToRelativeX(marker.frame) / canvasScale - event.clientX
+
+      highlightedMarker.value = null
+    }
+  }
 }
 
 function handleSelectingScrollbar(event: MouseEvent) {
   if (!canvas.value) return
 
-  // if (
-  //     heldMarker.value == null &&
-  //     event.clientY - canvas.value.getBoundingClientRect().top >=
-  //       canvas.value.height / canvasScale - 8
-  //   ) {
-  //     const relativeX =
-  //       event.clientX - canvas.value.getBoundingClientRect().left
-  //     let scrollBarStart = Math.floor(
-  //       ((canvas.value.width / canvasScale) * startFrame.value) /
-  //         WorkspaceStore.length
-  //     )
-  //     const scrollBarWidth = Math.floor(
-  //       ((canvas.value.width / canvasScale) *
-  //         (endFrame.value - startFrame.value)) /
-  //         WorkspaceStore.length
-  //     )
-  //     if (
-  //       relativeX < scrollBarStart ||
-  //       relativeX > scrollBarStart + scrollBarWidth
-  //     ) {
-  //       const viewRange = endFrame.value - startFrame.value
-  //       const targetFrame = Math.round(
-  //         (relativeX / (canvas.value.width / canvasScale)) *
-  //           WorkspaceStore.length
-  //       )
-  //       startFrame.value = targetFrame - Math.floor(viewRange / 2)
-  //       endFrame.value = targetFrame + Math.ceil(viewRange / 2)
-  //       scrollBarStart = Math.floor(
-  //         ((canvas.value.width / canvasScale) * startFrame.value) /
-  //           WorkspaceStore.length
-  //       )
-  //     }
-  //     grabbedScrollbar = true
-  //     grabbedScrollbarOffset = scrollBarStart - relativeX
-  //   }
-  //   if (heldMarker.value == null && !grabbedScrollbar) holdingPlayhead = true
-  // }
+  if (
+    heldMarker.value == null &&
+    event.clientY - canvas.value.getBoundingClientRect().top >=
+      canvas.value.height / canvasScale - 8
+  ) {
+    const relativeX = event.clientX - canvas.value.getBoundingClientRect().left
+
+    let scrollBarStart =
+      ((canvas.value.width / canvasScale) * startFrame.value) /
+      EngineStore.length
+
+    const scrollBarWidth =
+      ((canvas.value.width / canvasScale) *
+        (endFrame.value - startFrame.value)) /
+      EngineStore.length
+
+    if (
+      relativeX < scrollBarStart ||
+      relativeX > scrollBarStart + scrollBarWidth
+    ) {
+      const viewRange = endFrame.value - startFrame.value
+
+      const targetFrame =
+        (relativeX / (canvas.value.width / canvasScale)) * EngineStore.length
+
+      startFrame.value = targetFrame - viewRange / 2
+      endFrame.value = targetFrame + viewRange / 2
+
+      scrollBarStart =
+        ((canvas.value.width / canvasScale) * startFrame.value) /
+        EngineStore.length
+    }
+
+    grabbedScrollbar = true
+    grabbedScrollbarOffset = scrollBarStart - relativeX
+  }
+
+  if (heldMarker.value == null && !grabbedScrollbar) holdingPlayhead = true
 }
 
 function handleSelectingPlayhead(event: MouseEvent) {
@@ -393,82 +401,112 @@ async function mouseUp(event: MouseEvent) {
   }
 }
 
-function handleMoveScrollbar() {}
+function handleMovePlayhead(event: MouseEvent) {
+  if (!mouse) return
+  if (grabbedScrollbar) return
+  if (!holdingPlayhead) return
 
-async function mouseMove(event: MouseEvent) {
+  holdingPlayheadFrame.value = Math.min(
+    Math.max(XtoFrame(event.clientX), 0),
+    EngineStore.length - 1
+  )
+}
+
+function handleMoveMarker(event: MouseEvent) {
+  if (!mouse) return
+  if (grabbedScrollbar) return
+  if (heldMarker.value == null) return
+
+  heldMarkerX.value = Math.min(
+    Math.max(
+      event.clientX + heldMarkerOffset,
+      frameToRelativeX(0) / canvasScale
+    ),
+    frameToRelativeX(EngineStore.length - 1) / canvasScale
+  )
+}
+
+function handleMoveScrollbar(event: MouseEvent) {
   if (!canvas.value) return
+  if (!mouse) return
+  if (!grabbedScrollbar) return
 
-  if (mouse) {
-    if (!grabbedScrollbar) {
-      if (holdingPlayhead) {
-        holdingPlayheadFrame.value = Math.min(
-          Math.max(XtoFrame(event.clientX), 0),
-          EngineStore.length - 1
-        )
-      } else if (heldMarker.value != null) {
-        // heldMarkerX.value = Math.min(
-        //   Math.max(
-        //     event.clientX + heldMarkerOffset,
-        //     frameToRelativeX(0) / canvasScale
-        //   ),
-        //   frameToRelativeX(WorkspaceStore.length - 1) / canvasScale
-        // )
-      }
-    } else {
-      // const relativeX =
-      //   event.clientX - canvas.value.getBoundingClientRect().left
-      // const newScrollbarPosition = relativeX + grabbedScrollbarOffset
-      // const newScrollBarFrame = Math.round(
-      //   (newScrollbarPosition / (canvas.value.width / canvasScale)) *
-      //     WorkspaceStore.length
-      // )
-      // const viewRange = endFrame.value - startFrame.value
-      // startFrame.value = newScrollBarFrame
-      // endFrame.value = newScrollBarFrame + viewRange
-    }
-  } else if (mouseAlt) {
-    const frame = XtoFrame(event.clientX)
-    if (frame < selectedOriginal.value) {
-      selectedEnd.value = selectedOriginal.value
-      selectedStart.value = frame
-    } else {
-      selectedStart.value = selectedOriginal.value
-      selectedEnd.value = frame
-    }
-  } else if (heldMarker.value == null) {
-    // highlightedMarker.value = null
-    // const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
-    // if (relativeY < 58) return
-    // if (relativeY > 72) return
-    // const ctx = canvas.value.getContext('2d')!
-    // for (const marker of WorkspaceStore.markers) {
-    //   if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
-    //   ctx.font = '10px JetBrainsMono'
-    //   const width = ctx.measureText(marker.name).width + 8
-    //   if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
-    //     continue
-    //   highlightedMarker.value = marker.id
-    // }
+  const relativeX = event.clientX - canvas.value.getBoundingClientRect().left
+
+  const newScrollbarPosition = relativeX + grabbedScrollbarOffset
+  const newScrollBarFrame =
+    (newScrollbarPosition / (canvas.value.width / canvasScale)) *
+    EngineStore.length
+
+  const viewRange = endFrame.value - startFrame.value
+  startFrame.value = newScrollBarFrame
+  endFrame.value = newScrollBarFrame + viewRange
+}
+
+function handleMoveSelect(event: MouseEvent) {
+  if (mouse) return
+  if (!mouseAlt) return
+
+  const frame = XtoFrame(event.clientX)
+
+  if (frame < selectedOriginal.value) {
+    selectedEnd.value = selectedOriginal.value
+    selectedStart.value = frame
+  } else {
+    selectedStart.value = selectedOriginal.value
+    selectedEnd.value = frame
   }
 }
 
-let looping = ref(false)
-let loopingStart = ref(0)
-let loopingEnd = ref(0)
+function handleMarkerHighlight(event: MouseEvent) {
+  if (!canvas.value) return
+  if (mouse) return
+  if (mouseAlt) return
+
+  highlightedMarker.value = null
+
+  const relativeY = event.clientY - canvas.value.getBoundingClientRect().top
+
+  if (relativeY < 58) return
+  if (relativeY > 72) return
+
+  const ctx = canvas.value.getContext('2d')!
+
+  for (const marker of EngineStore.markers) {
+    if (event.clientX < frameToRelativeX(marker.frame) / canvasScale) continue
+
+    ctx.font = '10px JetBrainsMono'
+
+    const width = ctx.measureText(marker.name).width + 8
+
+    if (event.clientX > frameToRelativeX(marker.frame) / canvasScale + width)
+      continue
+
+    highlightedMarker.value = marker.id
+  }
+}
+
+async function mouseMove(event: MouseEvent) {
+  handleMovePlayhead(event)
+  handleMoveMarker(event)
+  handleMoveScrollbar(event)
+  handleMoveSelect(event)
+  handleMarkerHighlight(event)
+}
 
 function loop() {
-  looping.value = !looping.value
+  EditorStore.looping = !EditorStore.looping
 
-  if (!looping.value) return
+  if (!EditorStore.looping) return
 
-  if (!framesSelected.value || selectedStart.value == selectedEnd.value) {
-    looping.value = false
+  if (!framesSelected || selectedStart == selectedEnd) {
+    EditorStore.looping = false
 
     return
   }
 
-  loopingStart.value = selectedStart.value
-  loopingEnd.value = selectedEnd.value
+  EditorStore.loopingStart = selectedStart.value
+  EditorStore.loopingEnd = selectedEnd.value
 }
 
 let startFrame = ref(-5)
@@ -702,12 +740,13 @@ function render() {
   }
 
   // Looping Area
-  if (looping.value) {
+  if (EditorStore.looping) {
     ctx.fillStyle = 'rgba(50, 166, 252, 0.3)'
     ctx.fillRect(
-      frameToRelativeX(loopingStart.value),
+      frameToRelativeX(EditorStore.loopingStart),
       0,
-      frameToRelativeX(loopingEnd.value) - frameToRelativeX(loopingStart.value),
+      frameToRelativeX(EditorStore.loopingEnd) -
+        frameToRelativeX(EditorStore.loopingStart),
       canvas.value.height
     )
   }
@@ -745,19 +784,19 @@ function render() {
   )
 }
 
-// watch(
-//   () => WorkspaceStore.frame,
-//   () => {
-//     render()
-//   }
-// )
+watch(
+  () => EngineStore.frame,
+  () => {
+    render()
+  }
+)
 
-// watch(
-//   () => WorkspaceStore.markers,
-//   () => {
-//     render()
-//   }
-// )
+watch(
+  () => EngineStore.markers,
+  () => {
+    render()
+  }
+)
 
 // watch(
 //   () => WorkspaceStore.volumePerFrame,
@@ -785,17 +824,26 @@ watch(selectedEnd, () => {
   render()
 })
 
-watch(looping, () => {
-  render()
-})
+watch(
+  () => EditorStore.looping,
+  () => {
+    render()
+  }
+)
 
-watch(loopingStart, () => {
-  render()
-})
+watch(
+  () => EditorStore.loopingStart,
+  () => {
+    render()
+  }
+)
 
-watch(loopingEnd, () => {
-  render()
-})
+watch(
+  () => EditorStore.loopingEnd,
+  () => {
+    render()
+  }
+)
 
 watch(highlightedMarker, () => {
   render()
@@ -832,8 +880,6 @@ onMounted(() => {
   fixCanvasSize()
 
   render()
-
-  // if (WorkspaceStore.loaded) endFrame.value = WorkspaceStore.length
 })
 </script>
 
