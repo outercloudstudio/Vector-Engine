@@ -241,7 +241,7 @@ export function useSceneContext(scene: Scene) {
     },
 
     waitForTransition: function* () {
-      // while (scene.engine.activeScenes[0].id != scene.id) yield null
+      while (scene.engine.scenes[0].id != scene.id) yield null
     },
 
     lerp(a: number, b: number, t: number) {
@@ -347,23 +347,25 @@ export function useSceneContext(scene: Scene) {
       }
     },
 
-    transition: async function* (name: string, transition: any) {
-      // const targetScene = new Scene(scene.engine.scenes[name], scene.engine)
-      // await targetScene.load()
-      // yield* transition({
-      //   load() {
-      //     scene.engine.activeScenes.push(targetScene)
-      //   },
-      //   unload() {
-      //     scene.engine.activeScenes.splice(
-      //       scene.engine.activeScenes.findIndex(s => s == scene),
-      //       1
-      //     )
-      //   },
-      //   defineModifier(modifier: any) {
-      //     targetScene.transitionRenderModifier = modifier
-      //   },
-      // })
+    transition: async function* (sceneContext: any, transition: any) {
+      const targetScene = new Scene(sceneContext, scene.engine)
+
+      await targetScene.load()
+
+      yield* transition({
+        load() {
+          scene.engine.scenes.push(targetScene)
+        },
+        unload() {
+          scene.engine.scenes.splice(
+            scene.engine.scenes.findIndex(s => s.id == scene.id),
+            1
+          )
+        },
+        defineModifier(modifier: any) {
+          targetScene.transitionRenderModifier = modifier
+        },
+      })
     },
 
     async importImage(path: string) {
