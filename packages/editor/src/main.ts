@@ -36,9 +36,9 @@ inject(
     project: {
       markers: [
         {
-          name: 'Marker',
-          frame: 5,
-          id: '3fb86146-363d-42b6-9eda-5da5edbe6f65',
+          name: 'Marker -1',
+          frame: 0,
+          id: 'aaa',
         },
       ],
     },

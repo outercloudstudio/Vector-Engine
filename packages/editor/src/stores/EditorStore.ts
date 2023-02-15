@@ -1,9 +1,12 @@
 import { defineStore } from 'pinia'
-import { Ref, ref, computed } from 'vue'
+import { computed, Ref, ref, watch } from 'vue'
 import { useEngineStore } from '@/stores/EngineStore'
+import { Engine } from '@/engine/Engine'
 
 export const useEditorStore = defineStore('EditorStore', () => {
   const EngineStore = useEngineStore()
+
+  const sceneInference: Ref<{ name: string; frame: number }[]> = ref([])
 
   const playing: Ref<boolean> = ref(false)
   const speed: Ref<number> = ref(1)
@@ -13,9 +16,94 @@ export const useEditorStore = defineStore('EditorStore', () => {
   const loopingStart = ref(0)
   const loopingEnd = ref(0)
 
-  const selectedMarker: Ref<string> = ref('')
+  const selectedMarker: Ref<string | undefined> = ref(undefined)
 
   const muted: Ref<boolean> = ref(false)
+
+  const setupHMRServer: Ref<boolean> = ref(false)
+
+  if (!setupHMRServer.value) {
+    console.warn('Setting up HMR server...')
+
+    setupHMRServer.value = true
+
+    if (import.meta.hot)
+      import.meta.hot.on('vector-engine:update_data', data => {
+        EngineStore.data = data
+
+        EngineStore.updatedDataEvent++
+      })
+  }
+
+  const inferenceAudio = computed(() =>
+    EngineStore.loaded ? EngineStore.data.editor.inference.audio : false
+  )
+
+  async function updateInferenceAudio(inference: boolean) {
+    if (!EngineStore.loaded) return
+    if (EngineStore.blockingErrors.length > 0) return
+
+    EngineStore.data.editor.inference.audio = inference
+
+    if (import.meta.hot)
+      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+
+    EngineStore.updatedDataEvent++
+  }
+
+  const inferenceScenes = computed(() =>
+    EngineStore.loaded ? EngineStore.data.editor.inference.scenes : false
+  )
+
+  async function updateInferenceScenes(inference: boolean) {
+    if (!EngineStore.loaded) return
+    if (EngineStore.blockingErrors.length > 0) return
+
+    EngineStore.data.editor.inference.scenes = inference
+
+    if (import.meta.hot)
+      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+
+    EngineStore.updatedDataEvent++
+  }
+
+  watch(() => EngineStore.reloadEngineEvent, runInferences)
+
+  async function runInferences() {
+    const engine = new Engine(EngineStore.project, EngineStore.markers, false)
+
+    await engine.load()
+
+    if (!inferenceScenes.value) {
+      sceneInference.value = []
+
+      return
+    }
+
+    let inference: { name: string; frame: number }[] = []
+
+    for (let frame = 0; frame < EngineStore.length; frame++) {
+      const scene = engine.scenes[engine.scenes.length - 1]
+
+      if (scene) {
+        const sceneName = scene.name
+
+        if (
+          inference[inference.length - 1] == undefined ||
+          inference[inference.length - 1].name != sceneName
+        ) {
+          inference.push({
+            name: sceneName,
+            frame,
+          })
+        }
+      }
+
+      await engine.next()
+    }
+
+    sceneInference.value = inference
+  }
 
   async function play() {
     playing.value = true
@@ -134,6 +222,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
       id: uuid(),
     })
 
+    if (import.meta.hot)
+      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+
     EngineStore.updatedDataEvent++
   }
 
@@ -145,11 +236,10 @@ export const useEditorStore = defineStore('EditorStore', () => {
       1
     )
 
-    EngineStore.updatedDataEvent++
+    if (import.meta.hot)
+      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
 
-    if (import.meta.hot) {
-      import.meta.hot.send('vector-engine:data_update', EngineStore.data)
-    }
+    EngineStore.updatedDataEvent++
   }
 
   function updateMarker(id: string, name: string, frame: number) {
@@ -164,6 +254,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
       frame,
       id,
     }
+
+    if (import.meta.hot)
+      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
 
     EngineStore.updatedDataEvent++
   }
@@ -184,5 +277,10 @@ export const useEditorStore = defineStore('EditorStore', () => {
     createMarker,
     deleteMarker,
     updateMarker,
+    inferenceAudio,
+    updateInferenceAudio,
+    sceneInference,
+    inferenceScenes,
+    updateInferenceScenes,
   }
 })

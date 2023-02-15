@@ -3,19 +3,31 @@ import { Ref, ref, computed, watch } from 'vue'
 import { Engine } from '@/engine/Engine'
 
 export const useEngineStore = defineStore('EngineStore', () => {
+  const project: Ref<any> = ref(undefined)
   const engine: Ref<Engine | undefined> = ref(undefined)
+  const reloadEngineEvent: Ref<number> = ref(0)
   const data: Ref<any> = ref(undefined)
   const updatedDataEvent: Ref<number> = ref(0)
   const blockingErrors: Ref<string[]> = ref([])
+  const errors: Ref<string[]> = ref([])
   const frame: Ref<number> = ref(0)
 
-  async function makeEngine(project: any, newData: any) {
-    console.log(newData)
-
+  async function makeEngine(newProject: any, newData: any) {
+    project.value = newProject
     data.value = newData
-    engine.value = new Engine(project, [], false)
+
+    engine.value = new Engine(
+      newProject,
+      newData.project.markers,
+      false,
+      (error: any) => {
+        errors.value.push(error)
+      }
+    )
 
     await engine.value.load()
+
+    reloadEngineEvent.value++
   }
 
   async function render(frame: number): Promise<OffscreenCanvas> {
@@ -52,19 +64,33 @@ export const useEngineStore = defineStore('EngineStore', () => {
   const length = computed(() => (loaded.value ? engine.value!.length : 60))
   const markers = computed(() =>
     loaded.value && blockingErrors.value.length == 0
-      ? data.value!.project.markers
+      ? engine.value!.markers
       : []
   )
 
+  watch(updatedDataEvent, async () => {
+    if (!engine.value) return
+    if (!loaded.value) return
+
+    await makeEngine(project.value, data.value)
+
+    await setFrame(frame.value)
+
+    reloadEngineEvent.value++
+  })
+
   return {
+    project,
     makeEngine,
     loaded,
+    reloadEngineEvent,
     render,
     frame,
     setFrame,
     frameRate,
     length,
     blockingErrors,
+    errors,
     markers,
     data,
     updatedDataEvent,

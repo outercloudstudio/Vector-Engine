@@ -155,6 +155,10 @@ export function useSceneContext(scene: Scene) {
 
     Element,
 
+    defineName(name: string) {
+      scene.name = name
+    },
+
     createElement(builder: typeof Builder, options: object) {
       const element = new Element(scene, builder, options)
 
@@ -382,6 +386,8 @@ export function useSceneContext(scene: Scene) {
 }
 
 export class Scene {
+  name: string = 'Scene'
+
   context: any
   unloadedContext: any
   loaded: boolean = false
@@ -403,7 +409,7 @@ export class Scene {
     } catch (error) {
       console.error(error)
 
-      if (this.engine.errorListener) this.engine.errorListener(<string>error)
+      if (this.engine.onError) this.engine.onError(<string>error)
 
       return
     }
@@ -441,7 +447,7 @@ export class Scene {
       if (this.transitionRenderModifier)
         return this.transitionRenderModifier(canvas)
     } catch (error) {
-      if (this.engine.errorListener) this.engine.errorListener(<string>error)
+      if (this.engine.onError) this.engine.onError(<string>error)
     }
 
     return canvas
@@ -491,7 +497,7 @@ export class Scene {
         await this.handleNext(result)
       }
     } catch (error) {
-      if (this.engine.errorListener) this.engine.errorListener(<string>error)
+      if (this.engine.onError) this.engine.onError(<string>error)
     }
   }
 

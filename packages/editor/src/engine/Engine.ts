@@ -53,13 +53,13 @@ export class Engine {
 
   inferenceAudio: boolean = false
 
-  errorListener: any
+  onError: any
 
   constructor(
     project: any,
     markers: { name: string; id: string; frame: number }[],
     inferenceAudio?: boolean,
-    errorListener?: any
+    onError?: any
   ) {
     this.project = project
 
@@ -67,16 +67,14 @@ export class Engine {
 
     if (inferenceAudio) this.inferenceAudio = inferenceAudio
 
-    this.errorListener = errorListener
+    this.onError = onError
   }
 
   async load() {
     try {
       await this.project(useProjectContext(this))
     } catch (error) {
-      console.error(error)
-
-      if (this.errorListener) this.errorListener(<string>error)
+      if (this.onError) this.onError(<string>error)
 
       return
     }
@@ -110,9 +108,7 @@ export class Engine {
     try {
       await this.project(useProjectContext(this))
     } catch (error) {
-      console.error(error)
-
-      if (this.errorListener) this.errorListener(<string>error)
+      if (this.onError) this.onError(<string>error)
 
       return
     }

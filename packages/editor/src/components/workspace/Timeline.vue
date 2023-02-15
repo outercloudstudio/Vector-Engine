@@ -384,6 +384,8 @@ async function mouseUp(event: MouseEvent) {
         (marker: any) => marker.id == heldMarker.value
       )
 
+      if (!marker) return
+
       if (marker.frame != droppedFrame)
         EditorStore.updateMarker(heldMarker.value, marker.name, droppedFrame)
 
@@ -619,37 +621,44 @@ function render() {
   //     size
   //   )
   // }
+
   // Scenes
-  // for (
-  //   let sceneIndex = 0;
-  //   sceneIndex < WorkspaceStore.sceneInference.length;
-  //   sceneIndex++
-  // ) {
-  //   const scene = WorkspaceStore.sceneInference[sceneIndex]
-  //   ctx.font = `${10 * canvasScale}px JetBrainsMono`
-  //   const textWidth = ctx.measureText(scene.name).width + 8 * canvasScale
-  //   const frameWidth = WorkspaceStore.sceneInference[sceneIndex + 1]
-  //     ? frameToRelativeX(WorkspaceStore.sceneInference[sceneIndex + 1].frame) -
-  //       frameToRelativeX(scene.frame)
-  //     : frameToRelativeX(WorkspaceStore.length) - frameToRelativeX(scene.frame)
-  //   ctx.fillStyle = secondaryColor
-  //   ctx.beginPath()
-  //   ctx.roundRect(
-  //     frameToRelativeX(scene.frame),
-  //     38 * canvasScale,
-  //     Math.max(0, frameWidth - 4 * canvasScale),
-  //     16 * canvasScale,
-  //     [0, 6 * canvasScale, 6 * canvasScale, 6 * canvasScale]
-  //   )
-  //   ctx.fill()
-  //   if (textWidth > frameWidth) continue
-  //   ctx.fillStyle = textColor
-  //   ctx.fillText(
-  //     scene.name,
-  //     frameToRelativeX(scene.frame) + 4 * canvasScale,
-  //     40 * canvasScale + ctx.measureText(scene.name).fontBoundingBoxAscent
-  //   )
-  // }
+  for (
+    let sceneIndex = 0;
+    sceneIndex < EditorStore.sceneInference.length;
+    sceneIndex++
+  ) {
+    const scene = EditorStore.sceneInference[sceneIndex]
+
+    ctx.font = `${10 * canvasScale}px JetBrainsMono`
+
+    const textWidth = ctx.measureText(scene.name).width + 8 * canvasScale
+
+    const frameWidth = EditorStore.sceneInference[sceneIndex + 1]
+      ? frameToRelativeX(EditorStore.sceneInference[sceneIndex + 1].frame) -
+        frameToRelativeX(scene.frame)
+      : frameToRelativeX(EngineStore.length) - frameToRelativeX(scene.frame)
+
+    ctx.fillStyle = secondaryColor
+    ctx.beginPath()
+    roundRect(
+      frameToRelativeX(scene.frame),
+      38 * canvasScale,
+      Math.max(0, frameWidth - 4 * canvasScale),
+      16 * canvasScale,
+      [0, 6 * canvasScale, 6 * canvasScale, 6 * canvasScale]
+    )
+    ctx.fill()
+
+    if (textWidth > frameWidth) continue
+
+    ctx.fillStyle = textColor
+    ctx.fillText(
+      scene.name,
+      frameToRelativeX(scene.frame) + 4 * canvasScale,
+      42 * canvasScale + ctx.measureText(scene.name).actualBoundingBoxAscent
+    )
+  }
 
   function roundRect(
     x: number,

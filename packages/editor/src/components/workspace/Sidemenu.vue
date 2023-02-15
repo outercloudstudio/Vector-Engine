@@ -81,13 +81,13 @@
 
         <span
           class="material-symbols-outlined icon-button"
-          @click="() => (WorkspaceStore.errors = [])"
-          >delete_forever</span
-        >
+          @click="() => (EngineStore.errors = [])"
+          >delete_forever
+        </span>
       </div>
 
       <div ref="logs" id="logs">
-        <p v-for="error in WorkspaceStore.errors">{{ error }}</p>
+        <p v-for="error in EngineStore.errors">{{ error }}</p>
       </div>
     </div>
   </div>
@@ -95,23 +95,27 @@
 
 <script setup lang="ts">
 import Toggle from '@/components/Toggle.vue'
-import { useWorkspaceStore } from '@/stores/WorkspaceStore'
+
 import { Engine } from '@/engine/Engine'
 import { computed, onMounted, Ref, ref, watch } from 'vue'
 
-const WorkspaceStore = useWorkspaceStore()
+import { useEditorStore } from '@/stores/EditorStore'
+import { useEngineStore } from '@/stores/EngineStore'
+
+const EditorStore = useEditorStore()
+const EngineStore = useEngineStore()
 
 function deleteMarker() {
-  if (!WorkspaceStore.selectedMarker) return
+  if (!EditorStore.selectedMarker) return
 
-  WorkspaceStore.deleteMarker(WorkspaceStore.selectedMarker)
+  EditorStore.deleteMarker(EditorStore.selectedMarker)
 }
 
 let markerName = ref('')
 let markerFrame = ref(0)
 
 watch(
-  () => WorkspaceStore.selectedMarker,
+  () => EditorStore.selectedMarker,
   markerId => {
     if (markerId == null) {
       if (openMenu.value == 'inspector') open('inspector')
@@ -119,7 +123,11 @@ watch(
       return
     }
 
-    const marker = WorkspaceStore.markers.find(marker => marker.id == markerId)
+    const marker = EngineStore.markers.find(
+      (marker: any) => marker.id == markerId
+    )
+
+    if (marker == undefined) return
 
     markerName.value = marker.name
     markerFrame.value = marker.frame
@@ -127,18 +135,30 @@ watch(
 )
 
 watch(
-  () => WorkspaceStore.markers,
-  () => {
-    const marker = WorkspaceStore.markers.find(
-      marker => marker.id == WorkspaceStore.selectedMarker
+  () => EngineStore.markers,
+  async () => {
+    let marker = EngineStore.markers.find(
+      (marker: any) => marker.id == EditorStore.selectedMarker
     )
 
     if (!marker) {
-      if (openMenu.value == 'inspector') open('inspector')
+      await new Promise<void>(res => {
+        setTimeout(() => {
+          res()
+        }, 1)
+      })
 
-      WorkspaceStore.selectedMarker = null
+      marker = EngineStore.markers.find(
+        (marker: any) => marker.id == EditorStore.selectedMarker
+      )
 
-      return
+      if (!marker) {
+        if (openMenu.value == 'inspector') open('inspector')
+
+        EditorStore.selectedMarker = undefined
+
+        return
+      }
     }
 
     markerName.value = marker.name
@@ -154,10 +174,10 @@ const markerNameInputBuffer = computed({
     if (passedMarkerName != '') {
       markerName.value = passedMarkerName
 
-      if (WorkspaceStore.selectedMarker == null) return
+      if (EditorStore.selectedMarker == undefined) return
 
-      WorkspaceStore.updateMarker(
-        WorkspaceStore.selectedMarker,
+      EditorStore.updateMarker(
+        EditorStore.selectedMarker,
         markerName.value,
         markerFrame.value
       )
@@ -179,15 +199,15 @@ const markerFrameInputBuffer = computed({
     if (/^[0-9]+$/.test(passedMarkerFrame)) {
       const readMarkerFrame = Math.min(
         Math.max(parseInt(passedMarkerFrame), 0),
-        WorkspaceStore.length - 1
+        EngineStore.length - 1
       )
 
       markerFrame.value = readMarkerFrame
 
-      if (WorkspaceStore.selectedMarker == null) return
+      if (EditorStore.selectedMarker == undefined) return
 
-      WorkspaceStore.updateMarker(
-        WorkspaceStore.selectedMarker,
+      EditorStore.updateMarker(
+        EditorStore.selectedMarker,
         markerName.value,
         markerFrame.value
       )
@@ -200,23 +220,23 @@ const markerFrameInputBuffer = computed({
 })
 
 const inferenceAudio = computed({
-  get: () => WorkspaceStore.inferenceAudio,
+  get: () => EditorStore.inferenceAudio,
   set: (inference: boolean) => {
-    WorkspaceStore.updateInferenceAudio(inference)
+    EditorStore.updateInferenceAudio(inference)
   },
 })
 
 const inferenceScenes = computed({
-  get: () => WorkspaceStore.inferenceScenes,
+  get: () => EditorStore.inferenceScenes,
   set: (inference: boolean) => {
-    WorkspaceStore.updateInferenceScenes(inference)
+    EditorStore.updateInferenceScenes(inference)
   },
 })
 
 const volumeBuffer = computed({
-  get: () => WorkspaceStore.volume * 100,
+  get: () => 0, //WorkspaceStore.volume * 100,
   set: (volume: number) => {
-    WorkspaceStore.updateVolume(volume / 100)
+    // WorkspaceStore.updateVolume(volume / 100)
   },
 })
 
@@ -236,7 +256,7 @@ async function runExport() {
   exportInProgress.value = true
   exportProgress.value = 0
 
-  if (!WorkspaceStore.projectFolder) return
+  // if (!WorkspaceStore.projectFolder) return
 
   // const engine = new Engine(runtime, WorkspaceStore.markers)
   // await engine.load()
@@ -286,7 +306,7 @@ function open(menu: string) {
     return
   }
 
-  if (menu == 'inspector' && !WorkspaceStore.selectedMarker) return
+  if (menu == 'inspector' && !EditorStore.selectedMarker) return
 
   openMenu.value = menu
 }
@@ -403,13 +423,14 @@ onMounted(() => {
   padding: 0;
 }
 
-#volume-slider::-webkit-slider-thumb {
+#volume-slider::-moz-range-thumb {
   appearance: none;
   width: 0.7rem;
   height: 0.7rem;
   background: var(--grab);
   cursor: pointer;
   border-radius: 50%;
+  border: none;
 }
 
 input {

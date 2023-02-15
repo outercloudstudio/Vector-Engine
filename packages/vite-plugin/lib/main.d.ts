@@ -3,4 +3,5 @@ export default function VectorEngine(configURI: string): Promise<{
     resolveId(id: string): string;
     load(id: string): string;
     configureServer(server: any): void;
+    handleHotUpdate(ctx: any): Promise<any[]>;
 }>;
