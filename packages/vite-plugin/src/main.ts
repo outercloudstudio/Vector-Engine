@@ -58,14 +58,18 @@ export default async function VectorEngine(configURI: string) {
     
         const app = inject(project, data)
 
+        // import.meta.hot.accept('${project}', (newModule) => {
+        //   console.log(newModule)
+        // })
+
         // if (import.meta.hot) {
         //   import.meta.hot.on('vite:beforeFullReload', () => {
         //     throw '(skipping full reload)';
         //   })
 
-        //   import.meta.hot.accept('virtual:@vector-engine/project', newProject => {
-        //     console.log(newProject)
-        //   })
+          // import.meta.hot.accept('virtual:@vector-engine/project', newProject => {
+          //   console.log(newProject)
+          // })
         // }
 
         // import.meta.hot.on('vector-engine:update-project', async () => {
@@ -85,6 +89,16 @@ export default async function VectorEngine(configURI: string) {
 
         export default await loadAudio('${id}')
         `
+      } else if (id == project) {
+        return (
+          code +
+          `
+        
+        import.meta.hot.accept(newModule => {
+          window.dispatchEvent(new CustomEvent('project-update', { detail: newModule.project }))
+        })
+        `
+        )
       }
     },
     configureServer(server) {
@@ -139,10 +153,10 @@ export default async function VectorEngine(configURI: string) {
       })
     },
     async handleHotUpdate(ctx) {
-      // console.log('HRM update for ', ctx.file, ctx.modules)
+      console.log('HRM update for ', ctx.file, ctx.modules)
 
       if (ctx.file == dataFile) {
-        // console.log('HMR updating data file!')
+        console.log('HMR updating data file!')
 
         ctx.server.ws.send(
           'vector-engine:update-data',
@@ -151,7 +165,7 @@ export default async function VectorEngine(configURI: string) {
 
         return []
       } else if (ctx.file.startsWith(projectFolder)) {
-        // console.log('HMR updating project file!')
+        console.log('HMR updating project file!')
 
         ctx.server.ws.send('vector-engine:update-project')
 

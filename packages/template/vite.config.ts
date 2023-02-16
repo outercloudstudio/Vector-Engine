@@ -8,4 +8,7 @@ export default defineConfig({
     include: ['@vector-engine/vite-plugin'],
   },
   plugins: [VectorEngine(import.meta.url), vue()],
+  server: {
+    hmr: true,
+  },
 })
