@@ -7,6 +7,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
   const EngineStore = useEngineStore()
 
   const sceneInference: Ref<{ name: string; frame: number }[]> = ref([])
+  const audioInference: Ref<number[]> = ref([])
 
   const playing: Ref<boolean> = ref(false)
   const speed: Ref<number> = ref(1)
@@ -124,7 +125,66 @@ export const useEditorStore = defineStore('EditorStore', () => {
     sceneInference.value = inference
   }
 
-  async function runAudioInferences() {}
+  async function runAudioInferences() {
+    if (!inferenceAudio.value) {
+      audioInference.value = []
+
+      return
+    }
+
+    if (!EngineStore.audioTrack) return
+
+    const channels = []
+
+    for (
+      let channelIndex = 0;
+      channelIndex < EngineStore.audioTrack.numberOfChannels;
+      channelIndex++
+    ) {
+      channels.push(EngineStore.audioTrack.getChannelData(channelIndex))
+    }
+
+    let volumePerFrame: number[] = []
+
+    const samplesPerFrame =
+      (EngineStore.audioTrack.sampleRate || 0) / EngineStore.frameRate
+
+    let peak = 0
+
+    for (let frame = 0; frame < EngineStore.length; frame++) {
+      const startingSample = Math.floor(samplesPerFrame * frame)
+      let frameValue = 0
+
+      for (const channel of channels) {
+        for (
+          let sample = startingSample;
+          sample <
+          Math.min(
+            startingSample + Math.floor(samplesPerFrame),
+            channel.length
+          );
+          sample++
+        ) {
+          frameValue = Math.max(Math.abs(channel[sample]), frameValue)
+        }
+      }
+
+      const squaredValue = Math.pow(frameValue, 3)
+
+      volumePerFrame.push(squaredValue)
+
+      peak = Math.max(squaredValue, peak)
+    }
+
+    for (let frame = 0; frame < EngineStore.length; frame++) {
+      volumePerFrame[frame] = Math.min(
+        volumePerFrame[frame] / Math.max(peak, 0.0001),
+        1
+      )
+    }
+
+    audioInference.value = volumePerFrame
+  }
 
   async function runInferences() {
     await runSceneInfereces()
@@ -349,6 +409,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     createMarker,
     deleteMarker,
     updateMarker,
+    audioInference,
     inferenceAudio,
     updateInferenceAudio,
     sceneInference,

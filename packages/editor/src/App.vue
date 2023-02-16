@@ -69,6 +69,12 @@ const sideMenu: Ref<null | typeof Sidemenu> = ref(null)
 
 onMounted(async () => {
   await EngineStore.makeEngine(props.project, props.data)
+
+  // window.addEventListener('project-update', async project => {
+  //   console.log((<any>project).detail.toString())
+
+  //   await EngineStore.remakeEngine((<any>project).detail)
+  // })
 })
 </script>
 

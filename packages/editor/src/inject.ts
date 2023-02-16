@@ -4,7 +4,7 @@ import App from './App.vue'
 import './style.css'
 
 export default function inject(project: any, data: any) {
-  createApp(App, {
+  return createApp(App, {
     project,
     data,
   })

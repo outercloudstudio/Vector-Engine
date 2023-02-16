@@ -6,8 +6,9 @@ function posix(pathStr) {
     return pathStr.split(path.sep).join(path.posix.sep);
 }
 export default async function VectorEngine(configURI) {
+    const virtualInjectPackage = 'virtual:@vector-engine/inject';
+    const resolvedVirtualInjectPackage = '\0' + virtualInjectPackage;
     const virtualProjectPackage = 'virtual:@vector-engine/project';
-    const resolvedVirtualProjectPackage = '\0' + virtualProjectPackage;
     const virtualDataPackage = 'virtual:@vector-engine/data';
     const editorFolder = posix(path.join(path.dirname(url.fileURLToPath(await resolve('@vector-engine/editor', import.meta.url))), '..'));
     const editorDistFolder = path.posix.join(editorFolder, 'dist');
@@ -18,9 +19,12 @@ export default async function VectorEngine(configURI) {
     return {
         name: 'vector-engine',
         resolveId(id) {
-            console.log('Resolving:', id);
-            if (id === virtualProjectPackage) {
-                return resolvedVirtualProjectPackage;
+            // console.log('Resolving:', id)
+            if (id === virtualInjectPackage) {
+                return resolvedVirtualInjectPackage;
+            }
+            else if (id === virtualProjectPackage) {
+                return project;
             }
             else if (id === virtualDataPackage) {
                 return path.posix.join(projectFolder, '/data.json');
@@ -30,19 +34,35 @@ export default async function VectorEngine(configURI) {
             }
         },
         load(id) {
-            console.log('Loading:', id);
-            if (id === resolvedVirtualProjectPackage) {
+            // console.log('Loading:', id)
+            if (id === resolvedVirtualInjectPackage) {
                 return `
         import inject from '@vector-engine/editor'
         import data from 'virtual:@vector-engine/data'
-        import { project } from '${project}'
+        import { project } from 'virtual:@vector-engine/project'
     
-        inject(project, data)
+        const app = inject(project, data)
+
+        // if (import.meta.hot) {
+        //   import.meta.hot.on('vite:beforeFullReload', () => {
+        //     throw '(skipping full reload)';
+        //   })
+
+        //   import.meta.hot.accept('virtual:@vector-engine/project', newProject => {
+        //     console.log(newProject)
+        //   })
+        // }
+
+        // import.meta.hot.on('vector-engine:update-project', async () => {
+        //   setTimeout(async () => {
+        //     window.dispatchEvent(new CustomEvent('project-update', { detail: (await import('virtual:@vector-engine/project')).project }))
+        //   }, 1000)
+        // })
         `;
             }
         },
         transform(code, id) {
-            console.log('Transforming: ', id);
+            // console.log('Transforming: ', id)
             if (id.endsWith('.mp3')) {
                 return `
         import { loadAudio } from '@vector-engine/core'
@@ -53,7 +73,7 @@ export default async function VectorEngine(configURI) {
         },
         configureServer(server) {
             server.middlewares.use((req, res, next) => {
-                console.log('Fetching:', req.url);
+                // console.log('Fetching:', req.url)
                 const [base, query] = req.url.split('?');
                 const params = new URLSearchParams(query);
                 if (req.url === '/') {
@@ -61,7 +81,7 @@ export default async function VectorEngine(configURI) {
                     res.end(fs
                         .readFileSync(editorIndexPath)
                         .toString()
-                        .replace('{{source}}', '/@id/__x00__virtual:@vector-engine/project'));
+                        .replace('{{source}}', '/@id/__x00__virtual:@vector-engine/inject'));
                     return;
                 }
                 else if ((!req.url.startsWith('/@') || req.url.startsWith('/@/')) &&
@@ -70,14 +90,14 @@ export default async function VectorEngine(configURI) {
                         ? path.posix.join(editorFolder, '/src', req.url.substring(3))
                         : path.posix.join(editorDistFolder, req.url);
                     if (fs.existsSync(url)) {
-                        console.warn('    Fetching from fs:', url);
+                        // console.warn('    Fetching from fs:', url)
                         if (url.endsWith('.js'))
                             res.setHeader('Content-Type', 'text/javascript');
                         res.end(fs.readFileSync(url));
                         return;
                     }
                     else {
-                        console.warn('    Tried to fetch file that does not exist!', url);
+                        // console.warn('    Tried to fetch file that does not exist!', url)
                     }
                 }
                 next();
@@ -90,11 +110,16 @@ export default async function VectorEngine(configURI) {
             });
         },
         async handleHotUpdate(ctx) {
-            console.log('HRM update for ', ctx.file, ctx.modules);
+            // console.log('HRM update for ', ctx.file, ctx.modules)
             if (ctx.file == dataFile) {
-                console.log('HMR updating data file!');
+                // console.log('HMR updating data file!')
                 ctx.server.ws.send('vector-engine:update-data', JSON.parse(await ctx.read()));
                 return [];
+            }
+            else if (ctx.file.startsWith(projectFolder)) {
+                // console.log('HMR updating project file!')
+                ctx.server.ws.send('vector-engine:update-project');
+                // return []
             }
         },
     };

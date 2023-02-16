@@ -521,7 +521,8 @@ let endFrame = ref(EngineStore.length + 5)
 watch(
   () => EngineStore.length,
   () => {
-    return (endFrame.value = EngineStore.length - 1 + 5)
+    startFrame.value = -5
+    endFrame.value = EngineStore.length - 1 + 5
   }
 )
 
@@ -606,21 +607,27 @@ function render() {
   }
 
   // Volume
-  // for (let frame = startFrame.value; frame < endFrame.value; frame++) {
-  //   // Frame bar
-  //   ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-  //   const size =
-  //     (WorkspaceStore.volumePerFrame[frame] || 0) *
-  //     ((canvas.value.height - 72 * canvasScale) / 2)
-  //   ctx.fillRect(
-  //     frameToRelativeX(frame),
-  //     (canvas.value.height - 72 * canvasScale) / 2 -
-  //       size / 2 +
-  //       72 * canvasScale,
-  //     frameToRelativeX(frame + 1) - frameToRelativeX(frame),
-  //     size
-  //   )
-  // }
+  for (
+    let frame = Math.floor(startFrame.value);
+    frame < Math.ceil(endFrame.value);
+    frame++
+  ) {
+    // Frame bar
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+
+    const size =
+      (EditorStore.audioInference[frame] || 0) *
+      ((canvas.value.height - 72 * canvasScale) / 2)
+
+    ctx.fillRect(
+      frameToRelativeX(frame),
+      (canvas.value.height - 72 * canvasScale) / 2 -
+        size / 2 +
+        72 * canvasScale,
+      frameToRelativeX(frame + 1) - frameToRelativeX(frame),
+      size
+    )
+  }
 
   // Scenes
   for (

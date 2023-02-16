@@ -8,8 +8,10 @@ function posix(pathStr: string) {
 }
 
 export default async function VectorEngine(configURI: string) {
+  const virtualInjectPackage = 'virtual:@vector-engine/inject'
+  const resolvedVirtualInjectPackage = '\0' + virtualInjectPackage
+
   const virtualProjectPackage = 'virtual:@vector-engine/project'
-  const resolvedVirtualProjectPackage = '\0' + virtualProjectPackage
 
   const virtualDataPackage = 'virtual:@vector-engine/data'
 
@@ -33,10 +35,12 @@ export default async function VectorEngine(configURI: string) {
   return {
     name: 'vector-engine',
     resolveId(id: string) {
-      console.log('Resolving:', id)
+      // console.log('Resolving:', id)
 
-      if (id === virtualProjectPackage) {
-        return resolvedVirtualProjectPackage
+      if (id === virtualInjectPackage) {
+        return resolvedVirtualInjectPackage
+      } else if (id === virtualProjectPackage) {
+        return project
       } else if (id === virtualDataPackage) {
         return path.posix.join(projectFolder, '/data.json')
       } else if (id.startsWith('@/')) {
@@ -44,20 +48,36 @@ export default async function VectorEngine(configURI: string) {
       }
     },
     load(id: string) {
-      console.log('Loading:', id)
+      // console.log('Loading:', id)
 
-      if (id === resolvedVirtualProjectPackage) {
+      if (id === resolvedVirtualInjectPackage) {
         return `
         import inject from '@vector-engine/editor'
         import data from 'virtual:@vector-engine/data'
-        import { project } from '${project}'
+        import { project } from 'virtual:@vector-engine/project'
     
-        inject(project, data)
+        const app = inject(project, data)
+
+        // if (import.meta.hot) {
+        //   import.meta.hot.on('vite:beforeFullReload', () => {
+        //     throw '(skipping full reload)';
+        //   })
+
+        //   import.meta.hot.accept('virtual:@vector-engine/project', newProject => {
+        //     console.log(newProject)
+        //   })
+        // }
+
+        // import.meta.hot.on('vector-engine:update-project', async () => {
+        //   setTimeout(async () => {
+        //     window.dispatchEvent(new CustomEvent('project-update', { detail: (await import('virtual:@vector-engine/project')).project }))
+        //   }, 1000)
+        // })
         `
       }
     },
     transform(code, id) {
-      console.log('Transforming: ', id)
+      // console.log('Transforming: ', id)
 
       if (id.endsWith('.mp3')) {
         return `
@@ -69,7 +89,7 @@ export default async function VectorEngine(configURI: string) {
     },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        console.log('Fetching:', req.url)
+        // console.log('Fetching:', req.url)
 
         const [base, query] = req.url.split('?')
         const params = new URLSearchParams(query)
@@ -83,7 +103,7 @@ export default async function VectorEngine(configURI: string) {
               .toString()
               .replace(
                 '{{source}}',
-                '/@id/__x00__virtual:@vector-engine/project'
+                '/@id/__x00__virtual:@vector-engine/inject'
               )
           )
           return
@@ -95,7 +115,7 @@ export default async function VectorEngine(configURI: string) {
             ? path.posix.join(editorFolder, '/src', req.url.substring(3))
             : path.posix.join(editorDistFolder, req.url)
           if (fs.existsSync(url)) {
-            console.warn('    Fetching from fs:', url)
+            // console.warn('    Fetching from fs:', url)
 
             if (url.endsWith('.js'))
               res.setHeader('Content-Type', 'text/javascript')
@@ -103,7 +123,7 @@ export default async function VectorEngine(configURI: string) {
             res.end(fs.readFileSync(url))
             return
           } else {
-            console.warn('    Tried to fetch file that does not exist!', url)
+            // console.warn('    Tried to fetch file that does not exist!', url)
           }
         }
 
@@ -119,10 +139,10 @@ export default async function VectorEngine(configURI: string) {
       })
     },
     async handleHotUpdate(ctx) {
-      console.log('HRM update for ', ctx.file, ctx.modules)
+      // console.log('HRM update for ', ctx.file, ctx.modules)
 
       if (ctx.file == dataFile) {
-        console.log('HMR updating data file!')
+        // console.log('HMR updating data file!')
 
         ctx.server.ws.send(
           'vector-engine:update-data',
@@ -130,6 +150,12 @@ export default async function VectorEngine(configURI: string) {
         )
 
         return []
+      } else if (ctx.file.startsWith(projectFolder)) {
+        // console.log('HMR updating project file!')
+
+        ctx.server.ws.send('vector-engine:update-project')
+
+        // return []
       }
     },
   }
