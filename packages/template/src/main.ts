@@ -1,12 +1,18 @@
+import audio from '../Assets/Full.mp3'
+
 export const project = async ({
   frameRate,
   length,
   minutes,
   seconds,
   loadScene,
+  audioTrack,
 }: any) => {
   frameRate(60)
   length(seconds(1))
+
+  audioTrack(audio)
+
   await loadScene(async function* ({
     Vector,
     Builders,
@@ -63,5 +69,4 @@ export const project = async ({
     },
     Transitions.Cut)
   })
-  // audioTrack('Assets/test.wav')
 }

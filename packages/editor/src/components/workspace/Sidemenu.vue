@@ -234,9 +234,9 @@ const inferenceScenes = computed({
 })
 
 const volumeBuffer = computed({
-  get: () => 0, //WorkspaceStore.volume * 100,
+  get: () => EditorStore.volume * 100,
   set: (volume: number) => {
-    // WorkspaceStore.updateVolume(volume / 100)
+    EditorStore.updateVolume(volume / 100)
   },
 })
 

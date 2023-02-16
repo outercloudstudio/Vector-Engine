@@ -67,6 +67,11 @@ export const useEngineStore = defineStore('EngineStore', () => {
       ? engine.value!.markers
       : []
   )
+  const audioTrack = computed(() =>
+    loaded.value && blockingErrors.value.length == 0
+      ? engine.value!.audioTrack
+      : undefined
+  )
 
   watch(updatedDataEvent, async () => {
     if (!engine.value) return
@@ -94,5 +99,6 @@ export const useEngineStore = defineStore('EngineStore', () => {
     markers,
     data,
     updatedDataEvent,
+    audioTrack,
   }
 })

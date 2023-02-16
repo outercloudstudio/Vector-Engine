@@ -28,11 +28,30 @@ export const useEditorStore = defineStore('EditorStore', () => {
     setupHMRServer.value = true
 
     if (import.meta.hot)
-      import.meta.hot.on('vector-engine:update_data', data => {
+      import.meta.hot.on('vector-engine:update-data', data => {
         EngineStore.data = data
 
         EngineStore.updatedDataEvent++
       })
+  }
+
+  const audioContext: Ref<AudioContext> = ref(
+    new AudioContext({
+      latencyHint: 'interactive',
+    })
+  )
+  const audioGain: Ref<GainNode> = ref(audioContext.value.createGain())
+  const audioDestination: Ref<AudioNode> = ref(audioContext.value.createGain())
+  const audioTrackBufferSource: Ref<AudioBufferSourceNode | undefined> =
+    ref(undefined)
+  const setupAudio: Ref<boolean> = ref(false)
+
+  if (!setupAudio.value) {
+    setupAudio.value = true
+
+    audioGain.value.connect(audioContext.value.destination)
+
+    audioDestination.value = audioGain.value
   }
 
   const inferenceAudio = computed(() =>
@@ -46,7 +65,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     EngineStore.data.editor.inference.audio = inference
 
     if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
 
     EngineStore.updatedDataEvent++
   }
@@ -62,14 +81,14 @@ export const useEditorStore = defineStore('EditorStore', () => {
     EngineStore.data.editor.inference.scenes = inference
 
     if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
 
     EngineStore.updatedDataEvent++
   }
 
   watch(() => EngineStore.reloadEngineEvent, runInferences)
 
-  async function runInferences() {
+  async function runSceneInfereces() {
     const engine = new Engine(EngineStore.project, EngineStore.markers, false)
 
     await engine.load()
@@ -105,7 +124,42 @@ export const useEditorStore = defineStore('EditorStore', () => {
     sceneInference.value = inference
   }
 
+  async function runAudioInferences() {}
+
+  async function runInferences() {
+    await runSceneInfereces()
+    await runAudioInferences()
+  }
+
+  async function startAudioPlayback(time: number) {
+    const audioBuffer = EngineStore.audioTrack
+
+    if (!audioBuffer) return
+
+    audioTrackBufferSource.value = audioContext.value.createBufferSource()
+    audioTrackBufferSource.value.buffer = audioBuffer
+    audioTrackBufferSource.value.connect(audioDestination.value)
+    audioContext.value.resume()
+    audioTrackBufferSource.value.start(0, time)
+
+    while (audioContext.value.state == 'suspended') {
+      await new Promise<void>(res => {
+        setTimeout(() => {
+          res()
+        }, 1)
+      })
+    }
+  }
+
+  function stopAudioPlayback() {
+    if (!audioTrackBufferSource.value) return
+
+    audioTrackBufferSource.value.stop()
+  }
+
   async function play() {
+    await startAudioPlayback(startedPlayingFrame.value / EngineStore.frameRate)
+
     playing.value = true
     startedPlayingTime.value = Date.now()
 
@@ -154,8 +208,11 @@ export const useEditorStore = defineStore('EditorStore', () => {
           ? loopingStart.value
           : 0
 
-      // stopAudioPlayback()
-      // await startAudioPlayback(startedFrame / WorkspaceStore.frameRate)
+      stopAudioPlayback()
+
+      await startAudioPlayback(
+        startedPlayingFrame.value / EngineStore.frameRate
+      )
     }
 
     requestAnimationFrame(playUpdate)
@@ -164,7 +221,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
   function pause() {
     playing.value = false
 
-    // stopAudioPlayback()
+    stopAudioPlayback()
   }
 
   function restart() {
@@ -223,7 +280,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     })
 
     if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
 
     EngineStore.updatedDataEvent++
   }
@@ -237,7 +294,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     )
 
     if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
 
     EngineStore.updatedDataEvent++
   }
@@ -256,7 +313,22 @@ export const useEditorStore = defineStore('EditorStore', () => {
     }
 
     if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update_data', EngineStore.data)
+      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
+
+    EngineStore.updatedDataEvent++
+  }
+
+  const volume = computed(() =>
+    EngineStore.loaded ? EngineStore.data.editor.volume : 0
+  )
+
+  async function updateVolume(volume: number) {
+    EngineStore.data.editor.volume = volume
+
+    if (!muted.value) audioGain.value.gain.value = volume
+
+    if (import.meta.hot)
+      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
 
     EngineStore.updatedDataEvent++
   }
@@ -282,5 +354,10 @@ export const useEditorStore = defineStore('EditorStore', () => {
     sceneInference,
     inferenceScenes,
     updateInferenceScenes,
+    audioContext,
+    audioGain,
+    audioDestination,
+    updateVolume,
+    volume,
   }
 })

@@ -303,11 +303,9 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   }
 
   function getAudioBuffer() {
-    if (!engine.value) return null
-
-    if (!engine.value.audioBuffer) return null
-
-    return engine.value.audioBuffer
+    // if (!engine.value) return null
+    // if (!engine.value.audioBuffer) return null
+    // return engine.value.audioBuffer
   }
 
   const frameRate = computed(() => engine.value?.frameRate || 60)
@@ -323,23 +321,19 @@ export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   })
 
   const volumePerFrame = computed(() => {
-    if (!engine.value) return []
-
-    if (
-      engine.value.audioBuffer == null ||
-      engine.value.volumePerFrame.length == 0
-    )
-      return audioInferenceVolumeCache.value
-
-    return engine.value.volumePerFrame
+    // if (!engine.value) return []
+    // if (
+    //   engine.value.audioBuffer == null ||
+    //   engine.value.volumePerFrame.length == 0
+    // )
+    //   return audioInferenceVolumeCache.value
+    // return engine.value.volumePerFrame
   })
 
   watch(volumePerFrame, volumePerFrame => {
-    if (!engine.value) return
-
-    if (engine.value.audioBuffer == null) return
-
-    audioInferenceVolumeCache.value = volumePerFrame
+    // if (!engine.value) return
+    // if (engine.value.audioBuffer == null) return
+    // audioInferenceVolumeCache.value = volumePerFrame
   })
 
   const volume = computed(() => {

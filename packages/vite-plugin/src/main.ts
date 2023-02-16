@@ -33,7 +33,7 @@ export default async function VectorEngine(configURI: string) {
   return {
     name: 'vector-engine',
     resolveId(id: string) {
-      // console.log('Resolving:', id)
+      console.log('Resolving:', id)
 
       if (id === virtualProjectPackage) {
         return resolvedVirtualProjectPackage
@@ -44,7 +44,7 @@ export default async function VectorEngine(configURI: string) {
       }
     },
     load(id: string) {
-      // console.log('Loading:', id)
+      console.log('Loading:', id)
 
       if (id === resolvedVirtualProjectPackage) {
         return `
@@ -56,9 +56,23 @@ export default async function VectorEngine(configURI: string) {
         `
       }
     },
+    transform(code, id) {
+      console.log('Transforming: ', id)
+
+      if (id.endsWith('.mp3')) {
+        return `
+        import { loadAudio } from '@vector-engine/core'
+
+        export default await loadAudio('${id}')
+        `
+      }
+    },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        // console.log('Fetching:', req.url)
+        console.log('Fetching:', req.url)
+
+        const [base, query] = req.url.split('?')
+        const params = new URLSearchParams(query)
 
         if (req.url === '/') {
           res.setHeader('Content-Type', 'text/html')
@@ -80,11 +94,8 @@ export default async function VectorEngine(configURI: string) {
           const url = req.url.startsWith('/@/')
             ? path.posix.join(editorFolder, '/src', req.url.substring(3))
             : path.posix.join(editorDistFolder, req.url)
-
-          // console.log('Fetching from fs:', url)
-
           if (fs.existsSync(url)) {
-            console.warn('Fetching from fs:', url)
+            console.warn('    Fetching from fs:', url)
 
             if (url.endsWith('.js'))
               res.setHeader('Content-Type', 'text/javascript')
@@ -92,15 +103,19 @@ export default async function VectorEngine(configURI: string) {
             res.end(fs.readFileSync(url))
             return
           } else {
-            console.warn('Tried to fetch file that does not exist!', url)
+            console.warn('    Tried to fetch file that does not exist!', url)
           }
         }
 
         next()
       })
 
-      server.ws.on('vector-engine:update_data', (data, client) => {
+      server.ws.on('vector-engine:update-data', (data, client) => {
         fs.writeFileSync(dataFile, JSON.stringify(data, null, 2))
+      })
+
+      server.ws.on('vector-engine:load-content', (data, client) => {
+        client.send('vector-engine:load-content', fs.readFileSync(data))
       })
     },
     async handleHotUpdate(ctx) {
@@ -110,7 +125,7 @@ export default async function VectorEngine(configURI: string) {
         console.log('HMR updating data file!')
 
         ctx.server.ws.send(
-          'vector-engine:update_data',
+          'vector-engine:update-data',
           JSON.parse(await ctx.read())
         )
 

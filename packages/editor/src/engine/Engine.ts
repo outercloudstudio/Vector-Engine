@@ -24,10 +24,10 @@ function useProjectContext(engine: Engine, forReload?: boolean) {
       engine.scenes.push(scene)
     },
 
-    audioTrack(path: string) {
+    audioTrack(audio: any) {
       if (forReload) return
 
-      engine.loadAudioTrack(path)
+      engine.audioTrack = audio
     },
   }
 }
@@ -48,8 +48,7 @@ export class Engine {
     frame: number
   }[] = []
 
-  volumePerFrame: number[] = []
-  audioBuffer: AudioBuffer | null = null
+  audioTrack: AudioBuffer | undefined = undefined
 
   inferenceAudio: boolean = false
 
@@ -120,44 +119,5 @@ export class Engine {
     }
 
     this.frame++
-  }
-
-  async loadAudioTrack(path: string) {
-    if (!this.inferenceAudio) return
-
-    // const audioFile = await this.runtime.readFile(path)
-
-    // const ctx = new AudioContext()
-
-    // if (!ctx) return
-
-    // const audioBuffer = await ctx.decodeAudioData(await audioFile.arrayBuffer())
-
-    // this.audioBuffer = audioBuffer
-
-    // const channels = []
-
-    // for (
-    //   let channelIndex = 0;
-    //   channelIndex < this.audioBuffer.numberOfChannels;
-    //   channelIndex++
-    // ) {
-    //   channels.push(this.audioBuffer.getChannelData(channelIndex))
-    // }
-
-    // const worker = this.runtime.createAudioInferenceWorker()
-
-    // worker.onmessage = message => {
-    //   this.volumePerFrame = message.data
-
-    //   ctx.close()
-    // }
-
-    // worker.postMessage({
-    //   sampleRate: this.audioBuffer.sampleRate,
-    //   frameRate: this.frameRate,
-    //   length: this.length,
-    //   channels,
-    // })
   }
 }
