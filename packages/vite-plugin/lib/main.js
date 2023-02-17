@@ -10,16 +10,18 @@ export default async function VectorEngine(configURI) {
     const resolvedVirtualInjectPackage = '\0' + virtualInjectPackage;
     const virtualProjectPackage = 'virtual:@vector-engine/project';
     const virtualDataPackage = 'virtual:@vector-engine/data';
+    console.log(import.meta.url, configURI);
     const editorFolder = posix(path.join(path.dirname(url.fileURLToPath(await resolve('@vector-engine/editor', import.meta.url))), '..'));
     const editorDistFolder = path.posix.join(editorFolder, 'dist');
     const editorIndexPath = path.posix.join(editorDistFolder, 'index.html');
     const projectFolder = posix(path.dirname(url.fileURLToPath(configURI)));
     const project = path.posix.join(projectFolder, '/src/main.ts');
     const dataFile = path.posix.join(projectFolder, '/data.json');
+    console.log(projectFolder, project, dataFile);
     return {
         name: 'vector-engine',
         resolveId(id) {
-            // console.log('Resolving:', id)
+            console.log('Resolving:', id);
             if (id === virtualInjectPackage) {
                 return resolvedVirtualInjectPackage;
             }
@@ -27,14 +29,14 @@ export default async function VectorEngine(configURI) {
                 return project;
             }
             else if (id === virtualDataPackage) {
-                return path.posix.join(projectFolder, '/data.json');
+                return dataFile;
             }
             else if (id.startsWith('@/')) {
-                return path.posix.join(editorFolder, '/src', id.substring(2));
+                return path.posix.join('/@fs/', editorFolder, '/src', id.substring(2));
             }
         },
         load(id) {
-            // console.log('Loading:', id)
+            console.log('Loading:', id);
             if (id === resolvedVirtualInjectPackage) {
                 return `
         import inject from '@vector-engine/editor'
@@ -43,30 +45,18 @@ export default async function VectorEngine(configURI) {
     
         const app = inject(project, data)
 
-        // import.meta.hot.accept('${project}', (newModule) => {
-        //   console.log(newModule)
-        // })
+        import.meta.hot.on('vector-engine:update-data', data => {
+          window.dispatchEvent(new CustomEvent('on:data-update', { detail: data }))
+        })
 
-        // if (import.meta.hot) {
-        //   import.meta.hot.on('vite:beforeFullReload', () => {
-        //     throw '(skipping full reload)';
-        //   })
-
-          // import.meta.hot.accept('virtual:@vector-engine/project', newProject => {
-          //   console.log(newProject)
-          // })
-        // }
-
-        // import.meta.hot.on('vector-engine:update-project', async () => {
-        //   setTimeout(async () => {
-        //     window.dispatchEvent(new CustomEvent('project-update', { detail: (await import('virtual:@vector-engine/project')).project }))
-        //   }, 1000)
-        // })
+        window.addEventListener('send:update-data', event => {
+          import.meta.hot.send('vector-engine:update-data', event.detail)
+        })
         `;
             }
         },
         transform(code, id) {
-            // console.log('Transforming: ', id)
+            console.log('Transforming: ', id);
             if (id.endsWith('.mp3') || id.endsWith('.wav')) {
                 return `
         import { loadAudio } from '@vector-engine/core'
@@ -93,7 +83,7 @@ export default async function VectorEngine(configURI) {
         },
         configureServer(server) {
             server.middlewares.use((req, res, next) => {
-                // console.log('Fetching:', req.url)
+                console.log('Fetching:', req.url);
                 const [base, query] = req.url.split('?');
                 const params = new URLSearchParams(query);
                 if (req.url === '/') {
@@ -110,19 +100,20 @@ export default async function VectorEngine(configURI) {
                         ? path.posix.join(editorFolder, '/src', req.url.substring(3))
                         : path.posix.join(editorDistFolder, req.url);
                     if (fs.existsSync(url)) {
-                        // console.warn('    Fetching from fs:', url)
+                        console.warn('    Fetching from fs:', url);
                         if (url.endsWith('.js'))
                             res.setHeader('Content-Type', 'text/javascript');
                         res.end(fs.readFileSync(url));
                         return;
                     }
                     else {
-                        // console.warn('    Tried to fetch file that does not exist!', url)
+                        console.warn('    Tried to fetch file that does not exist!', url);
                     }
                 }
                 next();
             });
             server.ws.on('vector-engine:update-data', (data, client) => {
+                console.log('Writing updated data: ', dataFile, data);
                 fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
             });
             server.ws.on('vector-engine:load-content', (data, client) => {

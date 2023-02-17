@@ -367,23 +367,6 @@ export function useSceneContext(scene: Scene) {
         },
       })
     },
-
-    async importImage(path: string) {
-      return null
-      // const file = await scene.engine.runtime.readFile(path)
-      // const img = new Image()
-      // img.src = URL.createObjectURL(file)
-
-      // await new Promise((res: any) => {
-      //   img.onload = () => {
-      //     URL.revokeObjectURL(img.src)
-
-      //     res()
-      //   }
-      // })
-
-      // return img
-    },
   }
 }
 

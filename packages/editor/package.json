@@ -1,9 +1,8 @@
 {
   "name": "@vector-engine/editor",
-  "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "src/inject.ts",
+  "main": "dist/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",

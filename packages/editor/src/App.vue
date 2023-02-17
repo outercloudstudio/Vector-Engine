@@ -71,7 +71,7 @@ onMounted(async () => {
   await EngineStore.makeEngine(props.project, props.data)
 
   window.addEventListener('project-update', async project => {
-    await EngineStore.remakeEngine((<any>project).detail)
+    await EngineStore.remakeEngine((<CustomEvent>project).detail)
   })
 })
 </script>

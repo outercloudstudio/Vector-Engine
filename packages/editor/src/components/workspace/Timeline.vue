@@ -844,78 +844,31 @@ function render() {
   )
 }
 
-watch(
-  () => EngineStore.frame,
-  () => {
-    render()
-  }
-)
+watch(() => EngineStore.frame, render)
 
-watch(
-  () => EngineStore.updatedDataEvent,
-  () => {
-    render()
-  }
-)
+watch(() => EngineStore.updatedDataEvent, render)
 
-// watch(
-//   () => WorkspaceStore.volumePerFrame,
-//   () => {
-//     render()
-//   }
-// )
+watch(() => EditorStore.audioInference, render)
 
-// watch(
-//   () => WorkspaceStore.sceneInference,
-//   () => {
-//     render()
-//   }
-// )
+watch(() => EditorStore.sceneInference, render)
 
-watch(framesSelected, () => {
-  render()
-})
+watch(framesSelected, render)
 
-watch(selectedStart, () => {
-  render()
-})
+watch(selectedStart, render)
 
-watch(selectedEnd, () => {
-  render()
-})
+watch(selectedEnd, render)
 
-watch(
-  () => EditorStore.looping,
-  () => {
-    render()
-  }
-)
+watch(() => EditorStore.looping, render)
 
-watch(
-  () => EditorStore.loopingStart,
-  () => {
-    render()
-  }
-)
+watch(() => EditorStore.loopingStart, render)
 
-watch(
-  () => EditorStore.loopingEnd,
-  () => {
-    render()
-  }
-)
+watch(() => EditorStore.loopingEnd, render)
 
-watch(highlightedMarker, () => {
-  render()
-})
+watch(highlightedMarker, render)
 
-watch(heldMarker, () => {
-  render()
-})
+watch(heldMarker, render)
 
-watch(heldMarkerX, () => {
-  render()
-})
+watch(heldMarkerX, render)
 
 const canvas: Ref<null | HTMLCanvasElement> = ref(null)
 const canvasWrapper: Ref<null | HTMLDivElement> = ref(null)

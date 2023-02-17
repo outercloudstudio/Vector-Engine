@@ -1,13 +1,12 @@
 {
   "name": "vector-engine",
-  "private": true,
   "version": "0.0.0",
   "license": "MIT",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run build -w @vector-engine/core && npm run build -w @vector-engine/vite-plugin && npm run build -w @vector-engine/editor && npm run dev -w @vector-engine/template"
+    "dev": "npm run build -w @vector-engine/core && npm run build -w @vector-engine/vite-plugin && npm run build -w @vector-engine/editor && npm run dev -w @vector-engine/test"
   },
   "dependencies": {
     "import-meta-resolve": "^2.2.1",

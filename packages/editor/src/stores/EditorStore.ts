@@ -24,16 +24,15 @@ export const useEditorStore = defineStore('EditorStore', () => {
   const setupHMRServer: Ref<boolean> = ref(false)
 
   if (!setupHMRServer.value) {
-    console.warn('Setting up HMR server...')
+    console.warn('Setting up HMR...')
 
     setupHMRServer.value = true
 
-    if (import.meta.hot)
-      import.meta.hot.on('vector-engine:update-data', data => {
-        EngineStore.data = data
+    window.addEventListener('on:update-data', event => {
+      EngineStore.data = (<CustomEvent>event).detail
 
-        EngineStore.updatedDataEvent++
-      })
+      EngineStore.updatedDataEvent++
+    })
   }
 
   const audioContext: Ref<AudioContext> = ref(
@@ -65,8 +64,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
 
     EngineStore.data.editor.inference.audio = inference
 
-    if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
+    window.dispatchEvent(
+      new CustomEvent('send:update-data', { detail: EngineStore.data })
+    )
 
     EngineStore.updatedDataEvent++
   }
@@ -81,8 +81,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
 
     EngineStore.data.editor.inference.scenes = inference
 
-    if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
+    window.dispatchEvent(
+      new CustomEvent('send:update-data', { detail: EngineStore.data })
+    )
 
     EngineStore.updatedDataEvent++
   }
@@ -339,8 +340,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
       id: uuid(),
     })
 
-    if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
+    window.dispatchEvent(
+      new CustomEvent('send:update-data', { detail: EngineStore.data })
+    )
 
     EngineStore.updatedDataEvent++
   }
@@ -353,8 +355,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
       1
     )
 
-    if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
+    window.dispatchEvent(
+      new CustomEvent('send:update-data', { detail: EngineStore.data })
+    )
 
     EngineStore.updatedDataEvent++
   }
@@ -372,8 +375,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
       id,
     }
 
-    if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
+    window.dispatchEvent(
+      new CustomEvent('send:update-data', { detail: EngineStore.data })
+    )
 
     EngineStore.updatedDataEvent++
   }
@@ -387,8 +391,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
 
     if (!muted.value) audioGain.value.gain.value = volume
 
-    if (import.meta.hot)
-      import.meta.hot.send('vector-engine:update-data', EngineStore.data)
+    window.dispatchEvent(
+      new CustomEvent('send:update-data', { detail: EngineStore.data })
+    )
 
     EngineStore.updatedDataEvent++
   }
