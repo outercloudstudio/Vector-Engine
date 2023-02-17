@@ -1,4 +1,5 @@
 import audio from '../Assets/Full.mp3'
+import image from '../Assets/test.png'
 
 export const project = async ({
   frameRate,

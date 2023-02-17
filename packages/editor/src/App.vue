@@ -70,19 +70,7 @@ const sideMenu: Ref<null | typeof Sidemenu> = ref(null)
 onMounted(async () => {
   await EngineStore.makeEngine(props.project, props.data)
 
-  // if (import.meta.hot) {
-  //   // import.meta.hot.on('vite:beforeFullReload', () => {
-  //   //   throw '(skipping full reload)'
-  //   // })
-
-  //   // import.meta.hot.accept('virtual:@vector-engine/project', newProject => {
-  //   //   console.log(newProject)
-  //   // })
-  // }
-
   window.addEventListener('project-update', async project => {
-    console.log((<any>project).detail.toString())
-
     await EngineStore.remakeEngine((<any>project).detail)
   })
 })

@@ -67,11 +67,18 @@ export default async function VectorEngine(configURI) {
         },
         transform(code, id) {
             // console.log('Transforming: ', id)
-            if (id.endsWith('.mp3')) {
+            if (id.endsWith('.mp3') || id.endsWith('.wav')) {
                 return `
         import { loadAudio } from '@vector-engine/core'
 
         export default await loadAudio('${id}')
+        `;
+            }
+            else if (id.endsWith('.png')) {
+                return `
+        import { loadImage } from '@vector-engine/core'
+
+        export default await loadImage('${id}')
         `;
             }
             else if (id == project) {
@@ -119,7 +126,10 @@ export default async function VectorEngine(configURI) {
                 fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
             });
             server.ws.on('vector-engine:load-content', (data, client) => {
-                client.send('vector-engine:load-content', fs.readFileSync(data));
+                client.send('vector-engine:load-content', {
+                    path: data,
+                    result: fs.readFileSync(data),
+                });
             });
         },
         async handleHotUpdate(ctx) {
