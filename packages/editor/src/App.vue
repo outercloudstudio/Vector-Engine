@@ -75,6 +75,10 @@ onMounted(async () => {
     )
   })
 
+  if (import.meta.env.DEV) {
+    ;(await import('@/dev/dev')).default()
+  }
+
   window.addEventListener('project-update', async project => {
     await EngineStore.remakeEngine((<CustomEvent>project).detail)
   })

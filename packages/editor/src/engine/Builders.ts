@@ -327,6 +327,7 @@ export class Rect extends RenderingBuilder {
       this.defineAnimatedNumberSetter('outlineWidth')
     this.element.radius = 0
     this.element.animateRadius = this.defineAnimatedNumberSetter('radius')
+    this.element.directRender = true
 
     super.setup(options)
   }
@@ -416,6 +417,7 @@ export class Ellipse extends RenderingBuilder {
     this.element.outlineWidth = 0
     this.element.animateOutlineWidth =
       this.defineAnimatedNumberSetter('outlineWidth')
+    this.element.directRender = true
 
     super.setup(options)
   }

@@ -14,6 +14,11 @@ export default defineConfig({
   //     },
   //   },
   // },
+  build: {
+    rollupOptions: {
+      external: id => id.startsWith('/dev/'),
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -10,9 +10,7 @@ export default async function VectorEngine(configURI) {
     const resolvedVirtualInjectPackage = '\0' + virtualInjectPackage;
     const virtualProjectPackage = 'virtual:@vector-engine/project';
     const virtualDataPackage = 'virtual:@vector-engine/data';
-    const editorFolder = posix(path.dirname(url.fileURLToPath(await resolve('@vector-engine/editor', import.meta.url))));
-    console.log(editorFolder);
-    const editorDistFolder = path.posix.join(editorFolder, 'dist');
+    const editorDistFolder = path.posix.join(posix(path.dirname(url.fileURLToPath(await resolve('@vector-engine/editor', import.meta.url)))), 'dist');
     const editorIndexPath = path.posix.join(editorDistFolder, 'index.html');
     const projectFolder = posix(path.dirname(url.fileURLToPath(configURI)));
     const project = path.posix.join(projectFolder, '/src/main.ts');
@@ -34,12 +32,6 @@ export default async function VectorEngine(configURI) {
             else if (id.startsWith('/')) {
                 return path.posix.join(editorDistFolder, id);
             }
-            else if (id.startsWith('@/')) {
-                return {
-                    id: path.posix.join(editorFolder, '/src', id.substring(2)),
-                    external: true,
-                };
-            }
         },
         load(id) {
             console.log('💾 Loading:', id);
@@ -51,13 +43,13 @@ export default async function VectorEngine(configURI) {
 
         window.dispatchEvent(new CustomEvent('project', { detail: { project, data } }))
 
-        // import.meta.hot.on('vector-engine:update-data', data => {
-        //   window.dispatchEvent(new CustomEvent('on:data-update', { detail: data }))
-        // })
+        import.meta.hot.on('vector-engine:update-data', data => {
+          window.dispatchEvent(new CustomEvent('on:data-update', { detail: data }))
+        })
         
-        // window.addEventListener('send:update-data', event => {
-        //   import.meta.hot.send('vector-engine:update-data', event.detail)
-        // })
+        window.addEventListener('send:update-data', event => {
+          import.meta.hot.send('vector-engine:update-data', event.detail)
+        })
         `;
             }
         },
@@ -104,23 +96,6 @@ export default async function VectorEngine(configURI) {
                     res.end(fs.readFileSync(path.posix.join(editorDistFolder, req.url)));
                     return;
                 }
-                // else if (
-                //   (!req.url.startsWith('/@') || req.url.startsWith('/@/')) &&
-                //   !req.url.startsWith('/node_modules/')
-                // ) {
-                //   const url = req.url.startsWith('/@/')
-                //     ? path.posix.join(editorFolder, '/src', req.url.substring(3))
-                //     : path.posix.join(editorDistFolder, req.url)
-                //   if (fs.existsSync(url)) {
-                //     console.warn('    Fetching from fs:', url)
-                //     if (url.endsWith('.js'))
-                //       res.setHeader('Content-Type', 'text/javascript')
-                //     res.end(fs.readFileSync(url))
-                //     return
-                //   } else {
-                //     console.warn('    Tried to fetch file that does not exist!', url)
-                //   }
-                // }
                 next();
             });
             server.ws.on('vector-engine:update-data', (data, client) => {

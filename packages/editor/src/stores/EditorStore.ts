@@ -91,15 +91,15 @@ export const useEditorStore = defineStore('EditorStore', () => {
   watch(() => EngineStore.reloadEngineEvent, runInferences)
 
   async function runSceneInfereces() {
-    const engine = new Engine(EngineStore.project, EngineStore.markers, false)
-
-    await engine.load()
-
     if (!inferenceScenes.value) {
       sceneInference.value = []
 
       return
     }
+
+    const engine = new Engine(EngineStore.project, EngineStore.markers, false)
+
+    await engine.load()
 
     let inference: { name: string; frame: number }[] = []
 

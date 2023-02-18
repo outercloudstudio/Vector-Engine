@@ -22,37 +22,55 @@ export class Element {
     if (!(this.builder instanceof RenderingBuilder))
       throw new Error('Can not render a non rendering builder')
 
-    const bounds = this.builder.bounds()
-    const canvas = new OffscreenCanvas(bounds.x, bounds.y)
-    const ctx: OffscreenCanvasRenderingContext2D = <
-      OffscreenCanvasRenderingContext2D
-    >canvas.getContext('2d')
-    ctx.translate(0, canvas.height)
-    ctx.scale(1, -1)
+    let doDirectRender =
+      this.directRender && this.renderingModifier == undefined
 
-    this.builder.render(ctx)
+    if (doDirectRender) {
+      parentCtx.translate(this.position.x, this.position.y)
+      parentCtx.rotate((this.rotation * Math.PI) / 180)
 
-    const extent = this.builder.extent()
-    const offset = this.builder.extentOffset()
+      const extent = this.builder.extent()
+      const offset = this.builder.extentOffset()
 
-    parentCtx.translate(this.position.x, this.position.y)
-    parentCtx.rotate((this.rotation * Math.PI) / 180)
-    parentCtx.translate(-offset.x, -offset.y)
-    parentCtx.translate(-extent.x * this.origin.x, -extent.y * this.origin.y)
+      parentCtx.translate(-offset.x, -offset.y)
+      parentCtx.translate(-extent.x * this.origin.x, -extent.y * this.origin.y)
 
-    if (canvas.width == 0 || canvas.height == 0) {
+      this.builder.render(parentCtx)
+
       parentCtx.resetTransform()
-
-      return
-    }
-
-    if (this.renderingModifier != undefined) {
-      parentCtx.drawImage(this.renderingModifier(canvas, this), 0, 0)
     } else {
-      parentCtx.drawImage(canvas, 0, 0)
-    }
+      const bounds = this.builder.bounds()
+      const canvas = new OffscreenCanvas(bounds.x, bounds.y)
+      const ctx: OffscreenCanvasRenderingContext2D = <
+        OffscreenCanvasRenderingContext2D
+      >canvas.getContext('2d')
+      ctx.translate(0, canvas.height)
+      ctx.scale(1, -1)
 
-    parentCtx.resetTransform()
+      this.builder.render(ctx)
+
+      const extent = this.builder.extent()
+      const offset = this.builder.extentOffset()
+
+      parentCtx.translate(this.position.x, this.position.y)
+      parentCtx.rotate((this.rotation * Math.PI) / 180)
+      parentCtx.translate(-offset.x, -offset.y)
+      parentCtx.translate(-extent.x * this.origin.x, -extent.y * this.origin.y)
+
+      if (canvas.width == 0 || canvas.height == 0) {
+        parentCtx.resetTransform()
+
+        return
+      }
+
+      if (this.renderingModifier != undefined) {
+        parentCtx.drawImage(this.renderingModifier(canvas, this), 0, 0)
+      } else {
+        parentCtx.drawImage(canvas, 0, 0)
+      }
+
+      parentCtx.resetTransform()
+    }
   }
 
   [key: string]: any
