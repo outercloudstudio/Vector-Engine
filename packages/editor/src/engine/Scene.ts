@@ -272,6 +272,14 @@ export function useSceneContext(scene: Scene) {
       return frames / scene.engine.frameRate
     },
 
+    aside(context: any) {
+      context.next()
+
+      if (context.done == 'true') return
+
+      scene.sideContexts.push(context)
+    },
+
     waitForAll: async function* () {
       let contexts = []
 
@@ -380,7 +388,6 @@ export class Scene {
   engine: Engine
   elements: Element[] = []
   sideContexts: any[] = []
-  newSideContexts: any[] = []
   transitionRenderModifier: any = null
   id: string = uuid()
 
@@ -441,34 +448,9 @@ export class Scene {
     const end = Date.now()
     const time = end - start
 
-    console.log(`RENDER: ${time}ms`)
+    // console.log(`RENDER: ${time}ms`)
 
     return canvas
-  }
-
-  async handleNext(generator: any, depth?: number) {
-    // console.log(
-    //   ' '.repeat(depth || 0) + 'Handling generator! ' + (depth || 0),
-    //   generator
-    // )
-
-    if (
-      generator == null ||
-      generator == undefined ||
-      !isGenerator(generator)
-    ) {
-      return
-    }
-
-    this.sideContexts.push(generator)
-
-    let result = (await generator.next()).value
-    await this.handleNext(result, (depth || 0) + 1)
-
-    while (result != null && result != undefined && isGenerator(result)) {
-      result = (await generator.next()).value
-      await this.handleNext(result, (depth || 0) + 1)
-    }
   }
 
   async next() {
@@ -477,16 +459,7 @@ export class Scene {
     const start = Date.now()
 
     try {
-      Promise.all(
-        this.sideContexts.map(
-          context =>
-            new Promise<void>(async res => {
-              await this.handleNext((await context.next()).value)
-
-              res()
-            })
-        )
-      )
+      Promise.all(this.sideContexts.map(context => context.next()))
 
       this.sideContexts.filter(context => context.done != 'true')
 
@@ -494,27 +467,25 @@ export class Scene {
       const additionalTime = additionalEnd - start
 
       let result = (await this.context.next()).value
-      await this.handleNext(result)
 
       while (result != null && result != undefined && isGenerator(result)) {
+        await result.next()
+
+        if (result.done != 'true') this.sideContexts.push(result)
+
         result = (await this.context.next()).value
-        await this.handleNext(result)
       }
 
       const mainEnd = Date.now()
       const mainTime = mainEnd - additionalEnd
       const totalTime = mainEnd - start
 
-      console.log(
-        `NEXT total: ${totalTime}ms main: ${mainTime}ms side: ${additionalTime}ms`
-      )
+      // console.log(
+      //   `NEXT total: ${totalTime}ms main: ${mainTime}ms side: ${additionalTime}ms`
+      // )
     } catch (error) {
       if (this.engine.onError) this.engine.onError(<string>error)
     }
-
-    this.sideContexts = this.sideContexts.concat(this.newSideContexts)
-
-    this.newSideContexts = []
   }
 
   addElement(element: Element) {
