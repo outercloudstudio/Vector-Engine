@@ -68,7 +68,12 @@ const EngineStore = useEngineStore()
 const sideMenu: Ref<null | typeof Sidemenu> = ref(null)
 
 onMounted(async () => {
-  await EngineStore.makeEngine(props.project, props.data)
+  window.addEventListener('project', async project => {
+    await EngineStore.makeEngine(
+      (<CustomEvent>project).detail.project,
+      (<CustomEvent>project).detail.data
+    )
+  })
 
   window.addEventListener('project-update', async project => {
     await EngineStore.remakeEngine((<CustomEvent>project).detail)
