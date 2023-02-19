@@ -423,11 +423,11 @@ export class Scene {
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, 1920, 1080)
 
-    try {
-      let sortedElements = this.elements.sort((a: any, b: any) => {
-        return (a.priority || 0) - (b.priority || 0)
-      })
+    let sortedElements = this.elements.sort((a: any, b: any) => {
+      return (a.priority || 0) - (b.priority || 0)
+    })
 
+    try {
       for (const element of sortedElements) {
         if (!element.isRendering) continue
 
@@ -448,7 +448,7 @@ export class Scene {
     const end = Date.now()
     const time = end - start
 
-    // console.log(`RENDER: ${time}ms`)
+    // console.log(`RENDER: ${time}ms elemsts: ${sortedElements.length}`)
 
     return canvas
   }
@@ -459,16 +459,35 @@ export class Scene {
     const start = Date.now()
 
     try {
-      Promise.all(this.sideContexts.map(context => context.next()))
+      await Promise.all(
+        this.sideContexts.map(
+          (context, index) =>
+            new Promise<void>(async res => {
+              const result = await context.next()
 
-      this.sideContexts.filter(context => context.done != 'true')
+              if (result.done) this.sideContexts[index] = undefined
+
+              res()
+            })
+        )
+      )
+
+      const sides = this.sideContexts.length
+
+      this.sideContexts = this.sideContexts.filter(
+        context => context != undefined
+      )
 
       const additionalEnd = Date.now()
       const additionalTime = additionalEnd - start
 
+      let mains = 1
+
       let result = (await this.context.next()).value
 
       while (result != null && result != undefined && isGenerator(result)) {
+        mains++
+
         await result.next()
 
         if (result.done != 'true') this.sideContexts.push(result)
@@ -481,7 +500,7 @@ export class Scene {
       const totalTime = mainEnd - start
 
       // console.log(
-      //   `NEXT total: ${totalTime}ms main: ${mainTime}ms side: ${additionalTime}ms`
+      //   `NEXT total: ${totalTime}ms main: ${mainTime}ms side: ${additionalTime}ms sides: ${sides} mains: ${mains}`
       // )
     } catch (error) {
       if (this.engine.onError) this.engine.onError(<string>error)

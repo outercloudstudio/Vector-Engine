@@ -200,16 +200,18 @@ export const useEditorStore = defineStore('EditorStore', () => {
     audioTrackBufferSource.value = audioContext.value.createBufferSource()
     audioTrackBufferSource.value.buffer = audioBuffer
     audioTrackBufferSource.value.connect(audioDestination.value)
+
     audioContext.value.resume()
+
     audioTrackBufferSource.value.start(0, time)
 
-    while (audioContext.value.state == 'suspended') {
-      await new Promise<void>(res => {
-        setTimeout(() => {
-          res()
-        }, 1)
-      })
-    }
+    // while (audioContext.value.state == 'suspended') {
+    //   await new Promise<void>(res => {
+    //     setTimeout(() => {
+    //       res()
+    //     }, 1)
+    //   })
+    // }
   }
 
   function stopAudioPlayback() {
@@ -219,8 +221,6 @@ export const useEditorStore = defineStore('EditorStore', () => {
   }
 
   async function play() {
-    await startAudioPlayback(startedPlayingFrame.value / EngineStore.frameRate)
-
     playing.value = true
     startedPlayingTime.value = Date.now()
 
@@ -237,6 +237,8 @@ export const useEditorStore = defineStore('EditorStore', () => {
     }
 
     startedPlayingFrame.value = EngineStore.frame
+
+    await startAudioPlayback(startedPlayingFrame.value / EngineStore.frameRate)
 
     requestAnimationFrame(playUpdate)
   }

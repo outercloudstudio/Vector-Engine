@@ -140,7 +140,8 @@ export default async function VectorEngine(configURI: string) {
       })
     },
     async handleHotUpdate(ctx) {
-      // console.log('HRM update for ', ctx.file, ctx.modules)
+      console.log('⚠️ HMR update for ', ctx.file)
+      console.log(ctx.modules)
 
       if (ctx.file == dataFile) {
         // console.log('HMR updating data file!')
@@ -149,12 +150,16 @@ export default async function VectorEngine(configURI: string) {
           'vector-engine:update-data',
           JSON.parse(await ctx.read())
         )
-        return []
-      } else if (ctx.file.startsWith(projectFolder)) {
-        // console.log('HMR updating project file!')
 
-        ctx.server.ws.send('vector-engine:update-project')
+        return []
       }
+      // else if (ctx.file.startsWith(projectFolder)) {
+      //   // console.log('HMR updating project file!')
+
+      //   ctx.server.ws.send('vector-engine:update-project')
+
+      //   return []
+      // }
     },
   }
 }

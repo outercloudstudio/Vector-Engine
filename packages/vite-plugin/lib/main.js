@@ -109,16 +109,18 @@ export default async function VectorEngine(configURI) {
             });
         },
         async handleHotUpdate(ctx) {
-            // console.log('HRM update for ', ctx.file, ctx.modules)
+            console.log('⚠️ HMR update for ', ctx.file);
+            console.log(ctx.modules);
             if (ctx.file == dataFile) {
                 // console.log('HMR updating data file!')
                 ctx.server.ws.send('vector-engine:update-data', JSON.parse(await ctx.read()));
                 return [];
             }
-            else if (ctx.file.startsWith(projectFolder)) {
-                // console.log('HMR updating project file!')
-                ctx.server.ws.send('vector-engine:update-project');
-            }
+            // else if (ctx.file.startsWith(projectFolder)) {
+            //   // console.log('HMR updating project file!')
+            //   ctx.server.ws.send('vector-engine:update-project')
+            //   return []
+            // }
         },
     };
 }

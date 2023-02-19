@@ -8,7 +8,7 @@ export default async ({
   loadScene,
 }: any) => {
   frameRate(60)
-  length(seconds(30))
+  length(seconds(1))
   await loadScene(Perlin)
   // audioTrack('Assets/test.wav')
 }

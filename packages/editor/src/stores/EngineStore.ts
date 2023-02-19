@@ -46,6 +46,8 @@ export const useEngineStore = defineStore('EngineStore', () => {
 
     console.warn('Loaded engine...')
 
+    await setFrame(frame.value)
+
     reloadEngineEvent.value++
   }
 

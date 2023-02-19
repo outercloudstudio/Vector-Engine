@@ -368,36 +368,43 @@ export class Rect extends RenderingBuilder {
     ctx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
     ctx.lineWidth = this.element.outlineWidth
 
-    const radius = this.element.radius
     const offset = this.element.outlineWidth / 2
     const width = this.element.size.x * this.element.scale.x
     const height = this.element.size.y * this.element.scale.y
+    const radiusX = Math.min(
+      Math.max(this.element.radius, 0) * this.element.scale.x,
+      width / 2
+    )
+    const radiusY = Math.min(
+      Math.max(this.element.radius, 0) * this.element.scale.y,
+      height / 2
+    )
 
     ctx.beginPath()
-    ctx.moveTo(radius + offset, offset)
-    ctx.lineTo(offset + width - radius, offset)
+    ctx.moveTo(Math.min(radiusX, width / 2) + offset, offset)
+    ctx.lineTo(offset + width - radiusX, offset)
     ctx.quadraticCurveTo(
       offset + width,
       offset,
       offset + width,
-      offset + radius
+      offset + radiusY
     )
-    ctx.lineTo(offset + width, offset + height - radius)
+    ctx.lineTo(offset + width, offset + height - radiusY)
     ctx.quadraticCurveTo(
       offset + width,
       offset + height,
-      offset + width - radius,
+      offset + width - radiusX,
       offset + height
     )
-    ctx.lineTo(offset + radius, offset + height)
+    ctx.lineTo(offset + radiusX, offset + height)
     ctx.quadraticCurveTo(
       offset,
       offset + height,
       offset,
-      offset + height - radius
+      offset + height - radiusY
     )
-    ctx.lineTo(offset, offset + radius)
-    ctx.quadraticCurveTo(offset, offset, offset + radius, offset)
+    ctx.lineTo(offset, offset + radiusY)
+    ctx.quadraticCurveTo(offset, offset, offset + radiusX, offset)
     ctx.closePath()
 
     ctx.fill()
@@ -559,6 +566,8 @@ export class Text extends RenderingBuilder {
   }
 
   bounds() {
+    if (this.element.size == 0) return new Vector()
+
     const canvas = new OffscreenCanvas(0, 0)
     const ctx: OffscreenCanvasRenderingContext2D = <
       OffscreenCanvasRenderingContext2D
@@ -574,6 +583,8 @@ export class Text extends RenderingBuilder {
   }
 
   extent() {
+    if (this.element.size == 0) return new Vector()
+
     const canvas = new OffscreenCanvas(0, 0)
     const ctx: OffscreenCanvasRenderingContext2D = <
       OffscreenCanvasRenderingContext2D
@@ -605,6 +616,8 @@ export class Text extends RenderingBuilder {
 
     const bounds = this.bounds()
 
+    if (Math.floor(bounds.x) == 0 || Math.floor(bounds.y) == 0) return
+
     const canvas = new OffscreenCanvas(
       bounds.x / this.element.scale.x,
       bounds.y / this.element.scale.y
@@ -626,8 +639,6 @@ export class Text extends RenderingBuilder {
         0,
         measure.actualBoundingBoxAscent
       )
-
-    if (bounds.x == 0 || bounds.y == 0) return
 
     ctx.drawImage(canvas, 0, 0, bounds.x, bounds.y)
   }

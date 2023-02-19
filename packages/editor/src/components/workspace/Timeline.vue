@@ -518,13 +518,13 @@ function loop() {
 let startFrame = ref(-5)
 let endFrame = ref(EngineStore.length + 5)
 
-watch(
-  () => EngineStore.length,
-  () => {
-    startFrame.value = -5
-    endFrame.value = EngineStore.length - 1 + 5
-  }
-)
+// watch(
+//   () => EngineStore.length,
+//   () => {
+//     startFrame.value = -5
+//     endFrame.value = EngineStore.length - 1 + 5
+//   }
+// )
 
 function scroll(event: any) {
   const scrollX = event.deltaX / 1000
