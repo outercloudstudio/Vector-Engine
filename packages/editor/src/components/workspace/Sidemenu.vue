@@ -19,15 +19,19 @@
       <button
         :class="{ error: exportNameValidationResult.status == 'error' }"
         :disabled="
-          exportInProgress || exportNameValidationResult.status == 'error'
+          EditorStore.exportInProgress ||
+          exportNameValidationResult.status == 'error'
         "
-        @click="runExport"
+        @click="() => EditorStore.exportAnimation(exportName)"
       >
         Export
       </button>
 
-      <div id="loading-bar-wrapper" v-if="exportInProgress">
-        <div id="loading-bar" :style="{ width: exportProgress + '%' }"></div>
+      <div id="loading-bar-wrapper" v-if="EditorStore.exportInProgress">
+        <div
+          id="loading-bar"
+          :style="{ width: EditorStore.exportProgress + '%' }"
+        ></div>
       </div>
     </div>
 
@@ -248,54 +252,6 @@ const exportNameValidationResult = computed(() => {
 
   return { status: 'none' }
 })
-
-const exportInProgress = ref(false)
-const exportProgress = ref(0)
-
-async function runExport() {
-  exportInProgress.value = true
-  exportProgress.value = 0
-
-  // if (!WorkspaceStore.projectFolder) return
-
-  // const engine = new Engine(runtime, WorkspaceStore.markers)
-  // await engine.load()
-
-  // const exportsFolder = await WorkspaceStore.projectFolder.getDirectoryHandle(
-  //   'Exports'
-  // )
-
-  // const exportFolder = await exportsFolder.getDirectoryHandle(
-  //   exportName.value,
-  //   {
-  //     create: true,
-  //   }
-  // )
-
-  // const frameDigits = engine.length.toString().length
-
-  // for (let frame = 0; frame < engine.length; frame++) {
-  //   await engine.next()
-  //   const render = await engine.render()
-
-  //   // @ts-ignore
-  //   const renderBlob = await render.convertToBlob()
-
-  //   const frameFileHandle = await exportFolder.getFileHandle(
-  //     `frame_${frame.toString().padStart(frameDigits, '0')}.png`,
-  //     { create: true }
-  //   )
-
-  //   // @ts-ignore
-  //   const writable = await frameFileHandle.createWritable()
-  //   await writable.write(renderBlob)
-  //   await writable.close()
-
-  //   exportProgress.value = (frame / engine.length) * 100
-  // }
-
-  // exportInProgress.value = false
-}
 
 const openMenu = ref('none')
 

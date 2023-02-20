@@ -67,6 +67,10 @@ export default async function VectorEngine(configURI: string) {
         window.addEventListener('send:update-data', event => {
           import.meta.hot.send('vector-engine:update-data', event.detail)
         })
+
+        window.addEventListener('send:export', event => {
+          import.meta.hot.send('vector-engine:export', event.detail)
+        })
         `
       }
     },
@@ -137,6 +141,38 @@ export default async function VectorEngine(configURI: string) {
           path: data,
           result: fs.readFileSync(data),
         })
+      })
+
+      server.ws.on('vector-engine:export', (data, client) => {
+        const { name, image } = data
+
+        if (!fs.existsSync(path.posix.join(projectFolder, 'Exports')))
+          fs.mkdirSync(path.posix.join(projectFolder, 'Exports'))
+
+        if (
+          !fs.existsSync(
+            path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
+          )
+        )
+          fs.mkdirSync(
+            path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
+          )
+
+        try {
+          const imageArray = []
+          for (const item of Object.values(image)) {
+            imageArray.push(item)
+          }
+
+          const buffer = Buffer.from(imageArray)
+
+          fs.writeFileSync(
+            path.posix.join(projectFolder, 'Exports', name),
+            buffer
+          )
+        } catch (err) {
+          console.log(err)
+        }
       })
     },
     async handleHotUpdate(ctx) {

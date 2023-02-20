@@ -10,7 +10,7 @@ export const project = async ({
   audioTrack,
 }: any) => {
   frameRate(60)
-  length(seconds(3))
+  length(2)
 
   audioTrack(audio)
 

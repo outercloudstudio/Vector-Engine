@@ -21,6 +21,9 @@ export const useEditorStore = defineStore('EditorStore', () => {
 
   const muted: Ref<boolean> = ref(false)
 
+  const exportInProgress = ref(false)
+  const exportProgress = ref(0)
+
   const setupHMRServer: Ref<boolean> = ref(false)
 
   if (!setupHMRServer.value) {
@@ -400,6 +403,44 @@ export const useEditorStore = defineStore('EditorStore', () => {
     EngineStore.updatedDataEvent++
   }
 
+  async function exportAnimation(name: string) {
+    if (exportProgress.value) return
+
+    exportInProgress.value = true
+    exportProgress.value = 0
+
+    const engine = new Engine(EngineStore.project, EngineStore.markers, false)
+    await engine.load()
+
+    const frameDigits = engine.length.toString().length
+
+    for (let frame = 0; frame < engine.length; frame++) {
+      const frameName = `${name}/frame_${frame
+        .toString()
+        .padStart(frameDigits, '0')}.png`
+
+      await engine.next()
+
+      const render = await engine.render()
+      const renderBlob: Blob = await (<any>render).convertToBlob()
+      const arrayBuffer = await renderBlob.arrayBuffer()
+      const byteArray = new Uint8Array(arrayBuffer, 0, arrayBuffer.byteLength)
+
+      window.dispatchEvent(
+        new CustomEvent('send:export', {
+          detail: {
+            name: frameName,
+            image: byteArray,
+          },
+        })
+      )
+
+      exportProgress.value = (frame / engine.length) * 100
+    }
+
+    exportInProgress.value = false
+  }
+
   return {
     playing,
     play,
@@ -427,5 +468,8 @@ export const useEditorStore = defineStore('EditorStore', () => {
     audioDestination,
     updateVolume,
     volume,
+    exportAnimation,
+    exportInProgress,
+    exportProgress,
   }
 })
