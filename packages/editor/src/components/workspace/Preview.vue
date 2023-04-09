@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, Ref, watch } from 'vue'
-import { useEngineStore } from '@/stores/EngineStore'
+import { useEngineStore } from '../../stores/EngineStore'
 
 const EngineStore = useEngineStore()
 

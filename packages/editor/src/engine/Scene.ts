@@ -1,8 +1,8 @@
-import { Engine } from '@/engine/Engine'
-import { uuid } from '@/engine/Math'
-import { Element } from '@/engine/Element'
-import { isGenerator } from '@/engine/Utils'
-import { Vector } from '@/engine/Vector'
+import { Engine } from '../engine/Engine'
+import { uuid } from '../engine/Math'
+import { Element } from '../engine/Element'
+import { isGenerator } from '../engine/Utils'
+import { Vector } from '../engine/Vector'
 import {
   Rect,
   Ellipse,
@@ -12,7 +12,7 @@ import {
   Builder,
   TransformBuilder,
   RenderingBuilder,
-} from '@/engine/Builders'
+} from '../engine/Builders'
 
 export function useSceneContext(scene: Scene) {
   return {

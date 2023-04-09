@@ -22,22 +22,12 @@ export default async function* ({
   defineName('Perlin Noise')
 
   const stageLabel = createElement(Builders.Text, {
-    text: 'Biomes',
-    position: relative(new Vector(0, 1)).add(new Vector(75, -50)),
-    origin: new Vector(0, 0.5),
-    size: 30,
-    color: new Vector(217, 217, 217, 1).divide(new Vector(255, 255, 255, 1)),
+    text: 'Tree Survival %',
+    position: relative(new Vector(0.5, 0.5)),
+    origin: new Vector(0.5, 0.5),
+    size: 20,
+    color: new Vector(0, 0, 0, 1),
   })
-
-  for (let i = 0; i < 3000; i++) {
-    aside(
-      (async function* () {
-        yield* wait(frames(1))
-      })()
-    )
-  }
-
-  yield stageLabel.animateSize(0, 0.5, Modes.Linear)
 
   // for (let x = 0; x < 16; x++) {
   //   for (let y = 0; y < 16; y++) {

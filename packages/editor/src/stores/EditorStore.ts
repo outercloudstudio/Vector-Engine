@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, Ref, ref, watch } from 'vue'
-import { useEngineStore } from '@/stores/EngineStore'
-import { Engine } from '@/engine/Engine'
+import { useEngineStore } from '../stores/EngineStore'
+import { Engine } from '../engine/Engine'
 
 export const useEditorStore = defineStore('EditorStore', () => {
   const EngineStore = useEngineStore()

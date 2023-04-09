@@ -3,4 +3,10 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import './style.css'
 
-createApp(App).use(createPinia()).mount('#app')
+export function VectorEngine(project: any) {
+  createApp(App, {
+    project,
+  })
+    .use(createPinia())
+    .mount('#app')
+}

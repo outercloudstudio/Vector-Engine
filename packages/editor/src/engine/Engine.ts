@@ -1,4 +1,4 @@
-import { Scene } from '@/engine/Scene'
+import { Scene } from '../engine/Scene'
 
 function useProjectContext(engine: Engine, forReload?: boolean) {
   return {

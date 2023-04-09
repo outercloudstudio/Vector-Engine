@@ -1,6 +1,6 @@
-import { Vector } from '@/engine/Vector'
-import { Element } from '@/engine/Element'
-import { lerp } from '@/engine/Math'
+import { Vector } from '../engine/Vector'
+import { Element } from '../engine/Element'
+import { lerp } from '../engine/Math'
 
 export class Builder {
   element: Element
@@ -532,6 +532,8 @@ export class Image extends RenderingBuilder {
     const offsetX = (bestWidth - bounds.x) / 2
     const offsetY = (bestHeight - bounds.y) / 2
 
+    ctx.imageSmoothingEnabled = false
+
     ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`
     ctx.fillRect(0, 0, bounds.x, bounds.y)
     ctx.globalCompositeOperation = 'multiply'
@@ -632,12 +634,20 @@ export class Text extends RenderingBuilder {
     unscaledCtx.font = `${this.element.size}px ${this.element.font}`
 
     const measure = unscaledCtx.measureText(this.element.text)
-    unscaledCtx.fillText(this.element.text, 0, measure.actualBoundingBoxAscent)
+
+    console.log(measure)
+
+    unscaledCtx.fillText(
+      this.element.text,
+      0,
+      measure.actualBoundingBoxAscent - 1
+    )
+
     if (this.element.outlineWidth != 0)
       unscaledCtx.strokeText(
         this.element.text,
         0,
-        measure.actualBoundingBoxAscent
+        measure.actualBoundingBoxAscent - 1
       )
 
     ctx.drawImage(canvas, 0, 0, bounds.x, bounds.y)

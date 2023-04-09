@@ -98,13 +98,13 @@
 </template>
 
 <script setup lang="ts">
-import Toggle from '@/components/Toggle.vue'
+import Toggle from '../../components/Toggle.vue'
 
-import { Engine } from '@/engine/Engine'
+import { Engine } from '../../engine/Engine'
 import { computed, onMounted, Ref, ref, watch } from 'vue'
 
-import { useEditorStore } from '@/stores/EditorStore'
-import { useEngineStore } from '@/stores/EngineStore'
+import { useEditorStore } from '../../stores/EditorStore'
+import { useEngineStore } from '../../stores/EngineStore'
 
 const EditorStore = useEditorStore()
 const EngineStore = useEngineStore()

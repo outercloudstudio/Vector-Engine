@@ -2,7 +2,7 @@
   "name": "@vector-engine/editor",
   "version": "0.0.0",
   "type": "module",
-  "main": "index.html",
+  "main": "src/main.ts",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { Ref, ref, computed, watch } from 'vue'
-import { Engine } from '@/engine/Engine'
+import { Engine } from '../engine/Engine'
 
 export const useEngineStore = defineStore('EngineStore', () => {
   const project: Ref<any> = ref(undefined)

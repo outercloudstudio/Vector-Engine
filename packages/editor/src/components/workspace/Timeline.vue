@@ -110,8 +110,8 @@
 <script setup lang="ts">
 import { onMounted, Ref, ref, watch, computed } from 'vue'
 
-import { useEngineStore } from '@/stores/EngineStore'
-import { useEditorStore } from '@/stores/EditorStore'
+import { useEngineStore } from '../../stores/EngineStore'
+import { useEditorStore } from '../../stores/EditorStore'
 
 const EngineStore = useEngineStore()
 const EditorStore = useEditorStore()

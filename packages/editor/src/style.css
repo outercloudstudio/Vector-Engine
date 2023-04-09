@@ -18,7 +18,12 @@
 
 @font-face {
   font-family: JetBrainsMono;
-  src: url('@/assets/JetBrainsMono.ttf');
+  src: url('./assets/JetBrainsMono.ttf');
+}
+
+@font-face {
+  font-family: Mulish;
+  src: url('./assets/Mulish.ttf');
 }
 
 .material-symbols-rounded {

@@ -52,14 +52,14 @@
 </template>
 
 <script setup lang="ts">
-import NavBar from '@/components/NavBar.vue'
-import Timeline from '@/components/workspace/Timeline.vue'
-import Preview from '@/components/workspace/Preview.vue'
-import Sidemenu from '@/components/workspace/Sidemenu.vue'
-import AlertPopup from '@/components/popups/AlertPopup.vue'
+import NavBar from './components/NavBar.vue'
+import Timeline from './components/workspace/Timeline.vue'
+import Preview from './components/workspace/Preview.vue'
+import Sidemenu from './components/workspace/Sidemenu.vue'
+import AlertPopup from './components/popups/AlertPopup.vue'
 
 import { ref, onMounted, Ref } from 'vue'
-import { useEngineStore } from '@/stores/EngineStore'
+import { useEngineStore } from './stores/EngineStore'
 
 const props = defineProps(['project', 'data'])
 
@@ -68,20 +68,32 @@ const EngineStore = useEngineStore()
 const sideMenu: Ref<null | typeof Sidemenu> = ref(null)
 
 onMounted(async () => {
-  window.addEventListener('project', async project => {
-    await EngineStore.makeEngine(
-      (<CustomEvent>project).detail.project,
-      (<CustomEvent>project).detail.data
-    )
-  })
+  if (import.meta.hot) {
+    import.meta.hot.send('vector-engine:load')
 
-  if (import.meta.env.DEV) {
-    ;(await import('@/dev/dev')).default()
+    import.meta.hot.on('vector-engine:load', async (data: any) => {
+      await EngineStore.makeEngine(props.project, data)
+    })
+
+    import.meta.hot.on('vector-engine:update', async (project: any) => {
+      await EngineStore.remakeEngine(props.project)
+    })
   }
 
-  window.addEventListener('project-update', async project => {
-    await EngineStore.remakeEngine((<CustomEvent>project).detail)
-  })
+  // window.addEventListener('project', async project => {
+  //   await EngineStore.makeEngine(
+  //     (<CustomEvent>project).detail.project,
+  //     (<CustomEvent>project).detail.data
+  //   )
+  // })
+
+  // if (import.meta.env.DEV) {
+  //   ;(await import('./dev/dev')).default()
+  // }
+
+  // window.addEventListener('project-update', async project => {
+  //   await EngineStore.remakeEngine((<CustomEvent>project).detail)
+  // })
 })
 </script>
 
