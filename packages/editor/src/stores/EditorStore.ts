@@ -24,20 +24,6 @@ export const useEditorStore = defineStore('EditorStore', () => {
   const exportInProgress = ref(false)
   const exportProgress = ref(0)
 
-  const setupHMRServer: Ref<boolean> = ref(false)
-
-  if (!setupHMRServer.value) {
-    console.warn('Setting up HMR...')
-
-    setupHMRServer.value = true
-
-    window.addEventListener('on:update-data', event => {
-      EngineStore.data = (<CustomEvent>event).detail
-
-      EngineStore.updatedDataEvent++
-    })
-  }
-
   const audioContext: Ref<AudioContext> = ref(
     new AudioContext({
       latencyHint: 'interactive',

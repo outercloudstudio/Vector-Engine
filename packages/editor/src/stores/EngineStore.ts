@@ -51,6 +51,25 @@ export const useEngineStore = defineStore('EngineStore', () => {
     reloadEngineEvent.value++
   }
 
+  async function remakeData(newData: any) {
+    engine.value = new Engine(
+      project.value,
+      newData.project.markers,
+      false,
+      (error: any) => {
+        errors.value.push(error)
+      }
+    )
+
+    await engine.value.load()
+
+    console.warn('Loaded engine...')
+
+    await setFrame(frame.value)
+
+    reloadEngineEvent.value++
+  }
+
   async function render(frame: number): Promise<OffscreenCanvas> {
     if (!engine.value)
       throw new Error('Tried rendering before engine was made!')
@@ -109,6 +128,7 @@ export const useEngineStore = defineStore('EngineStore', () => {
     project,
     makeEngine,
     remakeEngine,
+    remakeData,
     loaded,
     reloadEngineEvent,
     render,

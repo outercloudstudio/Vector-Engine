@@ -1,5 +1,4 @@
 import path from 'path'
-// import { resolve } from 'import-meta-resolve'
 import fs from 'fs'
 import url from 'url'
 
@@ -8,98 +7,96 @@ function posix(pathStr: string) {
 }
 
 export default async function VectorEngine(configURI: string) {
-  // const virtualInjectPackage = 'virtual:@vector-engine/inject'
-  // const resolvedVirtualInjectPackage = '\0' + virtualInjectPackage
+  const virtualInjectPackage = 'virtual:@vector-engine/inject'
+  const resolvedVirtualInjectPackage = '\0' + virtualInjectPackage
 
-  // const virtualProjectPackage = 'virtual:@vector-engine/project'
+  const virtualProjectPackage = 'virtual:@vector-engine/project'
 
-  // const virtualDataPackage = 'virtual:@vector-engine/data'
-
-  // const editorDistFolder = path.posix.join(
-  //   posix(
-  //     path.dirname(
-  //       url.fileURLToPath(
-  //         await resolve('@vector-engine/editor', import.meta.url)
-  //       )
-  //     )
-  //   ),
-  //   'dist'
-  // )
-
-  // const editorIndexPath = path.posix.join(editorDistFolder, 'index.html')
+  const virtualDataPackage = 'virtual:@vector-engine/data'
 
   const projectFolder = path.posix.join(
     posix(path.dirname(url.fileURLToPath(configURI))),
     'src'
   )
-  // const project = path.posix.join(projectFolder, '/src/main.ts')
-  // const dataFile = path.posix.join(projectFolder, '/data.json')
-
-  // let indexFile = ''
+  const project = path.posix.join(
+    posix(path.dirname(url.fileURLToPath(configURI))),
+    'src',
+    'main.ts'
+  )
+  const dataFile = path.posix.join(
+    posix(path.dirname(url.fileURLToPath(configURI))),
+    'data.json'
+  )
 
   return {
     name: 'vector-engine',
     resolveId(id: string) {
-      console.log('💥 Resolving:', id)
+      console.log('💥 Resolving: ', id)
 
-      // if (id === virtualInjectPackage) {
-      //   return resolvedVirtualInjectPackage
-      // } else if (id === virtualProjectPackage) {
-      //   return project
-      // } else if (id === virtualDataPackage) {
-      //   return dataFile
-      // } else if (id.startsWith('/')) {
-      //   return path.posix.join(editorDistFolder, id)
-      // }
+      if (id === virtualInjectPackage) {
+        return resolvedVirtualInjectPackage
+      } else if (id === virtualProjectPackage) {
+        console.log(project)
+
+        return project
+      } else if (id === virtualDataPackage) {
+        return dataFile
+      }
     },
     load(id: string) {
       console.log('💾 Loading:', id)
 
-      // if (id === resolvedVirtualInjectPackage) {
-      //   return `
-      //   import * as index from '${indexFile}'
-      //   import data from 'virtual:@vector-engine/data'
-      //   import { project } from 'virtual:@vector-engine/project'
+      if (id === resolvedVirtualInjectPackage) {
+        return `
+        import data from 'virtual:@vector-engine/data'
+        import { project } from 'virtual:@vector-engine/project'
+        import { VectorEngine } from '@vector-engine/editor'
 
-      //   window.dispatchEvent(new CustomEvent('project', { detail: { project, data } }))
+        VectorEngine()
 
-      //   import.meta.hot.on('vector-engine:update-data', data => {
-      //     window.dispatchEvent(new CustomEvent('on:data-update', { detail: data }))
-      //   })
+        window.dispatchEvent(new CustomEvent('project', { detail: { project, data } }))
 
-      //   window.addEventListener('send:update-data', event => {
-      //     import.meta.hot.send('vector-engine:update-data', event.detail)
-      //   })
+        import.meta.hot.on('vector-engine:project-update', project => {
+          window.dispatchEvent(new CustomEvent('project-update', { detail: project }))
+        })
 
-      //   window.addEventListener('send:export', event => {
-      //     import.meta.hot.send('vector-engine:export', event.detail)
-      //   })
-      //   `
-      // }
+        import.meta.hot.on('vector-engine:update-data', data => {
+          window.dispatchEvent(new CustomEvent('data-update', { detail: data }))
+        })
+
+        window.addEventListener('update-data', event => {
+          import.meta.hot.send('vector-engine:update-data', event.detail)
+        })
+
+        window.addEventListener('export', event => {
+          import.meta.hot.send('vector-engine:export', event.detail)
+        })
+        `
+      }
     },
     transform(code, id) {
       console.log('⚙️ Transforming: ', id)
 
-      // if (id.endsWith('.mp3') || id.endsWith('.wav')) {
-      //   return `
-      //   import { loadAudio } from '@vector-engine/core'
-      //   export default await loadAudio('${id}')
-      //   `
-      // } else if (id.endsWith('.png')) {
-      //   return `
-      //   import { loadImage } from '@vector-engine/core'
-      //   export default await loadImage('${id}')
-      //   `
-      // } else if (id == project) {
-      //   return (
-      //     code +
-      //     `
-      //   import.meta.hot.accept(newModule => {
-      //     window.dispatchEvent(new CustomEvent('project-update', { detail: newModule.project }))
-      //   })
-      //   `
-      //   )
-      // }
+      if (id.endsWith('.mp3') || id.endsWith('.wav')) {
+        return `
+        import { loadAudio } from '@vector-engine/core'
+        export default await loadAudio('${id}')
+        `
+      } else if (id.endsWith('.png')) {
+        return `
+        import { loadImage } from '@vector-engine/core'
+        export default await loadImage('${id}')
+        `
+      } else if (id == project) {
+        return (
+          code +
+          `
+          import.meta.hot.accept(newModule => {
+            window.dispatchEvent(new CustomEvent('project-update', { detail: newModule.project }))
+          })
+          `
+        )
+      }
     },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
@@ -109,19 +106,6 @@ export default async function VectorEngine(configURI: string) {
         console.log('❓ Fetching:', req.url)
 
         if (req.url === '/') {
-          // let html = fs.readFileSync(editorIndexPath).toString()
-
-          // const relativeIndexFile = html
-          //   .split('<script type="module" crossorigin src="')[1]
-          //   .split('"></script>')[0]
-
-          // html = html.replace(
-          //   relativeIndexFile,
-          //   '/@id/__x00__virtual:@vector-engine/inject'
-          // )
-
-          // indexFile = path.posix.join(editorDistFolder, relativeIndexFile)
-
           res.setHeader('Content-Type', 'text/html')
           res.end(
             `
@@ -141,7 +125,7 @@ export default async function VectorEngine(configURI: string) {
               </head>
               <body>
                 <div id="app"></div>
-                <script type="module" src="/main.ts"></script>
+                <script type="module" src="/@id/__x00__virtual:@vector-engine/inject"></script>
               </body>
             </html>
             `
@@ -149,93 +133,64 @@ export default async function VectorEngine(configURI: string) {
 
           return
         }
-        // else if (req.url.startsWith('/assets')) {
-        //   res.end(fs.readFileSync(path.posix.join(editorDistFolder, req.url)))
-
-        //   return
-        // }
 
         next()
       })
 
-      server.ws.on('vector-engine:load', (data, client) => {
-        client.send(
-          'vector-engine:load',
-          JSON.parse(fs.readFileSync('./data.json').toString())
-        )
+      server.ws.on('vector-engine:update-data', (data, client) => {
+        fs.writeFileSync(dataFile, JSON.stringify(data, null, 2))
       })
 
-      // server.ws.on('vector-engine:update-data', (data, client) => {
-      //   fs.writeFileSync(dataFile, JSON.stringify(data, null, 2))
-      // })
+      server.ws.on('vector-engine:load-content', (data, client) => {
+        client.send('vector-engine:load-content', {
+          path: data,
+          result: fs.readFileSync(data),
+        })
+      })
 
-      // server.ws.on('vector-engine:load-content', (data, client) => {
-      //   client.send('vector-engine:load-content', {
-      //     path: data,
-      //     result: fs.readFileSync(data),
-      //   })
-      // })
+      server.ws.on('vector-engine:export', (data, client) => {
+        const { name, image } = data
 
-      // server.ws.on('vector-engine:export', (data, client) => {
-      //   const { name, image } = data
+        if (!fs.existsSync(path.posix.join(projectFolder, 'Exports')))
+          fs.mkdirSync(path.posix.join(projectFolder, 'Exports'))
 
-      //   if (!fs.existsSync(path.posix.join(projectFolder, 'Exports')))
-      //     fs.mkdirSync(path.posix.join(projectFolder, 'Exports'))
+        if (
+          !fs.existsSync(
+            path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
+          )
+        )
+          fs.mkdirSync(
+            path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
+          )
 
-      //   if (
-      //     !fs.existsSync(
-      //       path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
-      //     )
-      //   )
-      //     fs.mkdirSync(
-      //       path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
-      //     )
+        try {
+          const imageArray = []
+          for (const item of Object.values(image)) {
+            imageArray.push(item)
+          }
 
-      //   try {
-      //     const imageArray = []
-      //     for (const item of Object.values(image)) {
-      //       imageArray.push(item)
-      //     }
+          const buffer = Buffer.from(imageArray)
 
-      //     const buffer = Buffer.from(imageArray)
-
-      //     fs.writeFileSync(
-      //       path.posix.join(projectFolder, 'Exports', name),
-      //       buffer
-      //     )
-      //   } catch (err) {
-      //     console.log(err)
-      //   }
-      // })
+          fs.writeFileSync(
+            path.posix.join(projectFolder, 'Exports', name),
+            buffer
+          )
+        } catch (err) {
+          console.log(err)
+        }
+      })
     },
     async handleHotUpdate(ctx) {
       console.log('⚠️ HMR update for ', ctx.file)
 
-      if (ctx.file.startsWith(projectFolder)) {
-        ctx.server.ws.send('vector-engine:update')
+      if (ctx.file == dataFile) {
+        ctx.server.ws.send(
+          'vector-engine:update-data',
+          JSON.parse(await ctx.read())
+        )
 
         return []
       }
-
-      // console.log(ctx.modules)
-
-      // if (ctx.file == dataFile) {
-      //   // console.log('HMR updating data file!')
-
-      //   ctx.server.ws.send(
-      //     'vector-engine:update-data',
-      //     JSON.parse(await ctx.read())
-      //   )
-
-      //   return []
-      // }
-      // // else if (ctx.file.startsWith(projectFolder)) {
-      // //   // console.log('HMR updating project file!')
-
-      // //   ctx.server.ws.send('vector-engine:update-project')
-
-      // //   return []
-      // // }
     },
   }
 }

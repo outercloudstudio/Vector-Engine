@@ -68,32 +68,20 @@ const EngineStore = useEngineStore()
 const sideMenu: Ref<null | typeof Sidemenu> = ref(null)
 
 onMounted(async () => {
-  if (import.meta.hot) {
-    import.meta.hot.send('vector-engine:load')
+  window.addEventListener('project', async project => {
+    await EngineStore.makeEngine(
+      (<CustomEvent>project).detail.project,
+      (<CustomEvent>project).detail.data
+    )
+  })
 
-    import.meta.hot.on('vector-engine:load', async (data: any) => {
-      await EngineStore.makeEngine(props.project, data)
-    })
+  window.addEventListener('project-update', async project => {
+    await EngineStore.remakeEngine((<CustomEvent>project).detail)
+  })
 
-    import.meta.hot.on('vector-engine:update', async (project: any) => {
-      await EngineStore.remakeEngine(props.project)
-    })
-  }
-
-  // window.addEventListener('project', async project => {
-  //   await EngineStore.makeEngine(
-  //     (<CustomEvent>project).detail.project,
-  //     (<CustomEvent>project).detail.data
-  //   )
-  // })
-
-  // if (import.meta.env.DEV) {
-  //   ;(await import('./dev/dev')).default()
-  // }
-
-  // window.addEventListener('project-update', async project => {
-  //   await EngineStore.remakeEngine((<CustomEvent>project).detail)
-  // })
+  window.addEventListener('data-update', async data => {
+    await EngineStore.remakeData((<CustomEvent>data).detail)
+  })
 })
 </script>
 

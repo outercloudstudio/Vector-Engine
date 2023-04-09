@@ -1,5 +1,4 @@
-import audio from '../Assets/Full.mp3'
-import image from '../Assets/test.png'
+import { loadAudio, loadImage } from '@vector-engine/core'
 
 export default async function* ({
   Vector,
@@ -13,6 +12,8 @@ export default async function* ({
   defineName,
 }: any) {
   defineName('Sample Scene')
+
+  await loadImage('./Assets/test.png')
 
   const square = createElement(Builders.Rect, {
     position: relative(new Vector(0.2, 0.5)),
