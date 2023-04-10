@@ -1,7 +1,7 @@
 {
   "name": "@vector-engine/core",
   "version": "0.0.0",
-  "main": "lib/main.js",
+  "main": "src/main",
   "license": "MIT",
   "type": "module",
   "scripts": {

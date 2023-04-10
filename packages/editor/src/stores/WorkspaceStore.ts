@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { Ref, ref, computed, watch } from 'vue'
-import { Engine } from '../engine/Engine'
+import { Engine } from '@vector-engine/core'
 
 export const useWorkspaceStore = defineStore('WorkspaceStore', () => {
   let projectFolder: Ref<FileSystemDirectoryHandle | undefined> = ref(undefined)

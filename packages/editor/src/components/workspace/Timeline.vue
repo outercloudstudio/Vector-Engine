@@ -562,6 +562,9 @@ const alternateTextColor = '#a7a7a7'
 
 function render() {
   if (!canvas.value) return
+
+  if (!EngineStore.loaded) return
+
   const ctx = canvas.value.getContext('2d')!
   ctx.clearRect(0, 0, canvas.value.width, canvas.value.height)
 
@@ -845,6 +848,8 @@ function render() {
 }
 
 watch(() => EngineStore.frame, render)
+
+watch(() => EngineStore.loaded, render)
 
 watch(() => EngineStore.updatedDataEvent, render)
 

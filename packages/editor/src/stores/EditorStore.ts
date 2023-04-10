@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, Ref, ref, watch } from 'vue'
 import { useEngineStore } from '../stores/EngineStore'
-import { Engine } from '../engine/Engine'
+import { Engine } from '@vector-engine/core'
 
 export const useEditorStore = defineStore('EditorStore', () => {
   const EngineStore = useEngineStore()
@@ -86,31 +86,31 @@ export const useEditorStore = defineStore('EditorStore', () => {
       return
     }
 
-    const engine = new Engine(EngineStore.project, EngineStore.markers, false)
+    // const engine = new Engine(EngineStore.project, EngineStore.markers, false)
 
-    await engine.load()
+    // await engine.load()
 
     let inference: { name: string; frame: number }[] = []
 
-    for (let frame = 0; frame < EngineStore.length; frame++) {
-      const scene = engine.scenes[engine.scenes.length - 1]
+    // for (let frame = 0; frame < EngineStore.length; frame++) {
+    //   const scene = engine.scenes[engine.scenes.length - 1]
 
-      if (scene) {
-        const sceneName = scene.name
+    //   if (scene) {
+    //     const sceneName = scene.name
 
-        if (
-          inference[inference.length - 1] == undefined ||
-          inference[inference.length - 1].name != sceneName
-        ) {
-          inference.push({
-            name: sceneName,
-            frame,
-          })
-        }
-      }
+    //     if (
+    //       inference[inference.length - 1] == undefined ||
+    //       inference[inference.length - 1].name != sceneName
+    //     ) {
+    //       inference.push({
+    //         name: sceneName,
+    //         frame,
+    //       })
+    //     }
+    //   }
 
-      await engine.next()
-    }
+    //   await engine.next()
+    // }
 
     sceneInference.value = inference
   }
@@ -236,12 +236,14 @@ export const useEditorStore = defineStore('EditorStore', () => {
     if (!playing.value) return
 
     const now = Date.now()
-    const newFrame =
+    let newFrame =
       Math.floor(
         ((now - startedPlayingTime.value) / 1000) *
           speed.value *
           EngineStore.frameRate
       ) + startedPlayingFrame.value
+
+    if (newFrame > EngineStore.length - 1) newFrame = EngineStore.length - 1
 
     await EngineStore.setFrame(newFrame)
 
@@ -392,37 +394,37 @@ export const useEditorStore = defineStore('EditorStore', () => {
   async function exportAnimation(name: string) {
     if (exportProgress.value) return
 
-    exportInProgress.value = true
-    exportProgress.value = 0
+    // exportInProgress.value = true
+    // exportProgress.value = 0
 
-    const engine = new Engine(EngineStore.project, EngineStore.markers, false)
-    await engine.load()
+    // const engine = new Engine(EngineStore.project, EngineStore.markers, false)
+    // await engine.load()
 
-    const frameDigits = engine.length.toString().length
+    // const frameDigits = engine.length.toString().length
 
-    for (let frame = 0; frame < engine.length; frame++) {
-      const frameName = `${name}/frame_${frame
-        .toString()
-        .padStart(frameDigits, '0')}.png`
+    // for (let frame = 0; frame < engine.length; frame++) {
+    //   const frameName = `${name}/frame_${frame
+    //     .toString()
+    //     .padStart(frameDigits, '0')}.png`
 
-      await engine.next()
+    //   await engine.next()
 
-      const render = await engine.render()
-      const renderBlob: Blob = await (<any>render).convertToBlob()
-      const arrayBuffer = await renderBlob.arrayBuffer()
-      const byteArray = new Uint8Array(arrayBuffer, 0, arrayBuffer.byteLength)
+    //   const render = await engine.render()
+    //   const renderBlob: Blob = await (<any>render).convertToBlob()
+    //   const arrayBuffer = await renderBlob.arrayBuffer()
+    //   const byteArray = new Uint8Array(arrayBuffer, 0, arrayBuffer.byteLength)
 
-      window.dispatchEvent(
-        new CustomEvent('send:export', {
-          detail: {
-            name: frameName,
-            image: byteArray,
-          },
-        })
-      )
+    //   window.dispatchEvent(
+    //     new CustomEvent('send:export', {
+    //       detail: {
+    //         name: frameName,
+    //         image: byteArray,
+    //       },
+    //     })
+    //   )
 
-      exportProgress.value = (frame / engine.length) * 100
-    }
+    //   exportProgress.value = (frame / engine.length) * 100
+    // }
 
     exportInProgress.value = false
   }

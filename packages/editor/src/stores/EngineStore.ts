@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { Ref, ref, computed, watch } from 'vue'
-import { Engine } from '../engine/Engine'
+import { Engine } from '@vector-engine/core'
 
 export const useEngineStore = defineStore('EngineStore', () => {
   const project: Ref<any> = ref(undefined)
@@ -18,6 +18,7 @@ export const useEngineStore = defineStore('EngineStore', () => {
 
     engine.value = new Engine(
       newProject,
+      newData.project.scenes,
       newData.project.markers,
       false,
       (error: any) => {
@@ -35,6 +36,7 @@ export const useEngineStore = defineStore('EngineStore', () => {
 
     engine.value = new Engine(
       newProject,
+      data.value.project.scenes,
       data.value.project.markers,
       false,
       (error: any) => {
@@ -54,6 +56,7 @@ export const useEngineStore = defineStore('EngineStore', () => {
   async function remakeData(newData: any) {
     engine.value = new Engine(
       project.value,
+      newData.project.scenes,
       newData.project.markers,
       false,
       (error: any) => {
@@ -81,18 +84,10 @@ export const useEngineStore = defineStore('EngineStore', () => {
   }
 
   async function setFrame(newFrame: number) {
-    if (!loaded) return
+    if (!loaded.value) return
     if (!engine.value) return
 
-    if (engine.value.frame > newFrame) await engine.value.reload()
-
-    for (
-      let engineFrame = engine.value.frame;
-      engineFrame < newFrame;
-      engineFrame++
-    ) {
-      await engine.value.next()
-    }
+    await engine.value.jumpToFrame(newFrame)
 
     frame.value = newFrame
   }

@@ -1,6 +1,6 @@
-import { Builder, RenderingBuilder } from '../engine/Builders'
-import { Scene } from '../engine/Scene'
-import { uuid } from '../engine/Math'
+import { Builder, RenderingBuilder } from './Builders'
+import { Scene } from './Scene'
+import { uuid } from './Math'
 
 export class Element {
   builder: Builder

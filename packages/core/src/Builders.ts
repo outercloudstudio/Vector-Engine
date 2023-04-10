@@ -1,6 +1,6 @@
-import { Vector } from '../engine/Vector'
-import { Element } from '../engine/Element'
-import { lerp } from '../engine/Math'
+import { Vector } from './Vector'
+import { Element } from './Element'
+import { lerp } from './Math'
 
 export class Builder {
   element: Element

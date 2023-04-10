@@ -6,6 +6,16 @@
         "frame": 0,
         "id": "e7cdd374-d4b8-47dc-992b-7311fc27479b"
       }
+    ],
+    "scenes": [
+      {
+        "name": "laggyScene",
+        "length": 20
+      },
+      {
+        "name": "scene",
+        "length": 20
+      }
     ]
   },
   "editor": {

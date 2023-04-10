@@ -1,8 +1,8 @@
-import { Engine } from '../engine/Engine'
-import { uuid } from '../engine/Math'
-import { Element } from '../engine/Element'
-import { isGenerator } from '../engine/Utils'
-import { Vector } from '../engine/Vector'
+import { Engine } from './Engine'
+import { uuid } from './Math'
+import { Element } from './Element'
+import { isGenerator } from './Utils'
+import { Vector } from './Vector'
 import {
   Rect,
   Ellipse,
@@ -12,7 +12,7 @@ import {
   Builder,
   TransformBuilder,
   RenderingBuilder,
-} from '../engine/Builders'
+} from './Builders'
 
 export function useSceneContext(scene: Scene) {
   return {
@@ -241,7 +241,7 @@ export function useSceneContext(scene: Scene) {
     },
 
     waitForTransition: function* () {
-      while (scene.engine.scenes[0].id != scene.id) yield null
+      while (scene.engine.sceneContexts[0].id != scene.id) yield null
     },
 
     lerp(a: number, b: number, t: number) {
@@ -362,11 +362,11 @@ export function useSceneContext(scene: Scene) {
 
       yield* transition({
         load() {
-          scene.engine.scenes.push(targetScene)
+          scene.engine.sceneContexts.push(targetScene)
         },
         unload() {
-          scene.engine.scenes.splice(
-            scene.engine.scenes.findIndex(s => s.id == scene.id),
+          scene.engine.sceneContexts.splice(
+            scene.engine.sceneContexts.findIndex(s => s.id == scene.id),
             1
           )
         },
@@ -454,7 +454,11 @@ export class Scene {
   }
 
   async next() {
-    if (this.context == undefined) return
+    if (this.context == undefined) {
+      console.warn('Undefined context!')
+
+      return
+    }
 
     const start = Date.now()
 
