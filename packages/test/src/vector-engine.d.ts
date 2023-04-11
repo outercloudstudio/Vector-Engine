@@ -4,6 +4,6 @@ declare module '*.mp3' {
 }
 
 declare module '*.png' {
-  const value: Image
+  const value: HTMLImageElement
   export default value
 }
