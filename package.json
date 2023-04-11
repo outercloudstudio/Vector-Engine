@@ -6,7 +6,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run build -w @vector-engine/core && npm run build -w @vector-engine/vite-plugin && npm run dev -w @vector-engine/test"
+    "dev": "npm run dev -w @vector-engine/test",
+    "vite": "npm run build -w @vector-engine/vite-plugin && npm run dev -w @vector-engine/test"
   },
   "dependencies": {
     "import-meta-resolve": "^2.2.1",

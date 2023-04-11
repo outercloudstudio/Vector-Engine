@@ -97,6 +97,9 @@ export const useEngineStore = defineStore('EngineStore', () => {
     loaded.value ? engine.value!.frameRate : 60
   )
   const length = computed(() => (loaded.value ? engine.value!.length : 60))
+  const scenes = computed(() =>
+    loaded.value && blockingErrors.value.length == 0 ? engine.value!.scenes : []
+  )
   const markers = computed(() =>
     loaded.value && blockingErrors.value.length == 0
       ? engine.value!.markers
@@ -133,6 +136,7 @@ export const useEngineStore = defineStore('EngineStore', () => {
     length,
     blockingErrors,
     errors,
+    scenes,
     markers,
     data,
     updatedDataEvent,

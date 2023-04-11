@@ -632,27 +632,28 @@ function render() {
     )
   }
 
+  let sceneStart = 0
+
   // Scenes
   for (
     let sceneIndex = 0;
-    sceneIndex < EditorStore.sceneInference.length;
+    sceneIndex < EngineStore.scenes.length;
     sceneIndex++
   ) {
-    const scene = EditorStore.sceneInference[sceneIndex]
+    const scene = EngineStore.scenes[sceneIndex]
 
     ctx.font = `${10 * canvasScale}px JetBrainsMono`
 
     const textWidth = ctx.measureText(scene.name).width + 8 * canvasScale
 
-    const frameWidth = EditorStore.sceneInference[sceneIndex + 1]
-      ? frameToRelativeX(EditorStore.sceneInference[sceneIndex + 1].frame) -
-        frameToRelativeX(scene.frame)
-      : frameToRelativeX(EngineStore.length) - frameToRelativeX(scene.frame)
+    const frameWidth = EngineStore.scenes[sceneIndex + 1]
+      ? frameToRelativeX(scene.length) - frameToRelativeX(sceneStart)
+      : frameToRelativeX(EngineStore.length) - frameToRelativeX(sceneStart)
 
     ctx.fillStyle = secondaryColor
     ctx.beginPath()
     roundRect(
-      frameToRelativeX(scene.frame),
+      frameToRelativeX(sceneStart),
       38 * canvasScale,
       Math.max(0, frameWidth - 4 * canvasScale),
       16 * canvasScale,
@@ -660,14 +661,20 @@ function render() {
     )
     ctx.fill()
 
-    if (textWidth > frameWidth) continue
+    if (textWidth > frameWidth) {
+      sceneStart += scene.length
+
+      continue
+    }
 
     ctx.fillStyle = textColor
     ctx.fillText(
       scene.name,
-      frameToRelativeX(scene.frame) + 4 * canvasScale,
+      frameToRelativeX(sceneStart) + 4 * canvasScale,
       42 * canvasScale + ctx.measureText(scene.name).actualBoundingBoxAscent
     )
+
+    sceneStart += scene.length
   }
 
   function roundRect(
@@ -855,7 +862,7 @@ watch(() => EngineStore.updatedDataEvent, render)
 
 watch(() => EditorStore.audioInference, render)
 
-watch(() => EditorStore.sceneInference, render)
+watch(() => EngineStore.scenes, render)
 
 watch(framesSelected, render)
 

@@ -1,29 +1,40 @@
-import { loadAudio, loadImage } from '@vector-engine/core'
+import { Ease, Rect, SceneContext, Vector, waitFor } from '@vector-engine/core'
 
 export default async function* ({
-  Vector,
-  Builders,
-  createElement,
-  Modes,
-  Transitions,
-  transition,
+  add,
+  remove,
   relative,
-  waitForMarker,
-  defineName,
-}: any) {
-  defineName('Sample Scene')
+  frames,
+  wait,
+  aside,
+}: SceneContext) {
+  const square = add(
+    new Rect({
+      position: relative(new Vector(0.2, 0.5)),
+      size: new Vector(500, 500),
+      outline: new Vector(1, 0, 0, 1),
+      outlineWidth: 10,
+      radius: 50,
+      rotation: 45,
+    })
+  )
 
-  await loadImage('./Assets/test.png')
+  yield* wait(0.5)
 
-  const square = createElement(Builders.Rect, {
-    position: relative(new Vector(0.2, 0.5)),
-    size: new Vector(500, 500),
-    outlineColor: new Vector(1, 0, 0, 1),
-    outlineWidth: 10,
-    radius: 50,
+  remove(square)
+
+  // yield* waitForMarker('Start')
+
+  // yield* square.animatePosition(relative(new Vector(0.8, 0.5)), 0.5, Modes.Ease)
+
+  const rotateAside = await aside(async function* () {
+    while (true) {
+      yield* await square.animateRotation(-45, 1, Ease)
+      yield* square.animateRotation(45, 1, Ease)
+    }
   })
 
-  yield* waitForMarker('Start')
+  yield* waitFor(rotateAside)
 
-  yield* square.animatePosition(relative(new Vector(0.8, 0.5)), 0.5, Modes.Ease)
+  yield* wait(frames(5))
 }

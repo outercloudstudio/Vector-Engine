@@ -61,6 +61,7 @@ const canvasScale = 2
 async function renderCanvas() {
   if (!wrapper.value) return
   if (!preview.value) return
+  if (!preview) return
 
   if (!EngineStore.loaded) return
 

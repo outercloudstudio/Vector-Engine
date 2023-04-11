@@ -6,7 +6,6 @@ import { Engine } from '@vector-engine/core'
 export const useEditorStore = defineStore('EditorStore', () => {
   const EngineStore = useEngineStore()
 
-  const sceneInference: Ref<{ name: string; frame: number }[]> = ref([])
   const audioInference: Ref<number[]> = ref([])
 
   const playing: Ref<boolean> = ref(false)
@@ -79,42 +78,6 @@ export const useEditorStore = defineStore('EditorStore', () => {
 
   watch(() => EngineStore.reloadEngineEvent, runInferences)
 
-  async function runSceneInfereces() {
-    if (!inferenceScenes.value) {
-      sceneInference.value = []
-
-      return
-    }
-
-    // const engine = new Engine(EngineStore.project, EngineStore.markers, false)
-
-    // await engine.load()
-
-    let inference: { name: string; frame: number }[] = []
-
-    // for (let frame = 0; frame < EngineStore.length; frame++) {
-    //   const scene = engine.scenes[engine.scenes.length - 1]
-
-    //   if (scene) {
-    //     const sceneName = scene.name
-
-    //     if (
-    //       inference[inference.length - 1] == undefined ||
-    //       inference[inference.length - 1].name != sceneName
-    //     ) {
-    //       inference.push({
-    //         name: sceneName,
-    //         frame,
-    //       })
-    //     }
-    //   }
-
-    //   await engine.next()
-    // }
-
-    sceneInference.value = inference
-  }
-
   async function runAudioInferences() {
     if (!inferenceAudio.value) {
       audioInference.value = []
@@ -177,7 +140,6 @@ export const useEditorStore = defineStore('EditorStore', () => {
   }
 
   async function runInferences() {
-    await runSceneInfereces()
     await runAudioInferences()
   }
 
@@ -448,7 +410,6 @@ export const useEditorStore = defineStore('EditorStore', () => {
     audioInference,
     inferenceAudio,
     updateInferenceAudio,
-    sceneInference,
     inferenceScenes,
     updateInferenceScenes,
     audioContext,

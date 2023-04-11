@@ -1,4 +1,4 @@
-export function lerp(a: number, b: number, t: number) {
+export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
 
@@ -20,4 +20,8 @@ export function uuid() {
     }
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
   })
+}
+
+export function minutes(minutes: number) {
+  return minutes * 60
 }

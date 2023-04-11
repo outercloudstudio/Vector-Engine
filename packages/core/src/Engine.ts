@@ -1,6 +1,15 @@
 import { Scene } from './Scene'
 
-function useProjectContext(engine: Engine, forReload?: boolean) {
+export type ProjectContext = {
+  frameRate(frameRate: number): void
+  length(length: number): void
+  minutes(minutes: number): number
+  seconds(seconds: number): number
+  loadScenes(scenes: { [key: string]: any }): void
+  audioTrack(audio: AudioBuffer): void
+}
+
+function useProjectContext(engine: Engine): ProjectContext {
   return {
     frameRate(frameRate: number) {
       engine.frameRate = frameRate
@@ -22,9 +31,7 @@ function useProjectContext(engine: Engine, forReload?: boolean) {
       engine.sceneContexts = scenes
     },
 
-    audioTrack(audio: any) {
-      if (forReload) return
-
+    audioTrack(audio: AudioBuffer) {
       engine.audioTrack = audio
     },
   }
@@ -162,9 +169,9 @@ export class Engine {
       const sceneIndex = this.getSceneIndex(frame)
       const sceneStartFrame = this.getSceneStartFrame(sceneIndex)
 
-      await this.loadScene(sceneIndex)
-
       this.frame = sceneStartFrame
+
+      await this.loadScene(sceneIndex)
     }
 
     for (let engineFrame = this.frame; engineFrame < frame; engineFrame++) {

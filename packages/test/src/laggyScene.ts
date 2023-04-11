@@ -1,3 +1,5 @@
+import { SceneContext } from '@vector-engine/core'
+
 export default async function* ({
   Vector,
   Builders,
@@ -8,7 +10,7 @@ export default async function* ({
   relative,
   waitForMarker,
   defineName,
-}: any) {
+}: SceneContext) {
   defineName('Laggy Scene')
 
   for (let i = 0; i < 1000000000; i++) {}
