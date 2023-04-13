@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import url from 'url'
+import ffmpeg from 'fluent-ffmpeg'
 
 function posix(pathStr: string) {
   return pathStr.split(path.sep).join(path.posix.sep)
@@ -13,6 +14,8 @@ export default async function VectorEngine(configURI: string) {
   const virtualProjectPackage = 'virtual:@vector-engine/project'
 
   const virtualDataPackage = 'virtual:@vector-engine/data'
+
+  const projectBase = posix(path.dirname(url.fileURLToPath(configURI)))
 
   const projectFolder = path.posix.join(
     posix(path.dirname(url.fileURLToPath(configURI))),
@@ -68,8 +71,16 @@ export default async function VectorEngine(configURI: string) {
           import.meta.hot.send('vector-engine:update-data', event.detail)
         })
 
+        window.addEventListener('export-start', event => {
+          import.meta.hot.send('vector-engine:export-start', event.detail)
+        })
+
         window.addEventListener('export', event => {
           import.meta.hot.send('vector-engine:export', event.detail)
+        })
+
+        window.addEventListener('export-complete', event => {
+          import.meta.hot.send('vector-engine:export-complete', event.detail)
         })
         `
       }
@@ -148,20 +159,26 @@ export default async function VectorEngine(configURI: string) {
         })
       })
 
+      server.ws.on('vector-engine:start', (data, client) => {
+        const { name } = data
+
+        const exportsFolder = path.posix.join(projectBase, 'Exports')
+        const exportFolder = path.posix.join(exportsFolder, name)
+
+        if (!fs.existsSync(exportsFolder)) fs.mkdirSync(exportsFolder)
+
+        if (fs.existsSync(exportFolder))
+          fs.rmSync(exportFolder, {
+            recursive: true,
+          })
+
+        fs.mkdirSync(exportFolder)
+      })
+
       server.ws.on('vector-engine:export', (data, client) => {
         const { name, image } = data
 
-        if (!fs.existsSync(path.posix.join(projectFolder, 'Exports')))
-          fs.mkdirSync(path.posix.join(projectFolder, 'Exports'))
-
-        if (
-          !fs.existsSync(
-            path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
-          )
-        )
-          fs.mkdirSync(
-            path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))
-          )
+        const exportsFolder = path.posix.join(projectBase, 'Exports')
 
         try {
           const imageArray = []
@@ -171,16 +188,26 @@ export default async function VectorEngine(configURI: string) {
 
           const buffer = Buffer.from(imageArray)
 
-          fs.writeFileSync(
-            path.posix.join(projectFolder, 'Exports', name),
-            buffer
-          )
+          fs.writeFileSync(path.posix.join(exportsFolder, name), buffer)
         } catch (err) {
           console.log(err)
         }
       })
+
+      server.ws.on('vector-engine:export-complete', (data, client) => {
+        const { name } = data
+
+        const exportsFolder = path.posix.join(projectBase, 'Exports')
+        const exportFolder = path.posix.join(exportsFolder, name)
+
+        const frameFiles = fs.readdirSync(exportFolder)
+
+        console.log(frameFiles)
+      })
     },
     async handleHotUpdate(ctx) {
+      if (ctx.file.startsWith(path.posix.join(projectBase, 'Exports'))) return
+
       console.log('⚠️ HMR update for ', ctx.file)
 
       if (ctx.file == dataFile) {

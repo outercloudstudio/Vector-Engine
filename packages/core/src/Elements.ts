@@ -2,169 +2,335 @@ import { Scene } from './Scene'
 import { lerp, uuid } from './Math'
 import { Vector } from './Vector'
 import { color } from './Color'
+import {
+  ensureReactive,
+  OptionalReactor,
+  reactive,
+  Reactor,
+  unreactive,
+} from './Reactive'
 
 export class Element {
   scene: Scene | undefined
   id: string = uuid()
+}
 
-  constructor(options: {
-    [Property in keyof Element]?: Element[Property]
-  }) {
-    if (options != null) {
-      for (const option of Object.keys(options)) {
-        this[option] = options[option]
-      }
-    }
+function animatedVector(
+  me: any,
+  property: string,
+  value?: OptionalReactor<Vector>,
+  length?: number,
+  mode?: any
+): AsyncGenerator | Vector | void {
+  if (value === undefined) return me['_' + property]()
+
+  if (length === undefined) {
+    me['_' + property] = ensureReactive(value)
+
+    return
   }
+
+  return async function* () {
+    if (me.scene == undefined)
+      throw new Error('Can not animate without being added to a scene!')
+
+    const from = me['_' + property]()
+    const to = unreactive(value)
+
+    for (let i = 1; i <= Math.ceil(length * me.scene.engine.frameRate); i++) {
+      me['_' + property](
+        from.lerp(to, mode(i / Math.ceil(length * me.scene.engine.frameRate)))
+      )
+
+      yield null
+    }
+  }.call(me)
+}
+
+function animatedNumber(
+  me: any,
+  property: string,
+  value?: OptionalReactor<number>,
+  length?: number,
+  mode?: any
+): AsyncGenerator | number | void {
+  if (value === undefined) return me['_' + property]()
+
+  if (length === undefined) {
+    me['_' + property] = ensureReactive(value)
+
+    return
+  }
+
+  return async function* () {
+    if (me.scene == undefined)
+      throw new Error('Can not animate without being added to a scene!')
+
+    const from = me['_' + property]()
+    const to = unreactive(value)
+
+    for (let i = 1; i <= Math.ceil(length * me.scene.engine.frameRate); i++) {
+      me['_' + property](
+        lerp(from, to, mode(i / Math.ceil(length * me.scene.engine.frameRate)))
+      )
+
+      yield null
+    }
+  }.call(me)
 }
 
 export class TransformElement extends Element {
-  position: Vector = new Vector(0, 0, 0, 0)
-  rotation: number = 0
-  scale: Vector = new Vector(1, 1)
+  protected _position: Reactor<Vector> = reactive(new Vector(0, 0, 0, 0))
+  protected _rotation: Reactor<number> = reactive(0)
+  protected _scale: Reactor<Vector> = reactive(new Vector(1, 1))
 
-  async *animatePosition(vector: Vector, length: number, mode: any) {
-    if (this.scene == undefined)
-      throw new Error('Can not animate without being added to a scene!')
+  constructor(options?: {
+    position?: OptionalReactor<Vector>
+    rotation?: OptionalReactor<number>
+    scale?: OptionalReactor<Vector>
+  }) {
+    super()
 
-    const oldVectorClone = new Vector(
-      this.position.x,
-      this.position.y,
-      this.position.z,
-      this.position.w
-    )
+    if (options === undefined) return
 
-    const newVectorClone = new Vector(vector.x, vector.y, vector.z, vector.w)
+    if (options.position !== undefined)
+      this._position = ensureReactive(options.position)
 
-    for (let i = 1; i <= Math.ceil(length * this.scene.engine.frameRate); i++) {
-      this.position = oldVectorClone.lerp(
-        newVectorClone,
-        mode(i / Math.ceil(length * this.scene.engine.frameRate))
-      )
+    if (options.rotation !== undefined)
+      this._rotation = ensureReactive(options.rotation)
 
-      yield null
-    }
+    if (options.scale !== undefined) this._scale = ensureReactive(options.scale)
   }
 
-  async *animateRotation(value: number, length: number, mode: any) {
-    if (this.scene == undefined)
-      throw new Error('Can not animate without being added to a scene!')
-
-    const oldValue = this.rotation
-
-    for (let i = 1; i <= Math.ceil(length * this.scene.engine.frameRate); i++) {
-      this.rotation = lerp(
-        oldValue,
-        value,
-        mode(i / Math.ceil(length * this.scene.engine.frameRate))
-      )
-
-      yield null
-    }
+  public position(): Vector
+  public position(value: OptionalReactor<Vector>): void
+  public position(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public position(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'position', value, length, mode)
   }
 
-  async *animateScale(vector: Vector, length: number, mode: any) {
-    if (this.scene == undefined)
-      throw new Error('Can not animate without being added to a scene!')
+  public rotation(): number
+  public rotation(value: OptionalReactor<number>): void
+  public rotation(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public rotation(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'rotation', value, length, mode)
+  }
 
-    const oldVectorClone = new Vector(
-      this.scale.x,
-      this.scale.y,
-      this.scale.z,
-      this.scale.w
-    )
-
-    const newVectorClone = new Vector(vector.x, vector.y, vector.z, vector.w)
-
-    for (let i = 1; i <= Math.ceil(length * this.scene.engine.frameRate); i++) {
-      this.scale = oldVectorClone.lerp(
-        newVectorClone,
-        mode(i / Math.ceil(length * this.scene.engine.frameRate))
-      )
-
-      yield null
-    }
+  public scale(): Vector
+  public scale(value: OptionalReactor<Vector>): void
+  public scale(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public scale(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'scale', value, length, mode)
   }
 }
 
 export class RenderElement extends TransformElement {
-  origin: Vector = new Vector(0.5, 0.5)
+  protected _origin: Reactor<Vector> = reactive(new Vector(0.5, 0.5))
+
+  constructor(options?: {
+    position?: OptionalReactor<Vector>
+    rotation?: OptionalReactor<number>
+    scale?: OptionalReactor<Vector>
+    origin?: OptionalReactor<Vector>
+  }) {
+    super(options)
+
+    if (options === undefined) return
+
+    if (options.origin !== undefined)
+      this._origin = ensureReactive(options.origin)
+  }
 
   async render(canvas: OffscreenCanvas) {
     throw new Error('Render method not implemented.')
   }
 
-  async *animateOrigin(vector: Vector, length: number, mode: any) {
-    if (this.scene == undefined)
-      throw new Error('Can not animate without being added to a scene!')
-
-    const oldVectorClone = new Vector(
-      this.origin.x,
-      this.origin.y,
-      this.origin.z,
-      this.origin.w
-    )
-
-    const newVectorClone = new Vector(vector.x, vector.y, vector.z, vector.w)
-
-    for (let i = 1; i <= Math.ceil(length * this.scene.engine.frameRate); i++) {
-      this.origin = oldVectorClone.lerp(
-        newVectorClone,
-        mode(i / Math.ceil(length * this.scene.engine.frameRate))
-      )
-
-      yield null
-    }
+  public origin(): Vector
+  public origin(value: OptionalReactor<Vector>): void
+  public origin(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public origin(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'origin', value, length, mode)
   }
 }
 
 export class Rect extends RenderElement {
-  size: Vector = new Vector(100, 100)
-  color: Vector = color('#000000')
-  outline: Vector = color('#000000')
-  outlineWidth: number = 0
-  radius: number = 0
+  protected _size: Reactor<Vector> = reactive(new Vector(100, 100))
+  protected _color: Reactor<Vector> = reactive(color('#000000'))
+  protected _outline: Reactor<Vector> = reactive(color('#000000'))
+  protected _outlineWidth: Reactor<number> = reactive(0)
+  protected _radius: Reactor<number> = reactive(0)
 
-  constructor(options: {
-    [Property in keyof Rect]?: Rect[Property]
+  constructor(options?: {
+    position?: OptionalReactor<Vector>
+    rotation?: OptionalReactor<number>
+    scale?: OptionalReactor<Vector>
+    origin?: OptionalReactor<Vector>
+    size?: OptionalReactor<Vector>
+    color?: OptionalReactor<Vector>
+    outline?: OptionalReactor<Vector>
+    outlineWidth?: OptionalReactor<number>
+    radius?: OptionalReactor<number>
   }) {
-    super({})
+    super(options)
 
-    if (options != null) {
-      for (const option of Object.keys(options)) {
-        this[option] = options[option]
-      }
-    }
+    if (options === undefined) return
+
+    if (options.size !== undefined) this._size = ensureReactive(options.size)
+
+    if (options.color !== undefined) this._color = ensureReactive(options.color)
+
+    if (options.outline !== undefined)
+      this._outline = ensureReactive(options.outline)
+
+    if (options.outlineWidth !== undefined)
+      this._outlineWidth = ensureReactive(options.outlineWidth)
+
+    if (options.radius !== undefined)
+      this._radius = ensureReactive(options.radius)
+  }
+
+  public size(): Vector
+  public size(value: OptionalReactor<Vector>): void
+  public size(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public size(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'size', value, length, mode)
+  }
+
+  public color(): Vector
+  public color(value: OptionalReactor<Vector>): void
+  public color(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public color(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'color', value, length, mode)
+  }
+
+  public outline(): Vector
+  public outline(value: OptionalReactor<Vector>): void
+  public outline(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outline(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'outline', value, length, mode)
+  }
+
+  public outlineWidth(): number
+  public outlineWidth(value: OptionalReactor<number>): void
+  public outlineWidth(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outlineWidth(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'outlineWidth', value, length, mode)
+  }
+
+  public radius(): number
+  public radius(value: OptionalReactor<number>): void
+  public radius(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public radius(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'radius', value, length, mode)
   }
 
   async render(canvas: OffscreenCanvas) {
     const ctx = canvas.getContext('2d')
 
-    ctx.translate(this.position.x, this.position.y)
-    ctx.rotate((this.rotation * Math.PI) / 180)
-    ctx.translate(-this.size.x * this.origin.x, -this.size.y * this.origin.x)
+    const position = this._position()
+    const rotation = this._rotation()
+    const scale = this._scale()
+    const origin = this._origin()
+    const size = this._size()
+    const color = this._color()
+    const outline = this._outline()
+    const outlineWidth = this._outlineWidth()
+    const radius = this._radius()
 
-    const red = this.color.x * 255
-    const green = this.color.y * 255
-    const blue = this.color.z * 255
-    const alpha = this.color.w
+    ctx.translate(position.x, position.y)
+    ctx.rotate((rotation * Math.PI) / 180)
+    ctx.translate(-size.x * origin.x * scale.x, -size.y * origin.x * scale.y)
 
-    const outlineRed = this.outline.x * 255
-    const outlineGreen = this.outline.y * 255
-    const outlineBlue = this.outline.z * 255
-    const outlineAlpha = this.outline.w
+    const red = color.x * 255
+    const blue = color.y * 255
+    const green = color.z * 255
+    const alpha = color.w
+
+    const outlineRed = outline.x * 255
+    const outlineBlue = outline.y * 255
+    const outlineGreen = outline.z * 255
+    const outlineAlpha = outline.w
 
     ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
     ctx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
-    ctx.lineWidth = this.outlineWidth
+    ctx.lineWidth = outlineWidth
 
-    const width = this.size.x * this.scale.x
-    const height = this.size.y * this.scale.y
-    const radiusX = Math.min(Math.max(this.radius, 0) * this.scale.x, width / 2)
-    const radiusY = Math.min(
-      Math.max(this.radius, 0) * this.scale.y,
-      height / 2
-    )
+    const width = size.x * scale.x
+    const height = size.y * scale.y
+    const radiusX = Math.min(Math.max(radius, 0) * scale.x, width / 2)
+    const radiusY = Math.min(Math.max(radius, 0) * scale.y, height / 2)
 
     ctx.beginPath()
     ctx.moveTo(Math.min(radiusX, width / 2), 0)
@@ -179,58 +345,137 @@ export class Rect extends RenderElement {
     ctx.closePath()
 
     ctx.fill()
-    if (this.outlineWidth != 0) ctx.stroke()
+    if (outlineWidth != 0) ctx.stroke()
   }
 }
 
 export class Ellipse extends RenderElement {
-  size: Vector = new Vector(100, 100)
-  color: Vector = color('#000000')
-  outline: Vector = color('#000000')
-  outlineWidth: number = 0
+  protected _size: Reactor<Vector> = reactive(new Vector(100, 100))
+  protected _color: Reactor<Vector> = reactive(color('#000000'))
+  protected _outline: Reactor<Vector> = reactive(color('#000000'))
+  protected _outlineWidth: Reactor<number> = reactive(0)
 
-  constructor(options: {
-    [Property in keyof Ellipse]?: Ellipse[Property]
+  constructor(options?: {
+    position?: OptionalReactor<Vector>
+    rotation?: OptionalReactor<number>
+    scale?: OptionalReactor<Vector>
+    origin?: OptionalReactor<Vector>
+    size?: OptionalReactor<Vector>
+    color?: OptionalReactor<Vector>
+    outline?: OptionalReactor<Vector>
+    outlineWidth?: OptionalReactor<number>
   }) {
-    super({})
+    super(options)
 
-    if (options != null) {
-      for (const option of Object.keys(options)) {
-        this[option] = options[option]
-      }
-    }
+    if (options === undefined) return
+
+    if (options.size !== undefined) this._size = ensureReactive(options.size)
+
+    if (options.color !== undefined) this._color = ensureReactive(options.color)
+
+    if (options.outline !== undefined)
+      this._outline = ensureReactive(options.outline)
+
+    if (options.outlineWidth !== undefined)
+      this._outlineWidth = ensureReactive(options.outlineWidth)
+  }
+
+  public size(): Vector
+  public size(value: OptionalReactor<Vector>): void
+  public size(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public size(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'size', value, length, mode)
+  }
+
+  public color(): Vector
+  public color(value: OptionalReactor<Vector>): void
+  public color(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public color(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'color', value, length, mode)
+  }
+
+  public outline(): Vector
+  public outline(value: OptionalReactor<Vector>): void
+  public outline(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outline(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'outline', value, length, mode)
+  }
+
+  public outlineWidth(): number
+  public outlineWidth(value: OptionalReactor<number>): void
+  public outlineWidth(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outlineWidth(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'outlineWidth', value, length, mode)
   }
 
   async render(canvas: OffscreenCanvas) {
     const ctx = canvas.getContext('2d')
 
-    ctx.translate(this.position.x, this.position.y)
-    ctx.rotate((this.rotation * Math.PI) / 180)
-    ctx.translate(-this.size.x * this.origin.x, -this.size.y * this.origin.x)
+    const position = this._position()
+    const rotation = this._rotation()
+    const scale = this._scale()
+    const origin = this._origin()
+    const size = this._size()
+    const color = this._color()
+    const outline = this._outline()
+    const outlineWidth = this._outlineWidth()
 
-    const red = this.color.x * 255
-    const green = this.color.y * 255
-    const blue = this.color.z * 255
-    const alpha = this.color.w
+    ctx.translate(position.x, position.y)
+    ctx.rotate((rotation * Math.PI) / 180)
+    ctx.translate(-size.x * origin.x, -size.y * origin.x)
 
-    const outlineRed = this.outline.x * 255
-    const outlineGreen = this.outline.y * 255
-    const outlineBlue = this.outline.z * 255
-    const outlineAlpha = this.outline.w
+    const red = color.x * 255
+    const blue = color.y * 255
+    const green = color.y * 255
+    const alpha = color.w
+
+    const outlineRed = outline.x * 255
+    const outlineBlue = outline.y * 255
+    const outlineGreen = outline.y * 255
+    const outlineAlpha = outline.w
 
     ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
     ctx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
-    ctx.lineWidth = this.outlineWidth
-
-    const width = this.size.x * this.scale.x
-    const height = this.size.y * this.scale.y
+    ctx.lineWidth = outlineWidth
 
     ctx.beginPath()
     ctx.ellipse(
-      (this.size.x / 2) * this.scale.x + this.outlineWidth / 2,
-      (this.size.y / 2) * this.scale.y + this.outlineWidth / 2,
-      (this.size.x / 2) * this.scale.x,
-      (this.size.y / 2) * this.scale.y,
+      (size.x / 2) * scale.x + outlineWidth / 2,
+      (size.y / 2) * scale.y + outlineWidth / 2,
+      (size.x / 2) * scale.x,
+      (size.y / 2) * scale.y,
       0,
       0,
       2 * Math.PI
@@ -238,105 +483,281 @@ export class Ellipse extends RenderElement {
     ctx.closePath()
 
     ctx.fill()
-    if (this.outlineWidth != 0) ctx.stroke()
+    if (outlineWidth != 0) ctx.stroke()
   }
 }
 
 export class VectorText extends RenderElement {
   text: string = 'Vector Engine'
-  size: number = 100
   font: string = 'Mulish'
-  color: Vector = color('#000000')
-  outline: Vector = color('#000000')
-  outlineWidth: number = 0
+  protected _size: Reactor<number> = reactive(100)
+  protected _color: Reactor<Vector> = reactive(color('#000000'))
+  protected _outline: Reactor<Vector> = reactive(color('#000000'))
+  protected _outlineWidth: Reactor<number> = reactive(0)
 
-  constructor(options: {
-    [Property in keyof VectorText]?: VectorText[Property]
+  constructor(options?: {
+    position?: OptionalReactor<Vector>
+    rotation?: OptionalReactor<number>
+    scale?: OptionalReactor<Vector>
+    origin?: OptionalReactor<Vector>
+    text?: string
+    font?: string
+    size?: OptionalReactor<number>
+    color?: OptionalReactor<Vector>
+    outline?: OptionalReactor<Vector>
+    outlineWidth?: OptionalReactor<number>
   }) {
-    super({})
+    super(options)
 
-    if (options != null) {
-      for (const option of Object.keys(options)) {
-        this[option] = options[option]
-      }
-    }
+    if (options === undefined) return
+
+    if (options.text !== undefined) this.text = options.text
+
+    if (options.font !== undefined) this.font = options.font
+
+    if (options.size !== undefined) this._size = ensureReactive(options.size)
+
+    if (options.color !== undefined) this._color = ensureReactive(options.color)
+
+    if (options.outline !== undefined)
+      this._outline = ensureReactive(options.outline)
+
+    if (options.outlineWidth !== undefined)
+      this._outlineWidth = ensureReactive(options.outlineWidth)
+  }
+
+  public size(): number
+  public size(value: OptionalReactor<number>): void
+  public size(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public size(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'size', value, length, mode)
+  }
+
+  public color(): Vector
+  public color(value: OptionalReactor<Vector>): void
+  public color(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public color(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'color', value, length, mode)
+  }
+
+  public outline(): Vector
+  public outline(value: OptionalReactor<Vector>): void
+  public outline(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outline(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'outline', value, length, mode)
+  }
+
+  public outlineWidth(): number
+  public outlineWidth(value: OptionalReactor<number>): void
+  public outlineWidth(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outlineWidth(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'outlineWidth', value, length, mode)
   }
 
   async render(canvas: OffscreenCanvas) {
     const ctx = canvas.getContext('2d')
 
-    ctx.translate(this.position.x, this.position.y)
-    ctx.rotate((this.rotation * Math.PI) / 180)
+    const position = this._position()
+    const rotation = this._rotation()
+    const scale = this._scale()
+    const origin = this._origin()
+    const size = this._size() * scale.x
+    const color = this._color()
+    const outline = this._outline()
+    const outlineWidth = this._outlineWidth()
 
-    const size = this.size * this.scale.x
+    ctx.translate(position.x, position.y)
+    ctx.rotate((rotation * Math.PI) / 180)
 
     ctx.font = `${size}px ${this.font}`
 
     const measure = ctx.measureText(this.text)
 
     ctx.translate(
-      -measure.width * this.origin.x,
-      -measure.actualBoundingBoxAscent * this.origin.y
+      -measure.width * origin.x,
+      -measure.actualBoundingBoxAscent * origin.y
     )
     ctx.scale(1, -1)
 
-    const red = this.color.x * 255
-    const green = this.color.y * 255
-    const blue = this.color.z * 255
-    const alpha = this.color.w
+    const red = color.x * 255
+    const blue = color.y * 255
+    const green = color.y * 255
+    const alpha = color.w
 
-    const outlineRed = this.outline.x * 255
-    const outlineGreen = this.outline.y * 255
-    const outlineBlue = this.outline.z * 255
-    const outlineAlpha = this.outline.w
+    const outlineRed = outline.x * 255
+    const outlineBlue = outline.y * 255
+    const outlineGreen = outline.y * 255
+    const outlineAlpha = outline.w
 
     ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
     ctx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
-    ctx.lineWidth = this.outlineWidth
+    ctx.lineWidth = outlineWidth
 
     ctx.fillText(this.text, 0, 0)
-    if (this.outlineWidth != 0) ctx.strokeText(this.text, 0, 0)
+    if (outlineWidth != 0) ctx.strokeText(this.text, 0, 0)
   }
 }
 
 export class VectorImage extends RenderElement {
   image: HTMLImageElement = undefined
-  size: Vector = new Vector(100, 100)
-  color: Vector = color('#000000')
+  protected _size: Reactor<Vector> = reactive(new Vector(100, 100))
+  protected _color: Reactor<Vector> = reactive(color('#000000'))
 
-  constructor(options: {
-    [Property in keyof VectorImage]?: VectorImage[Property]
+  constructor(options?: {
+    position?: OptionalReactor<Vector>
+    rotation?: OptionalReactor<number>
+    scale?: OptionalReactor<Vector>
+    origin?: OptionalReactor<Vector>
+    image?: HTMLImageElement
+    size?: OptionalReactor<Vector>
+    color?: OptionalReactor<Vector>
   }) {
-    super({})
+    super(options)
 
-    if (options != null) {
-      for (const option of Object.keys(options)) {
-        this[option] = options[option]
-      }
-    }
+    if (options === undefined) return
+
+    if (options.image !== undefined) this.image = options.image
+
+    if (options.size !== undefined) this._size = ensureReactive(options.size)
+
+    if (options.color !== undefined) this._color = ensureReactive(options.color)
+  }
+
+  public size(): Vector
+  public size(value: OptionalReactor<Vector>): void
+  public size(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public size(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'size', value, length, mode)
+  }
+
+  public color(): Vector
+  public color(value: OptionalReactor<Vector>): void
+  public color(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public color(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'color', value, length, mode)
+  }
+
+  public outline(): Vector
+  public outline(value: OptionalReactor<Vector>): void
+  public outline(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outline(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'outline', value, length, mode)
+  }
+
+  public outlineWidth(): number
+  public outlineWidth(value: OptionalReactor<number>): void
+  public outlineWidth(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outlineWidth(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'outlineWidth', value, length, mode)
+  }
+
+  public radius(): number
+  public radius(value: OptionalReactor<number>): void
+  public radius(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public radius(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'radius', value, length, mode)
   }
 
   async render(canvas: OffscreenCanvas) {
     const ctx = canvas.getContext('2d')
 
-    ctx.translate(this.position.x, this.position.y)
-    ctx.rotate((this.rotation * Math.PI) / 180)
+    const position = this._position()
+    const rotation = this._rotation()
+    const scale = this._scale()
+    const origin = this._origin()
+    const size = this._size()
+    const color = this._color()
 
-    const width = this.size.x * this.scale.x
-    const height = this.size.y * this.scale.y
+    ctx.translate(position.x, position.y)
+    ctx.rotate((rotation * Math.PI) / 180)
 
-    ctx.translate(-width * this.origin.x, -height * this.origin.y)
-    ctx.scale(1, -1)
+    const width = size.x * scale.x
+    const height = size.y * scale.y
 
     const imageAspect = this.image.width / this.image.height
 
-    const red = this.color.x * 255
-    const green = this.color.y * 255
-    const blue = this.color.z * 255
-    const alpha = this.color.w
+    const red = color.x * 255
+    const blue = color.y * 255
+    const green = color.y * 255
+    const alpha = color.w
 
     const bestWidth = Math.max(width, height * imageAspect)
     const bestHeight = bestWidth / imageAspect
+
+    ctx.translate(-bestWidth * origin.x, -bestHeight * origin.y)
+    ctx.scale(1, -1)
 
     const offsetX = (bestWidth - width) / 2
     const offsetY = (bestHeight - width) / 2
@@ -361,7 +782,7 @@ export class VectorImage extends RenderElement {
     colorCtx.fillStyle = `rgb(1, 1, 1, ${alpha})`
     colorCtx.fillRect(0, 0, width, height)
 
-    ctx.drawImage(colorCanvas, -offsetX, -offsetY)
+    ctx.drawImage(colorCanvas, -offsetX, -offsetY - bestHeight)
 
     ctx.imageSmoothingEnabled = true
   }

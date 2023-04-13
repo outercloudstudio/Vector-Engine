@@ -356,37 +356,58 @@ export const useEditorStore = defineStore('EditorStore', () => {
   async function exportAnimation(name: string) {
     if (exportProgress.value) return
 
-    // exportInProgress.value = true
-    // exportProgress.value = 0
+    exportInProgress.value = true
+    exportProgress.value = 0
 
-    // const engine = new Engine(EngineStore.project, EngineStore.markers, false)
-    // await engine.load()
+    window.dispatchEvent(
+      new CustomEvent('export-start', {
+        detail: {
+          name: name,
+        },
+      })
+    )
 
-    // const frameDigits = engine.length.toString().length
+    const engine = new Engine(
+      EngineStore.project,
+      EngineStore.scenes,
+      EngineStore.markers,
+      false
+    )
+    await engine.load()
 
-    // for (let frame = 0; frame < engine.length; frame++) {
-    //   const frameName = `${name}/frame_${frame
-    //     .toString()
-    //     .padStart(frameDigits, '0')}.png`
+    const frameDigits = engine.length.toString().length
 
-    //   await engine.next()
+    for (let frame = 0; frame < engine.length; frame++) {
+      const frameName = `${name}/frame_${frame
+        .toString()
+        .padStart(frameDigits, '0')}.png`
 
-    //   const render = await engine.render()
-    //   const renderBlob: Blob = await (<any>render).convertToBlob()
-    //   const arrayBuffer = await renderBlob.arrayBuffer()
-    //   const byteArray = new Uint8Array(arrayBuffer, 0, arrayBuffer.byteLength)
+      await engine.next()
 
-    //   window.dispatchEvent(
-    //     new CustomEvent('send:export', {
-    //       detail: {
-    //         name: frameName,
-    //         image: byteArray,
-    //       },
-    //     })
-    //   )
+      const render = await engine.render()
+      const renderBlob: Blob = await (<any>render).convertToBlob()
+      const arrayBuffer = await renderBlob.arrayBuffer()
+      const byteArray = new Uint8Array(arrayBuffer, 0, arrayBuffer.byteLength)
 
-    //   exportProgress.value = (frame / engine.length) * 100
-    // }
+      window.dispatchEvent(
+        new CustomEvent('export', {
+          detail: {
+            name: frameName,
+            image: byteArray,
+          },
+        })
+      )
+
+      exportProgress.value = (frame / engine.length) * 100
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('export-complete', {
+        detail: {
+          name,
+        },
+      })
+    )
 
     exportInProgress.value = false
   }

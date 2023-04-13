@@ -17,5 +17,8 @@
   "description": "",
   "devDependencies": {
     "@types/node": "^18.13.0"
+  },
+  "dependencies": {
+    "fluent-ffmpeg": "^2.1.2"
   }
 }

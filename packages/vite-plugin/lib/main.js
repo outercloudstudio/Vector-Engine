@@ -9,6 +9,7 @@ export default async function VectorEngine(configURI) {
     const resolvedVirtualInjectPackage = '\0' + virtualInjectPackage;
     const virtualProjectPackage = 'virtual:@vector-engine/project';
     const virtualDataPackage = 'virtual:@vector-engine/data';
+    const projectBase = posix(path.dirname(url.fileURLToPath(configURI)));
     const projectFolder = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'src');
     const project = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'src', 'main.ts');
     const dataFile = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'data.json');
@@ -51,8 +52,16 @@ export default async function VectorEngine(configURI) {
           import.meta.hot.send('vector-engine:update-data', event.detail)
         })
 
+        window.addEventListener('export-start', event => {
+          import.meta.hot.send('vector-engine:export-start', event.detail)
+        })
+
         window.addEventListener('export', event => {
           import.meta.hot.send('vector-engine:export', event.detail)
+        })
+
+        window.addEventListener('export-complete', event => {
+          import.meta.hot.send('vector-engine:export-complete', event.detail)
         })
         `;
             }
@@ -121,23 +130,39 @@ export default async function VectorEngine(configURI) {
                     result: fs.readFileSync(data),
                 });
             });
+            server.ws.on('vector-engine:start', (data, client) => {
+                const { name } = data;
+                const exportsFolder = path.posix.join(projectBase, 'Exports');
+                const exportFolder = path.posix.join(exportsFolder, name);
+                if (!fs.existsSync(exportsFolder))
+                    fs.mkdirSync(exportsFolder);
+                if (fs.existsSync(exportFolder))
+                    fs.rmSync(exportFolder, {
+                        recursive: true,
+                    });
+                fs.mkdirSync(exportFolder);
+            });
             server.ws.on('vector-engine:export', (data, client) => {
                 const { name, image } = data;
-                if (!fs.existsSync(path.posix.join(projectFolder, 'Exports')))
-                    fs.mkdirSync(path.posix.join(projectFolder, 'Exports'));
-                if (!fs.existsSync(path.posix.join(projectFolder, 'Exports', path.posix.dirname(name))))
-                    fs.mkdirSync(path.posix.join(projectFolder, 'Exports', path.posix.dirname(name)));
+                const exportsFolder = path.posix.join(projectBase, 'Exports');
                 try {
                     const imageArray = [];
                     for (const item of Object.values(image)) {
                         imageArray.push(item);
                     }
                     const buffer = Buffer.from(imageArray);
-                    fs.writeFileSync(path.posix.join(projectFolder, 'Exports', name), buffer);
+                    fs.writeFileSync(path.posix.join(exportsFolder, name), buffer);
                 }
                 catch (err) {
                     console.log(err);
                 }
+            });
+            server.ws.on('vector-engine:export-complete', (data, client) => {
+                const { name } = data;
+                const exportsFolder = path.posix.join(projectBase, 'Exports');
+                const exportFolder = path.posix.join(exportsFolder, name);
+                const frameFiles = fs.readdirSync(exportFolder);
+                console.log(frameFiles);
             });
         },
         async handleHotUpdate(ctx) {

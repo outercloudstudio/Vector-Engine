@@ -1,6 +1,6 @@
-export type OptionalReactive<T> = Reactive<T> | T
+export type Reactor<T> = { (value?: T): T; isReactive: boolean }
 
-type Reactor<T> = { (): T; isReactive: boolean }
+export type OptionalReactor<T> = Reactor<T> | T
 
 class Reactive<T> {
   static reactor: Reactive<any> | null = null
@@ -38,8 +38,6 @@ class Reactive<T> {
         this.dependants.push(Reactive.reactor)
     }
 
-    console.log('Executing ', Reactive.reactor === this, this.valid, this.value)
-
     const result = this.valid ? this.value : this.expression()
 
     if (!this.valid) {
@@ -54,11 +52,7 @@ class Reactive<T> {
 
   toReactor(): Reactor<T> {
     const reactor = function (value?: T) {
-      if (arguments.length !== 0) {
-        console.log('Setting!', this.dependants)
-
-        return this.set(value)
-      }
+      if (arguments.length !== 0) return this.set(value)
 
       return this.execute()
     }.bind(this)
@@ -73,13 +67,13 @@ export function reactive<T>(value: T | (() => T)): Reactor<T> {
   return new Reactive(value).toReactor()
 }
 
-export function ensureReactive<T>(value: Reactor<T> | T) {
+export function ensureReactive<T>(value: OptionalReactor<T>) {
   if ((<Reactor<T>>value).isReactive) return <Reactor<T>>value
 
   return reactive(<T>value)
 }
 
-export function unreactive<T>(value: Reactor<T> | T) {
+export function unreactive<T>(value: OptionalReactor<T>) {
   if ((<Reactor<T>>value).isReactive) return (<Reactor<T>>value)()
 
   return <T>value
