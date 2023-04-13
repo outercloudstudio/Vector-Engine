@@ -1,7 +1,8 @@
 import path from 'path'
 import fs from 'fs'
 import url from 'url'
-import ffmpeg from 'fluent-ffmpeg'
+import { exec, execSync, spawn } from 'child_process'
+import ffmpeg from 'ffmpeg-static'
 
 function posix(pathStr: string) {
   return pathStr.split(path.sep).join(path.posix.sep)
@@ -159,7 +160,7 @@ export default async function VectorEngine(configURI: string) {
         })
       })
 
-      server.ws.on('vector-engine:start', (data, client) => {
+      server.ws.on('vector-engine:export-start', (data, client) => {
         const { name } = data
 
         const exportsFolder = path.posix.join(projectBase, 'Exports')
@@ -194,15 +195,27 @@ export default async function VectorEngine(configURI: string) {
         }
       })
 
-      server.ws.on('vector-engine:export-complete', (data, client) => {
-        const { name } = data
+      server.ws.on('vector-engine:export-complete', async (data, client) => {
+        const { name, length, frameRate } = data
 
         const exportsFolder = path.posix.join(projectBase, 'Exports')
         const exportFolder = path.posix.join(exportsFolder, name)
 
-        const frameFiles = fs.readdirSync(exportFolder)
-
-        console.log(frameFiles)
+        spawn(ffmpeg, [
+          '-r',
+          frameRate,
+          '-s',
+          '1920x1080',
+          '-i',
+          path.join(exportFolder, `frame_%0${length.toString().length}d.png`),
+          '-vcodec',
+          'libx264',
+          '-crf',
+          '25',
+          '-pix_fmt',
+          'yuv420p',
+          path.join(exportFolder, `${name}.mp4`),
+        ])
       })
     },
     async handleHotUpdate(ctx) {

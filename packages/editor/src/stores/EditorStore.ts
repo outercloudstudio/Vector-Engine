@@ -405,6 +405,8 @@ export const useEditorStore = defineStore('EditorStore', () => {
       new CustomEvent('export-complete', {
         detail: {
           name,
+          length: EngineStore.length,
+          frameRate: EngineStore.frameRate,
         },
       })
     )
