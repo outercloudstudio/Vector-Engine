@@ -17,8 +17,8 @@ export default async function VectorEngine(configURI) {
     const dataFile = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'data.json');
     return {
         name: 'vector-engine',
-        resolveId(id) {
-            console.log('💥 Resolving: ', id);
+        resolveId(id, importer, options) {
+            console.log('💥 Resolving: ', id, importer);
             if (id === virtualInjectPackage) {
                 return resolvedVirtualInjectPackage;
             }
@@ -82,6 +82,14 @@ export default async function VectorEngine(configURI) {
         export default await loadImage('${id}')
         `;
             }
+            else if (id.endsWith('.mp4')) {
+                console.log('Video');
+                console.log(id);
+                return `
+        import { loadVideo } from '@vector-engine/core'
+        export default await loadVideo('${id}')
+        `;
+            }
             else if (id == project) {
                 return (code +
                     `
@@ -127,10 +135,16 @@ export default async function VectorEngine(configURI) {
                 fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
             });
             server.ws.on('vector-engine:load-content', (data, client) => {
-                client.send('vector-engine:load-content', {
-                    path: data,
-                    result: fs.readFileSync(data),
-                });
+                console.log('🛣️ Loading Content: ', data);
+                try {
+                    client.send('vector-engine:load-content', {
+                        path: data,
+                        result: fs.readFileSync(data),
+                    });
+                }
+                catch (error) {
+                    console.error(error);
+                }
             });
             server.ws.on('vector-engine:export-start', (data, client) => {
                 const { name } = data;
@@ -163,9 +177,7 @@ export default async function VectorEngine(configURI) {
                 const { name, length, frameRate } = data;
                 const exportsFolder = path.posix.join(projectBase, 'Exports');
                 const exportFolder = path.posix.join(exportsFolder, name);
-                console.log(ffmpeg);
-                console.log(path.join(exportFolder, `frame_%0${length.toString().length}d.png`));
-                const cmd = spawn(ffmpeg, [
+                spawn(ffmpeg, [
                     '-r',
                     frameRate,
                     '-s',
@@ -180,12 +192,6 @@ export default async function VectorEngine(configURI) {
                     'yuv420p',
                     path.join(exportFolder, `${name}.mp4`),
                 ]);
-                cmd.on('message', message => {
-                    console.log(message);
-                });
-                cmd.on('close', () => {
-                    console.log('Finished converting!');
-                });
             });
         },
         async handleHotUpdate(ctx) {

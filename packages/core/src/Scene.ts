@@ -253,6 +253,12 @@ export class Scene {
         this.asides.map(
           (aside, index) =>
             new Promise<void>(async res => {
+              if (aside === undefined) {
+                res()
+
+                return
+              }
+
               await aside.next()
 
               if (aside.done) this.asides[index] = undefined

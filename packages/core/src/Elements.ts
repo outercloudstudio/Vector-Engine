@@ -787,3 +787,142 @@ export class VectorImage extends RenderElement {
     ctx.imageSmoothingEnabled = true
   }
 }
+
+export class VectorVideo extends RenderElement {
+  video: HTMLVideoElement = undefined
+  protected _size: Reactor<Vector> = reactive(new Vector(100, 100))
+
+  constructor(options?: {
+    position?: OptionalReactor<Vector>
+    rotation?: OptionalReactor<number>
+    scale?: OptionalReactor<Vector>
+    origin?: OptionalReactor<Vector>
+    video?: HTMLVideoElement
+    size?: OptionalReactor<Vector>
+  }) {
+    super(options)
+
+    if (options === undefined) return
+
+    if (options.video !== undefined) this.video = options.video
+
+    if (options.size !== undefined) this._size = ensureReactive(options.size)
+  }
+
+  public async *play() {
+    this.video.currentTime = 0
+
+    while (this.video.currentTime < this.video.duration) {
+      this.video.currentTime =
+        this.video.currentTime + this.scene.engine.frame / 1000
+
+      yield null
+    }
+  }
+
+  public size(): Vector
+  public size(value: OptionalReactor<Vector>): void
+  public size(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public size(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'size', value, length, mode)
+  }
+
+  public outline(): Vector
+  public outline(value: OptionalReactor<Vector>): void
+  public outline(
+    value: OptionalReactor<Vector>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outline(
+    value?: OptionalReactor<Vector>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | Vector | void {
+    return animatedVector(this, 'outline', value, length, mode)
+  }
+
+  public outlineWidth(): number
+  public outlineWidth(value: OptionalReactor<number>): void
+  public outlineWidth(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public outlineWidth(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'outlineWidth', value, length, mode)
+  }
+
+  public radius(): number
+  public radius(value: OptionalReactor<number>): void
+  public radius(
+    value: OptionalReactor<number>,
+    length: number,
+    mode: any
+  ): AsyncGenerator
+  public radius(
+    value?: OptionalReactor<number>,
+    length?: number,
+    mode?: any
+  ): AsyncGenerator | number | void {
+    return animatedNumber(this, 'radius', value, length, mode)
+  }
+
+  async render(canvas: OffscreenCanvas) {
+    if (this.video.currentTime >= this.video.duration) return
+
+    await new Promise<void>(res => {
+      const interval = setInterval(() => {
+        if (this.video.readyState !== 4) return
+
+        clearInterval(interval)
+
+        res()
+      }, 1)
+    })
+
+    const ctx = canvas.getContext('2d')
+
+    const position = this._position()
+    const rotation = this._rotation()
+    const scale = this._scale()
+    const origin = this._origin()
+    const size = this._size()
+
+    ctx.translate(position.x, position.y)
+    ctx.rotate((rotation * Math.PI) / 180)
+
+    const width = size.x * scale.x
+    const height = size.y * scale.y
+
+    const imageAspect = this.video.videoWidth / this.video.videoHeight
+
+    const bestWidth = Math.max(width, height * imageAspect)
+    const bestHeight = bestWidth / imageAspect
+
+    ctx.scale(1, -1)
+
+    ctx.imageSmoothingEnabled = false
+
+    const frameCanvas = new OffscreenCanvas(bestWidth, bestHeight)
+    const frameCtx = frameCanvas.getContext('2d')
+    frameCtx.imageSmoothingEnabled = false
+    frameCtx.drawImage(this.video, 0, 0, bestWidth, bestHeight)
+
+    ctx.drawImage(frameCanvas, -bestWidth * origin.x, -bestHeight * origin.y)
+
+    ctx.imageSmoothingEnabled = true
+  }
+}

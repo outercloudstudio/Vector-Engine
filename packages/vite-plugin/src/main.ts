@@ -34,8 +34,16 @@ export default async function VectorEngine(configURI: string) {
 
   return {
     name: 'vector-engine',
-    resolveId(id: string) {
-      console.log('💥 Resolving: ', id)
+    resolveId(
+      id: string,
+      importer: string | undefined,
+      options: {
+        assertions: Record<string, string>
+        custom?: { [plugin: string]: any }
+        isEntry: boolean
+      }
+    ) {
+      console.log('💥 Resolving: ', id, importer)
 
       if (id === virtualInjectPackage) {
         return resolvedVirtualInjectPackage
@@ -99,6 +107,14 @@ export default async function VectorEngine(configURI: string) {
         import { loadImage } from '@vector-engine/core'
         export default await loadImage('${id}')
         `
+      } else if (id.endsWith('.mp4')) {
+        console.log('Video')
+        console.log(id)
+
+        return `
+        import { loadVideo } from '@vector-engine/core'
+        export default await loadVideo('${id}')
+        `
       } else if (id == project) {
         return (
           code +
@@ -154,10 +170,16 @@ export default async function VectorEngine(configURI: string) {
       })
 
       server.ws.on('vector-engine:load-content', (data, client) => {
-        client.send('vector-engine:load-content', {
-          path: data,
-          result: fs.readFileSync(data),
-        })
+        console.log('🛣️ Loading Content: ', data)
+
+        try {
+          client.send('vector-engine:load-content', {
+            path: data,
+            result: fs.readFileSync(data),
+          })
+        } catch (error) {
+          console.error(error)
+        }
       })
 
       server.ws.on('vector-engine:export-start', (data, client) => {
