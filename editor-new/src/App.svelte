@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { engine, engineData, engineProject, frame, makeEngine } from './stores.js'
 	import Preview from './Preview.svelte'
+	import Timeline from './Timeline.svelte'
+
+	import { engine, engineData, engineProject, frame, makeEngine } from './stores.js'
 	import { onMount } from 'svelte'
 	import { get } from 'svelte/store'
 
@@ -26,6 +28,7 @@
 
 <main>
 	<Preview />
+	<Timeline />
 </main>
 
 <style>
