@@ -1,16 +1,16 @@
 {
-  "name": "vector-engine",
-  "version": "0.0.0",
-  "license": "MIT",
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "dev": "npm run dev -w @vector-engine/test",
-    "vite": "npm run build -w @vector-engine/vite-plugin && npm run dev -w @vector-engine/test"
-  },
-  "dependencies": {
-    "import-meta-resolve": "^2.2.1",
-    "pinia": "^2.0.30"
-  }
+	"name": "vector-engine",
+	"version": "0.0.0",
+	"license": "MIT",
+	"workspaces": [
+		"/*"
+	],
+	"scripts": {
+		"dev": "npm run dev -w @vector-engine/test",
+		"vite": "npm run build -w @vector-engine/vite-plugin && npm run dev -w @vector-engine/test"
+	},
+	"dependencies": {
+		"import-meta-resolve": "^2.2.1",
+		"pinia": "^2.0.30"
+	}
 }

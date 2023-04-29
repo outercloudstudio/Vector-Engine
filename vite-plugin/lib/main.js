@@ -12,7 +12,6 @@ export default async function VectorEngine(configURI) {
     const virtualProjectPackage = 'virtual:@vector-engine/project';
     const virtualDataPackage = 'virtual:@vector-engine/data';
     const projectBase = posix(path.dirname(url.fileURLToPath(configURI)));
-    const projectFolder = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'src');
     const project = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'src', 'main.ts');
     const dataFile = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'data.json');
     return {
@@ -36,9 +35,7 @@ export default async function VectorEngine(configURI) {
                 return `
         import data from 'virtual:@vector-engine/data'
         import { project } from 'virtual:@vector-engine/project'
-        import { VectorEngine } from '@vector-engine/editor'
-
-        VectorEngine()
+        import editor from '@vector-engine/editor-new'
 
         window.dispatchEvent(new CustomEvent('project', { detail: { project, data } }))
 
