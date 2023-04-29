@@ -53,7 +53,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     EngineStore.data.editor.inference.audio = inference
 
     window.dispatchEvent(
-      new CustomEvent('send:update-data', { detail: EngineStore.data })
+      new CustomEvent('update-data', { detail: EngineStore.data })
     )
 
     EngineStore.updatedDataEvent++
@@ -70,7 +70,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     EngineStore.data.editor.inference.scenes = inference
 
     window.dispatchEvent(
-      new CustomEvent('send:update-data', { detail: EngineStore.data })
+      new CustomEvent('update-data', { detail: EngineStore.data })
     )
 
     EngineStore.updatedDataEvent++
@@ -296,7 +296,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     })
 
     window.dispatchEvent(
-      new CustomEvent('send:update-data', { detail: EngineStore.data })
+      new CustomEvent('update-data', { detail: EngineStore.data })
     )
 
     EngineStore.updatedDataEvent++
@@ -311,7 +311,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     )
 
     window.dispatchEvent(
-      new CustomEvent('send:update-data', { detail: EngineStore.data })
+      new CustomEvent('update-data', { detail: EngineStore.data })
     )
 
     EngineStore.updatedDataEvent++
@@ -331,7 +331,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     }
 
     window.dispatchEvent(
-      new CustomEvent('send:update-data', { detail: EngineStore.data })
+      new CustomEvent('update-data', { detail: EngineStore.data })
     )
 
     EngineStore.updatedDataEvent++
@@ -347,7 +347,7 @@ export const useEditorStore = defineStore('EditorStore', () => {
     if (!muted.value) audioGain.value.gain.value = volume
 
     window.dispatchEvent(
-      new CustomEvent('send:update-data', { detail: EngineStore.data })
+      new CustomEvent('update-data', { detail: EngineStore.data })
     )
 
     EngineStore.updatedDataEvent++

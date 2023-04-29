@@ -122,40 +122,8 @@ function deleteMarker() {
   EditorStore.deleteMarker(EditorStore.selectedMarker)
 }
 
-// watch(
-//   () => WorkspaceStore.muted,
-//   muted => {
-//     WorkspaceStore.audioGain.gain.value = muted ? 0 : WorkspaceStore.volume
-//   }
-// )
-
 async function createMarker() {
   EditorStore.createMarker(`Marker`, EngineStore.frame)
-}
-
-let audioBufferSource: null | AudioBufferSourceNode = null
-
-async function startAudioPlayback(time: number) {
-  // const audioBuffer = WorkspaceStore.getAudioBuffer()
-  // if (!audioBuffer) return
-  // audioBufferSource = WorkspaceStore.audioContext.createBufferSource()
-  // audioBufferSource.buffer = audioBuffer
-  // audioBufferSource.connect(WorkspaceStore.audioDestination)
-  // WorkspaceStore.audioContext.resume()
-  // audioBufferSource.start(0, time)
-  // while (WorkspaceStore.audioContext.state == 'suspended') {
-  //   await new Promise<void>(res => {
-  //     setTimeout(() => {
-  //       res()
-  //     }, 1)
-  //   })
-  // }
-}
-
-function stopAudioPlayback() {
-  if (!audioBufferSource) return
-
-  audioBufferSource.stop()
 }
 
 const speedInputBuffer = computed({
@@ -518,13 +486,18 @@ function loop() {
 let startFrame = ref(-5)
 let endFrame = ref(EngineStore.length + 5)
 
-// watch(
-//   () => EngineStore.length,
-//   () => {
-//     startFrame.value = -5
-//     endFrame.value = EngineStore.length - 1 + 5
-//   }
-// )
+let previousLength = EngineStore.length
+
+watch(
+  () => EngineStore.loaded,
+  () => {
+    if (!EngineStore.loaded || previousLength == EngineStore.length) return
+
+    startFrame.value = -5
+    endFrame.value = EngineStore.length - 1 + 5
+    previousLength = EngineStore.length
+  }
+)
 
 function scroll(event: any) {
   const scrollX = event.deltaX / 1000
@@ -647,7 +620,8 @@ function render() {
     const textWidth = ctx.measureText(scene.name).width + 8 * canvasScale
 
     const frameWidth = EngineStore.scenes[sceneIndex + 1]
-      ? frameToRelativeX(scene.length) - frameToRelativeX(sceneStart)
+      ? frameToRelativeX(sceneStart + scene.length) -
+        frameToRelativeX(sceneStart)
       : frameToRelativeX(EngineStore.length) - frameToRelativeX(sceneStart)
 
     ctx.fillStyle = secondaryColor

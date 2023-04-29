@@ -100,7 +100,7 @@ export class Engine {
     let frame = 0
 
     for (let index = 0; index < sceneIndex; index++) {
-      frame += this.scenes[sceneIndex].length
+      frame += this.scenes[index].length
     }
 
     return frame

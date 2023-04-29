@@ -217,11 +217,8 @@ export class Scene {
       OffscreenCanvasRenderingContext2D
     >canvas.getContext('2d')
 
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, 1920, 1080)
-
     let sortedElements = this.elements.sort((a: any, b: any) => {
-      return (a.priority || 0) - (b.priority || 0)
+      return a.priority - b.priority
     })
 
     try {

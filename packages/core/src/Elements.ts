@@ -25,7 +25,11 @@ function animatedVector(
   if (value === undefined) return me['_' + property]()
 
   if (length === undefined) {
-    me['_' + property] = ensureReactive(value)
+    if ((<Reactor<Vector>>value).isReactive) {
+      me['_' + property] = ensureReactive(value)
+    } else {
+      me['_' + property](value)
+    }
 
     return
   }
@@ -57,7 +61,11 @@ function animatedNumber(
   if (value === undefined) return me['_' + property]()
 
   if (length === undefined) {
-    me['_' + property] = ensureReactive(value)
+    if ((<Reactor<number>>value).isReactive) {
+      me['_' + property] = ensureReactive(value)
+    } else {
+      me['_' + property](value)
+    }
 
     return
   }
@@ -77,6 +85,22 @@ function animatedNumber(
       yield null
     }
   }.call(me)
+}
+
+function animatedString(
+  me: any,
+  property: string,
+  value?: OptionalReactor<string>
+): string | void {
+  if (value === undefined) return me['_' + property]()
+
+  if ((<Reactor<string>>value).isReactive) {
+    me['_' + property] = ensureReactive(value)
+  } else {
+    me['_' + property](value)
+  }
+
+  return
 }
 
 export class TransformElement extends Element {
@@ -150,12 +174,14 @@ export class TransformElement extends Element {
 
 export class RenderElement extends TransformElement {
   protected _origin: Reactor<Vector> = reactive(new Vector(0.5, 0.5))
+  public priority: number = 0
 
   constructor(options?: {
     position?: OptionalReactor<Vector>
     rotation?: OptionalReactor<number>
     scale?: OptionalReactor<Vector>
     origin?: OptionalReactor<Vector>
+    priority?: number
   }) {
     super(options)
 
@@ -163,6 +189,8 @@ export class RenderElement extends TransformElement {
 
     if (options.origin !== undefined)
       this._origin = ensureReactive(options.origin)
+
+    if (options.priority !== undefined) this.priority = options.priority
   }
 
   async render(canvas: OffscreenCanvas) {
@@ -197,6 +225,7 @@ export class Rect extends RenderElement {
     rotation?: OptionalReactor<number>
     scale?: OptionalReactor<Vector>
     origin?: OptionalReactor<Vector>
+    priority?: number
     size?: OptionalReactor<Vector>
     color?: OptionalReactor<Vector>
     outline?: OptionalReactor<Vector>
@@ -360,6 +389,7 @@ export class Ellipse extends RenderElement {
     rotation?: OptionalReactor<number>
     scale?: OptionalReactor<Vector>
     origin?: OptionalReactor<Vector>
+    priority?: number
     size?: OptionalReactor<Vector>
     color?: OptionalReactor<Vector>
     outline?: OptionalReactor<Vector>
@@ -457,17 +487,17 @@ export class Ellipse extends RenderElement {
     ctx.translate(-size.x * origin.x, -size.y * origin.x)
 
     const red = color.x * 255
-    const blue = color.y * 255
     const green = color.y * 255
+    const blue = color.z * 255
     const alpha = color.w
 
     const outlineRed = outline.x * 255
-    const outlineBlue = outline.y * 255
     const outlineGreen = outline.y * 255
+    const outlineBlue = outline.z * 255
     const outlineAlpha = outline.w
 
-    ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
-    ctx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
+    ctx.fillStyle = `rgba(${red},${green},${blue},${alpha})`
+    ctx.strokeStyle = `rgba(${outlineRed},${outlineGreen},${outlineBlue},${outlineAlpha})`
     ctx.lineWidth = outlineWidth
 
     ctx.beginPath()
@@ -488,8 +518,8 @@ export class Ellipse extends RenderElement {
 }
 
 export class VectorText extends RenderElement {
-  text: string = 'Vector Engine'
-  font: string = 'Mulish'
+  public _text: Reactor<string> = reactive('Vector Engine')
+  public font: string = 'Mulish'
   protected _size: Reactor<number> = reactive(100)
   protected _color: Reactor<Vector> = reactive(color('#000000'))
   protected _outline: Reactor<Vector> = reactive(color('#000000'))
@@ -500,7 +530,8 @@ export class VectorText extends RenderElement {
     rotation?: OptionalReactor<number>
     scale?: OptionalReactor<Vector>
     origin?: OptionalReactor<Vector>
-    text?: string
+    priority?: number
+    text?: OptionalReactor<string>
     font?: string
     size?: OptionalReactor<number>
     color?: OptionalReactor<Vector>
@@ -511,7 +542,7 @@ export class VectorText extends RenderElement {
 
     if (options === undefined) return
 
-    if (options.text !== undefined) this.text = options.text
+    if (options.text !== undefined) this._text = ensureReactive(options.text)
 
     if (options.font !== undefined) this.font = options.font
 
@@ -524,6 +555,12 @@ export class VectorText extends RenderElement {
 
     if (options.outlineWidth !== undefined)
       this._outlineWidth = ensureReactive(options.outlineWidth)
+  }
+
+  public text(): string
+  public text(value: OptionalReactor<string>): void
+  public text(value?: OptionalReactor<string>): string | void {
+    return animatedString(this, 'text', value)
   }
 
   public size(): number
@@ -593,6 +630,7 @@ export class VectorText extends RenderElement {
     const rotation = this._rotation()
     const scale = this._scale()
     const origin = this._origin()
+    const text = this._text()
     const size = this._size() * scale.x
     const color = this._color()
     const outline = this._outline()
@@ -603,7 +641,7 @@ export class VectorText extends RenderElement {
 
     ctx.font = `${size}px ${this.font}`
 
-    const measure = ctx.measureText(this.text)
+    const measure = ctx.measureText(text)
 
     ctx.translate(
       -measure.width * origin.x,
@@ -612,34 +650,35 @@ export class VectorText extends RenderElement {
     ctx.scale(1, -1)
 
     const red = color.x * 255
-    const blue = color.y * 255
     const green = color.y * 255
+    const blue = color.z * 255
     const alpha = color.w
 
     const outlineRed = outline.x * 255
-    const outlineBlue = outline.y * 255
     const outlineGreen = outline.y * 255
+    const outlineBlue = outline.z * 255
     const outlineAlpha = outline.w
 
-    ctx.fillStyle = `rgba(${red},${blue},${green},${alpha})`
-    ctx.strokeStyle = `rgba(${outlineRed},${outlineBlue},${outlineGreen},${outlineAlpha})`
+    ctx.fillStyle = `rgba(${red},${green},${blue},${alpha})`
+    ctx.strokeStyle = `rgba(${outlineRed},${outlineGreen},${outlineBlue},${outlineAlpha})`
     ctx.lineWidth = outlineWidth
 
-    ctx.fillText(this.text, 0, 0)
-    if (outlineWidth != 0) ctx.strokeText(this.text, 0, 0)
+    ctx.fillText(text, 0, 0)
+    if (outlineWidth != 0) ctx.strokeText(text, 0, 0)
   }
 }
 
 export class VectorImage extends RenderElement {
-  image: HTMLImageElement = undefined
+  public image: HTMLImageElement = undefined
   protected _size: Reactor<Vector> = reactive(new Vector(100, 100))
-  protected _color: Reactor<Vector> = reactive(color('#000000'))
+  protected _color: Reactor<Vector> = reactive(color('#ffffffff'))
 
   constructor(options?: {
     position?: OptionalReactor<Vector>
     rotation?: OptionalReactor<number>
     scale?: OptionalReactor<Vector>
     origin?: OptionalReactor<Vector>
+    priority?: number
     image?: HTMLImageElement
     size?: OptionalReactor<Vector>
     color?: OptionalReactor<Vector>
@@ -685,51 +724,6 @@ export class VectorImage extends RenderElement {
     return animatedVector(this, 'color', value, length, mode)
   }
 
-  public outline(): Vector
-  public outline(value: OptionalReactor<Vector>): void
-  public outline(
-    value: OptionalReactor<Vector>,
-    length: number,
-    mode: any
-  ): AsyncGenerator
-  public outline(
-    value?: OptionalReactor<Vector>,
-    length?: number,
-    mode?: any
-  ): AsyncGenerator | Vector | void {
-    return animatedVector(this, 'outline', value, length, mode)
-  }
-
-  public outlineWidth(): number
-  public outlineWidth(value: OptionalReactor<number>): void
-  public outlineWidth(
-    value: OptionalReactor<number>,
-    length: number,
-    mode: any
-  ): AsyncGenerator
-  public outlineWidth(
-    value?: OptionalReactor<number>,
-    length?: number,
-    mode?: any
-  ): AsyncGenerator | number | void {
-    return animatedNumber(this, 'outlineWidth', value, length, mode)
-  }
-
-  public radius(): number
-  public radius(value: OptionalReactor<number>): void
-  public radius(
-    value: OptionalReactor<number>,
-    length: number,
-    mode: any
-  ): AsyncGenerator
-  public radius(
-    value?: OptionalReactor<number>,
-    length?: number,
-    mode?: any
-  ): AsyncGenerator | number | void {
-    return animatedNumber(this, 'radius', value, length, mode)
-  }
-
   async render(canvas: OffscreenCanvas) {
     const ctx = canvas.getContext('2d')
 
@@ -756,33 +750,51 @@ export class VectorImage extends RenderElement {
     const bestWidth = Math.max(width, height * imageAspect)
     const bestHeight = bestWidth / imageAspect
 
-    ctx.translate(-bestWidth * origin.x, -bestHeight * origin.y)
-    ctx.scale(1, -1)
+    const unscaledWidth = Math.ceil((this.image.width * width) / bestWidth)
+    const unscaledHeight = Math.ceil((this.image.height * height) / bestHeight)
 
-    const offsetX = (bestWidth - width) / 2
-    const offsetY = (bestHeight - width) / 2
+    ctx.scale(1, -1)
 
     ctx.imageSmoothingEnabled = false
 
-    const colorCanvas = new OffscreenCanvas(bestHeight, bestHeight)
+    const colorCanvas = new OffscreenCanvas(unscaledWidth, unscaledHeight)
     const colorCtx = colorCanvas.getContext('2d')
 
     colorCtx.imageSmoothingEnabled = false
 
     colorCtx.fillStyle = `rgb(${red}, ${green}, ${blue})`
-    colorCtx.fillRect(0, 0, width, height)
+    colorCtx.fillRect(0, 0, unscaledWidth, unscaledHeight)
     colorCtx.globalCompositeOperation = 'multiply'
 
-    colorCtx.drawImage(this.image, 0, 0, bestWidth, bestHeight)
+    colorCtx.drawImage(
+      this.image,
+      -(this.image.width - unscaledWidth) / 2,
+      -(this.image.height - unscaledHeight) / 2,
+      this.image.width,
+      this.image.height
+    )
+
     colorCtx.globalCompositeOperation = 'destination-atop'
 
-    colorCtx.drawImage(this.image, 0, 0, bestWidth, bestHeight)
+    colorCtx.drawImage(
+      this.image,
+      -(this.image.width - unscaledWidth) / 2,
+      -(this.image.height - unscaledHeight) / 2,
+      this.image.width,
+      this.image.height
+    )
     colorCtx.globalCompositeOperation = 'destination-in'
 
     colorCtx.fillStyle = `rgb(1, 1, 1, ${alpha})`
-    colorCtx.fillRect(0, 0, width, height)
+    colorCtx.fillRect(0, 0, unscaledWidth, unscaledHeight)
 
-    ctx.drawImage(colorCanvas, -offsetX, -offsetY - bestHeight)
+    ctx.drawImage(
+      colorCanvas,
+      -width * origin.x,
+      -height * (1 - origin.y),
+      width,
+      height
+    )
 
     ctx.imageSmoothingEnabled = true
   }
@@ -791,14 +803,19 @@ export class VectorImage extends RenderElement {
 export class VectorVideo extends RenderElement {
   video: HTMLVideoElement = undefined
   protected _size: Reactor<Vector> = reactive(new Vector(100, 100))
+  protected _color: Reactor<Vector> = reactive(color('#FFFFFFFF'))
+  protected _time: Reactor<number> = reactive(0)
 
   constructor(options?: {
     position?: OptionalReactor<Vector>
     rotation?: OptionalReactor<number>
     scale?: OptionalReactor<Vector>
     origin?: OptionalReactor<Vector>
+    priority?: number
     video?: HTMLVideoElement
     size?: OptionalReactor<Vector>
+    color?: OptionalReactor<Vector>
+    time?: OptionalReactor<number>
   }) {
     super(options)
 
@@ -807,14 +824,15 @@ export class VectorVideo extends RenderElement {
     if (options.video !== undefined) this.video = options.video
 
     if (options.size !== undefined) this._size = ensureReactive(options.size)
+
+    if (options.color !== undefined) this._color = ensureReactive(options.color)
+
+    if (options.time !== undefined) this._time = ensureReactive(options.time)
   }
 
   public async *play() {
-    this.video.currentTime = 0
-
-    while (this.video.currentTime < this.video.duration) {
-      this.video.currentTime =
-        this.video.currentTime + this.scene.engine.frame / 1000
+    while (this.time() < this.video.duration) {
+      this.time(this.time() + 1 / this.scene.engine.frameRate)
 
       yield null
     }
@@ -835,62 +853,53 @@ export class VectorVideo extends RenderElement {
     return animatedVector(this, 'size', value, length, mode)
   }
 
-  public outline(): Vector
-  public outline(value: OptionalReactor<Vector>): void
-  public outline(
+  public color(): Vector
+  public color(value: OptionalReactor<Vector>): void
+  public color(
     value: OptionalReactor<Vector>,
     length: number,
     mode: any
   ): AsyncGenerator
-  public outline(
+  public color(
     value?: OptionalReactor<Vector>,
     length?: number,
     mode?: any
   ): AsyncGenerator | Vector | void {
-    return animatedVector(this, 'outline', value, length, mode)
+    return animatedVector(this, 'color', value, length, mode)
   }
 
-  public outlineWidth(): number
-  public outlineWidth(value: OptionalReactor<number>): void
-  public outlineWidth(
+  public time(): number
+  public time(value: OptionalReactor<number>): void
+  public time(
     value: OptionalReactor<number>,
     length: number,
     mode: any
   ): AsyncGenerator
-  public outlineWidth(
+  public time(
     value?: OptionalReactor<number>,
     length?: number,
     mode?: any
   ): AsyncGenerator | number | void {
-    return animatedNumber(this, 'outlineWidth', value, length, mode)
-  }
-
-  public radius(): number
-  public radius(value: OptionalReactor<number>): void
-  public radius(
-    value: OptionalReactor<number>,
-    length: number,
-    mode: any
-  ): AsyncGenerator
-  public radius(
-    value?: OptionalReactor<number>,
-    length?: number,
-    mode?: any
-  ): AsyncGenerator | number | void {
-    return animatedNumber(this, 'radius', value, length, mode)
+    return animatedNumber(this, 'time', value, length, mode)
   }
 
   async render(canvas: OffscreenCanvas) {
-    if (this.video.currentTime >= this.video.duration) return
+    const color = this._color()
+
+    if (color.w === 0) return
+
+    if (this.time() >= this.video.duration) return
 
     await new Promise<void>(res => {
-      const interval = setInterval(() => {
-        if (this.video.readyState !== 4) return
+      if (
+        this.time() === this.video.currentTime &&
+        this.video.currentTime !== 0
+      )
+        return
 
-        clearInterval(interval)
+      this.video.currentTime = this.time()
 
-        res()
-      }, 1)
+      this.video.addEventListener('seeked', () => res())
     })
 
     const ctx = canvas.getContext('2d')
@@ -916,12 +925,41 @@ export class VectorVideo extends RenderElement {
 
     ctx.imageSmoothingEnabled = false
 
-    const frameCanvas = new OffscreenCanvas(bestWidth, bestHeight)
-    const frameCtx = frameCanvas.getContext('2d')
-    frameCtx.imageSmoothingEnabled = false
-    frameCtx.drawImage(this.video, 0, 0, bestWidth, bestHeight)
+    const red = color.x * 255
+    const blue = color.y * 255
+    const green = color.y * 255
+    const alpha = color.w
 
-    ctx.drawImage(frameCanvas, -bestWidth * origin.x, -bestHeight * origin.y)
+    const colorCanvas = new OffscreenCanvas(width, height)
+    const colorCtx = colorCanvas.getContext('2d')
+    colorCtx.imageSmoothingEnabled = false
+
+    colorCtx.fillStyle = `rgb(${red}, ${green}, ${blue})`
+    colorCtx.fillRect(0, 0, width, height)
+    colorCtx.globalCompositeOperation = 'multiply'
+
+    colorCtx.drawImage(
+      this.video,
+      (width - bestWidth) / 2,
+      (height - bestHeight) / 2,
+      bestWidth,
+      bestHeight
+    )
+    colorCtx.globalCompositeOperation = 'destination-atop'
+
+    colorCtx.drawImage(
+      this.video,
+      (width - bestWidth) / 2,
+      (height - bestHeight) / 2,
+      bestWidth,
+      bestHeight
+    )
+    colorCtx.globalCompositeOperation = 'destination-in'
+
+    colorCtx.fillStyle = `rgb(1, 1, 1, ${alpha})`
+    colorCtx.fillRect(0, 0, width, height)
+
+    ctx.drawImage(colorCanvas, -width * origin.x, -height * origin.y)
 
     ctx.imageSmoothingEnabled = true
   }

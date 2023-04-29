@@ -101,8 +101,6 @@ watch(zoom, renderCanvas)
 
 watch(() => EngineStore.frame, renderCanvas)
 
-watch(() => EngineStore.loaded, renderCanvas)
-
 watch(() => EngineStore.reloadEngineEvent, renderCanvas)
 
 function fixPreviewSize() {
