@@ -72,13 +72,16 @@
 	}
 
 	function renderFrameLabels(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
-		const labelInterval = Math.max(Math.floor(frameWidth / 20), 1)
-		const firstLabel = Math.floor(getFrameAtXPosition(0) / labelInterval) * labelInterval
+		const interval = Math.max(
+			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / (canvas.width / 80)),
+			1
+		)
+		const firstLabel = Math.floor(getFrameAtXPosition(0) / interval) * interval
 
 		for (
 			let frame = firstLabel;
 			frame < Math.ceil(getFrameAtXPosition(canvas.width));
-			frame += labelInterval
+			frame += interval
 		) {
 			const x = getXPositionOfFrame(frame)
 
@@ -96,13 +99,16 @@
 	}
 
 	function renderFrameLines(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
-		const labelInterval = Math.max(Math.floor(frameWidth / 20), 1)
-		const firstLabel = Math.floor(getFrameAtXPosition(0) / labelInterval) * labelInterval
+		const interval = Math.max(
+			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / (canvas.width / 80)),
+			1
+		)
+		const firstLabel = Math.floor(getFrameAtXPosition(0) / interval) * interval
 
 		for (
 			let frame = firstLabel;
 			frame < Math.ceil(getFrameAtXPosition(canvas.width));
-			frame += labelInterval
+			frame += interval
 		) {
 			const x = getXPositionOfFrame(frame)
 
@@ -155,6 +161,7 @@
 <style>
 	main {
 		background: #000000;
+		max-height: 50%;
 		height: 50%;
 
 		display: flex;
