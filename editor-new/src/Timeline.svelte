@@ -67,7 +67,7 @@
 
 	function renderFrameLabels(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
 		const interval = Math.max(
-			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / (canvas.width / 80)),
+			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / 8),
 			1
 		)
 		const firstLabel = Math.floor(getFrameAtXPosition(0) / interval) * interval
@@ -94,7 +94,7 @@
 
 	function renderFrameLines(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
 		const interval = Math.max(
-			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / (canvas.width / 80)),
+			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / 8),
 			1
 		)
 		const firstLabel = Math.floor(getFrameAtXPosition(0) / interval) * interval
