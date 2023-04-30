@@ -36,22 +36,24 @@
 		mouse = false
 	}
 
+	function getFrameAtXPosition(x: number): number {
+		return (x - offset) / 5 / scale
+	}
+
+	function getXPositionOfFrame(frame: number): number {
+		return frame * 5 * scale + offset
+	}
+
 	function scroll(event: any) {
 		const canvasBounds = canvas.getBoundingClientRect()
-		const mouseOffsetX = event.clientX - (canvasBounds.left + canvasBounds.right) / 2
+		const mouseOffset = event.clientX - canvasBounds.left - getXPositionOfFrame(0)
 		const scrollY = event.deltaY / -4000
 
 		const zoom = Math.exp(scrollY)
 
-		// const width = canvasBounds.right - canvasBounds.left
-		// const widthDelta = width * zoom - width
-		// const offsetXFactor = (mouseOffsetX / width) * 2
-		// offsetX -= (widthDelta / 2) * offsetXFactor
+		const frameWidthDelta = frameWidth * zoom - frameWidth
 
-		// const height = canvasBounds.top - canvasBounds.bottom
-		// const heightDelta = height * zoom - height
-		// const offsetYFactor = (mouseOffsetY / height) * 2
-		// offsetY -= (heightDelta / 2) * offsetYFactor
+		offset += mouseOffset * (1 - zoom)
 
 		scale *= zoom
 	}
@@ -62,14 +64,6 @@
 	const alternateGrabColor = '#17222b'
 	const textColor = '#d9d9d9'
 	const alternateTextColor = '#a7a7a7'
-
-	function getFrameAtXPosition(x: number): number {
-		return (x - offset) / 5 / scale
-	}
-
-	function getXPositionOfFrame(frame: number): number {
-		return frame * 5 * scale + offset
-	}
 
 	function renderFrameLabels(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
 		const interval = Math.max(
