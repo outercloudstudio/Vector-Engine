@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { subscribe } from 'svelte/internal'
-	import { frame } from './stores'
+	import { engine, frame } from './stores'
 	import { getBestFittingBounds } from './aspectRatio'
 	import { get } from 'svelte/store'
 
@@ -17,7 +17,9 @@
 	function mouseDown(event: MouseEvent) {
 		mouse = true
 
-		frame.set(Math.round(getFrameAtXPosition(event.clientX)))
+		const newFrame = Math.round(getFrameAtXPosition(event.clientX))
+		frame.set(newFrame)
+		get(engine).jumpToFrame(newFrame)
 	}
 
 	function mouseMove(event: MouseEvent) {
@@ -57,6 +59,7 @@
 
 	const mainColor = '#141414'
 	const secondaryColor = '#242424'
+	const tertiaryColor = '#1c1c1c'
 	const grabColor = '#32a6fc'
 	const alternateGrabColor = '#17222b'
 	const textColor = '#d9d9d9'
@@ -109,10 +112,18 @@
 	}
 
 	function renderPlayhead(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
-		const x = getXPositionOfFrame(get(frame))
-
 		ctx.fillStyle = grabColor
-		ctx.fillRect(x, 0, 1, canvas.height)
+		ctx.fillRect(getXPositionOfFrame(get(frame)), 0, 1, canvas.height)
+	}
+
+	function renderValidArea(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+		ctx.fillStyle = tertiaryColor
+		ctx.fillRect(
+			getXPositionOfFrame(0),
+			0,
+			getXPositionOfFrame(get(engine).length) - getXPositionOfFrame(0),
+			canvas.height
+		)
 	}
 
 	async function render() {
@@ -123,6 +134,7 @@
 
 		ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+		renderValidArea(canvas, ctx)
 		renderFrameLabels(canvas, ctx)
 		renderFrameLines(canvas, ctx)
 		renderPlayhead(canvas, ctx)
