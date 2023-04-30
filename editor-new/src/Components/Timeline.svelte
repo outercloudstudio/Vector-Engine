@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { subscribe } from 'svelte/internal'
-	import { engine, frame } from './stores'
-	import { getBestFittingBounds } from './aspectRatio'
+	import { engine, frame } from '../Stores/EngineStore'
 	import { get } from 'svelte/store'
+	import { pause } from '../Stores/PlayStore'
 
 	let canvas: undefined | HTMLCanvasElement = undefined
 	let containerWidth = 1920
@@ -14,22 +14,36 @@
 
 	let mouse = false
 
-	function mouseDown(event: MouseEvent) {
+	async function mouseDown(event: MouseEvent) {
 		mouse = true
 
 		const newFrame = Math.round(getFrameAtXPosition(event.clientX))
+
+		pause()
+
+		await get(engine).jumpToFrame(newFrame)
 		frame.set(newFrame)
-		get(engine).jumpToFrame(newFrame)
+
+		render()
 	}
 
 	function mouseMove(event: MouseEvent) {
 		if (!mouse) return
 
+		pause()
+
 		frame.set(Math.round(getFrameAtXPosition(event.clientX)))
+
+		render()
 	}
 
-	function mouseUp(event: MouseEvent) {
+	async function mouseUp(event: MouseEvent) {
 		mouse = false
+
+		const currentFrame = get(frame)
+		await get(engine).jumpToFrame(currentFrame)
+		frame.set(-1)
+		frame.set(currentFrame)
 	}
 
 	function getFrameAtXPosition(x: number): number {
@@ -48,13 +62,13 @@
 
 		const zoom = Math.exp(scrollY)
 
-		const frameWidthDelta = frameWidth * zoom - frameWidth
-
 		offset += mouseOffset * (1 - zoom)
 
 		scale *= zoom
 
 		offset += (canvas.width / 25) * scrollX
+
+		render()
 	}
 
 	const mainColor = '#141414'
@@ -128,6 +142,7 @@
 
 	async function render() {
 		if (!canvas) return
+		if (get(engine) === undefined) return
 
 		const ctx = canvas.getContext('2d')!
 		ctx.imageSmoothingEnabled = false
@@ -139,6 +154,10 @@
 		renderFrameLines(canvas, ctx)
 		renderPlayhead(canvas, ctx)
 	}
+
+	subscribe(engine, () => {
+		render()
+	})
 
 	subscribe(frame, () => {
 		render()

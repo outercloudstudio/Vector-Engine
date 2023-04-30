@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { subscribe } from 'svelte/internal'
-	import { engine, frame } from './stores.js'
+	import { engine, frame } from '../Stores/EngineStore.js'
 	import { get } from 'svelte/store'
-	import { getBestFittingBounds } from './aspectRatio.js'
+	import { getBestFittingBounds } from '../Utils/aspectRatio.js'
 
 	let canvas: undefined | HTMLCanvasElement = undefined
 	let containerWidth = 1920
@@ -75,7 +75,7 @@
 		ctx.drawImage(render, 0, 0, canvas.width, canvas.height)
 	}
 
-	subscribe(engine, () => {
+	subscribe(engine, value => {
 		render()
 	})
 
@@ -88,8 +88,6 @@
 
 		canvas.style.maxWidth = size.width + 'px'
 		canvas.style.maxHeight = size.height + 'px'
-
-		render()
 	}
 
 	$: if (canvas) {
@@ -123,7 +121,7 @@
 	}
 
 	canvas {
-		background-image: url('./Assets/checker.png');
+		background-image: url('../Assets/checker.png');
 		background-repeat: repeat;
 		background-position: bottom left;
 		image-rendering: pixelated;

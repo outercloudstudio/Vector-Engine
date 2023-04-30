@@ -22,3 +22,16 @@ body {
 	width: 100vw;
 	height: 100vh;
 }
+
+.icon-button {
+	transition: color 100ms ease-in-out;
+
+	cursor: pointer;
+	user-select: none;
+
+	color: var(--text);
+}
+
+.icon-button:hover {
+	color: var(--grab);
+}

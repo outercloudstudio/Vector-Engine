@@ -1,19 +1,18 @@
 <script lang="ts">
-	import Preview from './Preview.svelte'
-	import Timeline from './Timeline.svelte'
+	import Preview from './Components/Preview.svelte'
+	import Timeline from './Components/Timeline.svelte'
 
-	import { engine, engineData, engineProject, frame, makeEngine } from './stores.js'
+	import { engine, engineData, engineProject, frame, makeEngine } from './Stores/EngineStore.js'
 	import { onMount } from 'svelte'
 	import { get } from 'svelte/store'
+	import { play } from './Stores/PlayStore'
+	import ControlBar from './Components/ControlBar.svelte'
 
 	onMount(async () => {
 		window.addEventListener('project', async project => {
 			await makeEngine((<CustomEvent>project).detail.project, (<CustomEvent>project).detail.data)
 
-			setInterval(() => {
-				get(engine).next()
-				frame.update(value => value + 1)
-			}, 1000 / 60)
+			play()
 		})
 
 		window.addEventListener('project-update', async project => {
@@ -28,6 +27,7 @@
 
 <main>
 	<Preview />
+	<ControlBar />
 	<Timeline />
 </main>
 
