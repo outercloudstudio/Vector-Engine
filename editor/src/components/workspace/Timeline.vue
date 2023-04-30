@@ -544,10 +544,12 @@ function render() {
   // Seperator Bar
   ctx.strokeStyle = secondaryColor
   ctx.lineWidth = 1 * canvasScale
+  
   ctx.beginPath()
   ctx.moveTo(0, 32 * canvasScale)
   ctx.lineTo(canvas.value.width, 32 * canvasScale)
   ctx.stroke()
+
   const labelInterval = Math.max(
     Math.floor(
       (Math.ceil(endFrame.value) - Math.floor(startFrame.value)) / 60

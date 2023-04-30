@@ -13,23 +13,17 @@
 	$: frameWidth = canvas && scale ? getFrameAtXPosition(canvas.width) - getFrameAtXPosition(0) : 0
 
 	let mouse = false
-	let mouseDownX = 0
-	let mouseDownY = 0
 
 	function mouseDown(event: MouseEvent) {
 		mouse = true
 
-		mouseDownX = event.clientX
-		mouseDownY = event.clientY
+		frame.set(Math.round(getFrameAtXPosition(event.clientX)))
 	}
 
 	function mouseMove(event: MouseEvent) {
 		if (!mouse) return
 
-		offset += event.clientX - mouseDownX
-
-		mouseDownX = event.clientX
-		mouseDownY = event.clientY
+		frame.set(Math.round(getFrameAtXPosition(event.clientX)))
 	}
 
 	function mouseUp(event: MouseEvent) {
@@ -47,6 +41,7 @@
 	function scroll(event: any) {
 		const canvasBounds = canvas.getBoundingClientRect()
 		const mouseOffset = event.clientX - canvasBounds.left - getXPositionOfFrame(0)
+		const scrollX = event.deltaX / -36
 		const scrollY = event.deltaY / -4000
 
 		const zoom = Math.exp(scrollY)
@@ -56,6 +51,8 @@
 		offset += mouseOffset * (1 - zoom)
 
 		scale *= zoom
+
+		offset += (canvas.width / 25) * scrollX
 	}
 
 	const mainColor = '#141414'
