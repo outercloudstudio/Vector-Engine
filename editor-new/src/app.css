@@ -1,5 +1,10 @@
+@font-face {
+	font-family: 'Mulish';
+	src: url('./Assets/Mulish.ttf');
+}
+
 :root {
-	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+	font-family: 'Mulish';
 	font-weight: 400;
 
 	--main: #141414;

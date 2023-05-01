@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { subscribe } from 'svelte/internal'
+	import { subscribe, tick } from 'svelte/internal'
 	import { engine, frame } from '../Stores/EngineStore'
 	import { get } from 'svelte/store'
 	import { pause } from '../Stores/PlayStore'
@@ -23,8 +23,6 @@
 
 		await get(engine).jumpToFrame(newFrame)
 		frame.set(newFrame)
-
-		render()
 	}
 
 	function mouseMove(event: MouseEvent) {
@@ -33,8 +31,6 @@
 		pause()
 
 		frame.set(Math.round(getFrameAtXPosition(event.clientX)))
-
-		render()
 	}
 
 	async function mouseUp(event: MouseEvent) {
@@ -67,8 +63,6 @@
 		scale *= zoom
 
 		offset += (canvas.width / 25) * scrollX
-
-		render()
 	}
 
 	const mainColor = '#141414'
@@ -94,7 +88,7 @@
 			const x = getXPositionOfFrame(frame)
 
 			ctx.fillStyle = alternateTextColor
-			ctx.font = `${10}px system-ui`
+			ctx.font = `${10}px Mulish`
 
 			const measure = ctx.measureText(frame.toString())
 
@@ -155,17 +149,19 @@
 		renderPlayhead(canvas, ctx)
 	}
 
-	subscribe(engine, () => {
-		render()
+	subscribe(engine, value => {
+		if (value === undefined) return
+
+		scale = frameWidth / value.length / 2 / 1.5
+		offset = canvas.width / 6
 	})
 
 	subscribe(frame, () => {
 		render()
 	})
 
-	$: if (canvas && containerWidth && containerHeight) {
-		render()
-	}
+	$: containerWidth, containerHeight, tick().then(render)
+	$: scale, offset, render()
 </script>
 
 <main

@@ -27,7 +27,7 @@
 		<span class="material-symbols-outlined icon-button" on:mouseup={next}> skip_next </span>
 	</div>
 
-	<p>{$engine ? $engine.length : 60}</p>
+	<p class="align-right">{$engine ? $engine.length : 60}</p>
 </main>
 
 <style>
@@ -48,12 +48,16 @@
 	}
 
 	p {
-		display: inline;
-
 		margin: 0;
 		padding: 0;
 
 		color: var(--text);
-		font-size: small;
+		font-size: 0.7rem;
+
+		width: 3rem;
+	}
+
+	.align-right {
+		text-align: right;
 	}
 </style>
