@@ -207,13 +207,13 @@
 >
 	<canvas bind:this={canvas} width={containerWidth} height={containerHeight} />
 
-	{#if $engineData}
+	<!-- {#if $engineData}
 		{#each $engineData.project.markers as marker}
 			<div class="marker" style="left: {marker.frame * 5 * scale + offset}px">
 				<p>{marker.name}</p>
 			</div>
 		{/each}
-	{/if}
+	{/if} -->
 </main>
 
 <style>

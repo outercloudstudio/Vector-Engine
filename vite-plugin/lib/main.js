@@ -39,10 +39,6 @@ export default async function VectorEngine(configURI) {
 
         window.dispatchEvent(new CustomEvent('project', { detail: { project, data } }))
 
-        import.meta.hot.on('vector-engine:project-update', project => {
-          window.dispatchEvent(new CustomEvent('project-update', { detail: project }))
-        })
-
         import.meta.hot.on('vector-engine:update-data', data => {
           window.dispatchEvent(new CustomEvent('data-update', { detail: data }))
         })
@@ -91,7 +87,7 @@ export default async function VectorEngine(configURI) {
                 return (code +
                     `
           import.meta.hot.accept(newModule => {
-            window.dispatchEvent(new CustomEvent('project-update', { detail: newModule.project }))
+            window.dispatchEvent(new CustomEvent('project-update', { detail: newModule.default }))
           })
           `);
             }

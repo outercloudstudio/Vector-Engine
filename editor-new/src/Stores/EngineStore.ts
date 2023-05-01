@@ -7,18 +7,11 @@ export const engineData = writable(undefined)
 export const frame = writable(0)
 
 export async function makeEngine(newProject: any, newData: any) {
-	const newEngine = new Engine(
-		newProject,
-		newData.project.scenes,
-		newData.project.markers,
-		false,
-		(error: any) => {
-			console.error(error)
-		}
-	)
+	const newEngine = new Engine(newProject, newData.project, false)
 
 	await newEngine.load()
 
 	engine.set(newEngine)
+	engineProject.set(engineProject)
 	engineData.set(newData)
 }
