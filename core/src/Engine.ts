@@ -1,192 +1,137 @@
-import { Scene } from './Scene'
+import { Scene, SceneContext } from './Scene'
 
-export type ProjectContext = {
-  frameRate(frameRate: number): void
-  length(length: number): void
-  minutes(minutes: number): number
-  seconds(seconds: number): number
-  loadScenes(scenes: { [key: string]: any }): void
-  audioTrack(audio: AudioBuffer): void
-}
-
-function useProjectContext(engine: Engine): ProjectContext {
-  return {
-    frameRate(frameRate: number) {
-      engine.frameRate = frameRate
-    },
-
-    length(length: number) {
-      engine.length = length
-    },
-
-    minutes(minutes: number) {
-      return engine.frameRate * 60 * minutes
-    },
-
-    seconds(seconds: number) {
-      return engine.frameRate * seconds
-    },
-
-    loadScenes(scenes: { [key: string]: any }) {
-      engine.sceneContexts = scenes
-    },
-
-    audioTrack(audio: AudioBuffer) {
-      engine.audioTrack = audio
-    },
-  }
+export function makeProject(
+	frameRate: number,
+	length: number,
+	scenes: {
+		[key: string]: (context: SceneContext) => AsyncGenerator
+	},
+	audioTrack: AudioBuffer | undefined
+) {
+	return {
+		frameRate,
+		length: length * frameRate,
+		scenes,
+		audioTrack,
+	}
 }
 
 export class Engine {
-  project: any
-  loaded: boolean = false
+	project: any
+	loaded: boolean = false
 
-  sceneContexts: { [key: string]: any } = {}
-  scenes: { name: string; length: number }[] = []
-  currentScene: Scene
-  currentSceneIndex: number = -1
+	scenes: { name: string; length: number }[] = []
+	currentScene: Scene
+	currentSceneIndex: number = -1
 
-  frameRate: number = 60
-  length: number = 60
-  frame: number = 0
+	frameRate: number = 60
+	length: number = 60
+	frame: number = 0
 
-  markers: {
-    name: string
-    id: string
-    frame: number
-  }[] = []
+	markers: {
+		name: string
+		id: string
+		frame: number
+	}[] = []
 
-  audioTrack: AudioBuffer | undefined = undefined
+	audioTrack: AudioBuffer | undefined = undefined
 
-  inferenceAudio: boolean = false
+	inferenceAudio: boolean = false
 
-  onError: any
+	onError: any
 
-  constructor(
-    project: any,
-    scenes: { name: string; length: number }[],
-    markers: { name: string; id: string; frame: number }[],
-    inferenceAudio?: boolean,
-    onError?: any
-  ) {
-    this.project = project
+	constructor(
+		project: any,
+		scenes: { name: string; length: number }[],
+		markers: { name: string; id: string; frame: number }[],
+		inferenceAudio?: boolean,
+		onError?: any
+	) {
+		this.project = project
 
-    this.scenes = scenes
+		this.scenes = scenes
 
-    this.markers = markers
+		this.markers = markers
 
-    if (inferenceAudio) this.inferenceAudio = inferenceAudio
+		if (inferenceAudio) this.inferenceAudio = inferenceAudio
 
-    this.onError = onError
-  }
+		this.onError = onError
+	}
 
-  getSceneIndex(frame: number): number {
-    let sceneIndex = -1
+	getSceneIndex(frame: number): number {
+		let sceneIndex = -1
 
-    for (
-      let stepFrame = 0;
-      stepFrame <= frame && sceneIndex < this.scenes.length - 1;
+		for (let stepFrame = 0; stepFrame <= frame && sceneIndex < this.scenes.length - 1; ) {
+			sceneIndex++
 
-    ) {
-      sceneIndex++
+			stepFrame += this.scenes[sceneIndex].length
+		}
 
-      stepFrame += this.scenes[sceneIndex].length
-    }
+		return sceneIndex
+	}
 
-    return sceneIndex
-  }
+	getSceneStartFrame(sceneIndex: number): number {
+		let frame = 0
 
-  getSceneStartFrame(sceneIndex: number): number {
-    let frame = 0
+		for (let index = 0; index < sceneIndex; index++) {
+			frame += this.scenes[index].length
+		}
 
-    for (let index = 0; index < sceneIndex; index++) {
-      frame += this.scenes[index].length
-    }
+		return frame
+	}
 
-    return frame
-  }
+	async loadScene(sceneIndex: number) {
+		const sceneData = this.scenes[sceneIndex]
 
-  async loadScene(sceneIndex: number) {
-    const sceneData = this.scenes[sceneIndex]
+		this.currentScene = new Scene(this.project.scenes[sceneData.name], this)
+		await this.currentScene.load()
 
-    this.currentScene = new Scene(this.sceneContexts[sceneData.name], this)
-    await this.currentScene.load()
+		this.currentSceneIndex = sceneIndex
+	}
 
-    this.currentSceneIndex = sceneIndex
-  }
+	async load() {
+		await this.loadScene(0)
 
-  async load() {
-    try {
-      await this.project(useProjectContext(this))
-    } catch (error) {
-      if (this.onError) this.onError(<string>error)
+		this.loaded = true
+	}
 
-      return
-    }
+	async render() {
+		const canvas = new OffscreenCanvas(1920, 1080)
+		const ctx: OffscreenCanvasRenderingContext2D = <OffscreenCanvasRenderingContext2D>(
+			canvas.getContext('2d')
+		)
 
-    await this.loadScene(0)
+		const activeSceneRender = await this.currentScene.render()
 
-    this.loaded = true
-  }
+		ctx.drawImage(activeSceneRender, 0, 0)
 
-  async render() {
-    const canvas = new OffscreenCanvas(1920, 1080)
-    const ctx: OffscreenCanvasRenderingContext2D = <
-      OffscreenCanvasRenderingContext2D
-    >canvas.getContext('2d')
+		return canvas
+	}
 
-    const activeSceneRender = await this.currentScene.render()
+	async jumpToFrame(frame: number) {
+		if (frame < this.frame) {
+			this.frame = 0
 
-    ctx.drawImage(activeSceneRender, 0, 0)
+			const sceneIndex = this.getSceneIndex(frame)
+			const sceneStartFrame = this.getSceneStartFrame(sceneIndex)
 
-    return canvas
-  }
+			this.frame = sceneStartFrame
 
-  async reload() {
-    this.loaded = false
-    this.frameRate = 60
-    this.length = 60
-    this.sceneContexts = {}
-    this.frame = 0
+			await this.loadScene(sceneIndex)
+		}
 
-    if (!this.project) return
+		for (let engineFrame = this.frame; engineFrame < frame; engineFrame++) {
+			await this.next()
+		}
+	}
 
-    try {
-      await this.project(useProjectContext(this))
-    } catch (error) {
-      if (this.onError) this.onError(<string>error)
+	async next() {
+		this.frame++
 
-      return
-    }
+		await this.currentScene.next()
 
-    this.loaded = true
-  }
+		const currentSceneIndex = this.getSceneIndex(this.frame)
 
-  async jumpToFrame(frame: number) {
-    if (frame < this.frame) {
-      await this.reload()
-
-      const sceneIndex = this.getSceneIndex(frame)
-      const sceneStartFrame = this.getSceneStartFrame(sceneIndex)
-
-      this.frame = sceneStartFrame
-
-      await this.loadScene(sceneIndex)
-    }
-
-    for (let engineFrame = this.frame; engineFrame < frame; engineFrame++) {
-      await this.next()
-    }
-  }
-
-  async next() {
-    this.frame++
-
-    await this.currentScene.next()
-
-    const currentSceneIndex = this.getSceneIndex(this.frame)
-
-    if (currentSceneIndex != this.currentSceneIndex)
-      await this.loadScene(currentSceneIndex)
-  }
+		if (currentSceneIndex != this.currentSceneIndex) await this.loadScene(currentSceneIndex)
+	}
 }

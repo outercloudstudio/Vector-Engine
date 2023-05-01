@@ -34,7 +34,7 @@ export default async function VectorEngine(configURI) {
             if (id === resolvedVirtualInjectPackage) {
                 return `
         import data from 'virtual:@vector-engine/data'
-        import { project } from 'virtual:@vector-engine/project'
+        import project from 'virtual:@vector-engine/project'
         import editor from '@vector-engine/editor-new'
 
         window.dispatchEvent(new CustomEvent('project', { detail: { project, data } }))

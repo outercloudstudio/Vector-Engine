@@ -1,16 +1,14 @@
-import { ProjectContext } from '@vector-engine/core'
+import { makeProject } from '@vector-engine/core'
 import audio from '../Assets/Full.mp3'
 import scene from './scene'
 import laggyScene from './laggyScene'
 
-export const project = async ({ frameRate, length, loadScenes, audioTrack }: ProjectContext) => {
-	frameRate(60)
-	length(600)
-
-	audioTrack(audio)
-
-	loadScenes({
+export default makeProject(
+	60,
+	10,
+	{
 		laggyScene,
 		scene,
-	})
-}
+	},
+	audio
+)

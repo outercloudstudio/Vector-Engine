@@ -1,17 +1,23 @@
 {
-  "project": {
-    "markers": [],
-    "scenes": [
-      {
-        "name": "scene",
-        "length": 10
-      }
-    ]
-  },
-  "editor": {
-    "volume": 1,
-    "inference": {
-      "audio": true
-    }
-  }
+	"project": {
+		"markers": [
+			{
+				"name": "Marker",
+				"id": "Marker",
+				"frame": 10
+			}
+		],
+		"scenes": [
+			{
+				"name": "scene",
+				"length": 10
+			}
+		]
+	},
+	"editor": {
+		"volume": 1,
+		"inference": {
+			"audio": true
+		}
+	}
 }

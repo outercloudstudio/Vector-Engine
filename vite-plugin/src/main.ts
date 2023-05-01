@@ -18,7 +18,11 @@ export default async function VectorEngine(configURI: string) {
 
 	const projectBase = posix(path.dirname(url.fileURLToPath(configURI)))
 
-	const project = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'src', 'main.ts')
+	const project = path.posix.join(
+		posix(path.dirname(url.fileURLToPath(configURI))),
+		'src',
+		'main.ts'
+	)
 	const dataFile = path.posix.join(posix(path.dirname(url.fileURLToPath(configURI))), 'data.json')
 
 	return {
@@ -50,7 +54,7 @@ export default async function VectorEngine(configURI: string) {
 			if (id === resolvedVirtualInjectPackage) {
 				return `
         import data from 'virtual:@vector-engine/data'
-        import { project } from 'virtual:@vector-engine/project'
+        import project from 'virtual:@vector-engine/project'
         import editor from '@vector-engine/editor-new'
 
         window.dispatchEvent(new CustomEvent('project', { detail: { project, data } }))

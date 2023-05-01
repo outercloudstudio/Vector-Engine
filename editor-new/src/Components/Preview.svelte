@@ -3,6 +3,7 @@
 	import { engine, frame } from '../Stores/EngineStore.js'
 	import { get } from 'svelte/store'
 	import { getBestFittingBounds } from '../Utils/aspectRatio.js'
+	import { playFrameRate } from '../Stores/PlayStore.js'
 
 	let canvas: undefined | HTMLCanvasElement = undefined
 	let containerWidth = 1920
@@ -96,7 +97,7 @@
 	}
 </script>
 
-<div
+<main
 	bind:clientWidth={containerWidth}
 	bind:clientHeight={containerHeight}
 	on:mousedown={mouseDown}
@@ -105,11 +106,13 @@
 	on:mouseup={mouseUp}
 	on:wheel={scroll}
 >
+	<p>{$playFrameRate}</p>
+
 	<canvas bind:this={canvas} width={1920} height={1080} />
-</div>
+</main>
 
 <style>
-	div {
+	main {
 		background: #000000;
 		height: 50%;
 
@@ -118,6 +121,21 @@
 		align-items: center;
 
 		overflow: hidden;
+
+		position: relative;
+	}
+
+	main > p {
+		position: absolute;
+
+		top: 0.5rem;
+		left: 0.5rem;
+
+		margin: 0;
+
+		color: var(--text);
+
+		font-size: small;
 	}
 
 	canvas {

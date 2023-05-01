@@ -11,8 +11,6 @@
 	onMount(async () => {
 		window.addEventListener('project', async project => {
 			await makeEngine((<CustomEvent>project).detail.project, (<CustomEvent>project).detail.data)
-
-			play()
 		})
 
 		window.addEventListener('project-update', async project => {

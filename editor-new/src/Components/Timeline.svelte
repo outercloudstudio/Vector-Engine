@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { subscribe, tick } from 'svelte/internal'
-	import { engine, frame } from '../Stores/EngineStore'
+	import { engine, engineData, frame } from '../Stores/EngineStore'
 	import { get } from 'svelte/store'
 	import { pause } from '../Stores/PlayStore'
+	import { audioInference } from '../Stores/InferenceStore'
 
 	let canvas: undefined | HTMLCanvasElement = undefined
 	let containerWidth = 1920
@@ -37,7 +38,11 @@
 		mouse = false
 
 		const currentFrame = get(frame)
-		await get(engine).jumpToFrame(currentFrame)
+		const currentEngine = get(engine)
+
+		if (currentEngine === undefined) return
+
+		await currentEngine.jumpToFrame(currentFrame)
 		frame.set(-1)
 		frame.set(currentFrame)
 	}
@@ -119,6 +124,28 @@
 		}
 	}
 
+	function renderAudio(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+		const currentAudioInference = get(audioInference)
+
+		for (
+			let frame = Math.floor(getFrameAtXPosition(0));
+			frame < Math.ceil(getFrameAtXPosition(canvas.width));
+			frame++
+		) {
+			if (frame < 0 || frame >= get(engine).length) continue
+
+			const x = getXPositionOfFrame(frame)
+
+			ctx.fillStyle = secondaryColor
+			ctx.fillRect(
+				x,
+				canvas.height,
+				getXPositionOfFrame(frame + 1) - getXPositionOfFrame(frame),
+				-100 * currentAudioInference[frame]
+			)
+		}
+	}
+
 	function renderPlayhead(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
 		ctx.fillStyle = grabColor
 		ctx.fillRect(getXPositionOfFrame(get(frame)), 0, 1, canvas.height)
@@ -146,6 +173,7 @@
 		renderValidArea(canvas, ctx)
 		renderFrameLabels(canvas, ctx)
 		renderFrameLines(canvas, ctx)
+		renderAudio(canvas, ctx)
 		renderPlayhead(canvas, ctx)
 	}
 
@@ -157,6 +185,10 @@
 	})
 
 	subscribe(frame, () => {
+		render()
+	})
+
+	subscribe(audioInference, () => {
 		render()
 	})
 
@@ -174,6 +206,14 @@
 	on:wheel={scroll}
 >
 	<canvas bind:this={canvas} width={containerWidth} height={containerHeight} />
+
+	{#if $engineData}
+		{#each $engineData.project.markers as marker}
+			<div class="marker" style="left: {marker.frame * 5 * scale + offset}px">
+				<p>{marker.name}</p>
+			</div>
+		{/each}
+	{/if}
 </main>
 
 <style>
@@ -187,6 +227,8 @@
 		align-items: center;
 
 		overflow: hidden;
+
+		position: relative;
 	}
 
 	canvas {
@@ -197,5 +239,21 @@
 
 		width: 100%;
 		height: 100%;
+	}
+
+	.marker {
+		background-color: var(--grab);
+
+		border-radius: 0.4rem;
+		border-top-left-radius: 0;
+
+		position: absolute;
+		top: 24px;
+	}
+
+	.marker > p {
+		margin: 0;
+		padding: 0.2rem;
+		font-size: 0.7rem;
 	}
 </style>
