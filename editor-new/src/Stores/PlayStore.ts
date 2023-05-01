@@ -49,8 +49,8 @@ export async function play() {
 	startedPlayingTime = Date.now()
 	startedPlayingFrame = currentFrame
 
-	lastFrameTime = currentFrame
-	playFrameRate.set(0)
+	lastFrameTime = startedPlayingTime
+	lastFrameRateUpdateTime = startedPlayingTime
 
 	await startAudioPlayback(currentFrame / currentEngine.frameRate)
 
