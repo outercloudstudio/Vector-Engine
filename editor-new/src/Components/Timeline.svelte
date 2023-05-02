@@ -11,7 +11,6 @@
 
 	let offset = 0
 	let scale = 1
-	$: frameWidth = canvas && scale ? getFrameAtXPosition(canvas.width) - getFrameAtXPosition(0) : 0
 
 	let mouse = false
 
@@ -79,6 +78,9 @@
 	const alternateTextColor = '#a7a7a7'
 
 	function renderFrameLabels(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+		const frameWidth =
+			canvas && scale ? getFrameAtXPosition(canvas.width) - getFrameAtXPosition(0) : 0
+
 		const interval = Math.max(
 			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / 8),
 			1
@@ -106,6 +108,9 @@
 	}
 
 	function renderFrameLines(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+		const frameWidth =
+			canvas && scale ? getFrameAtXPosition(canvas.width) - getFrameAtXPosition(0) : 0
+
 		const interval = Math.max(
 			Math.floor(Math.pow(2, Math.floor(Math.log(frameWidth) / Math.log(2))) / 8),
 			1
@@ -180,8 +185,14 @@
 	subscribe(engine, value => {
 		if (value === undefined) return
 
-		scale = frameWidth / value.length / 2 / 1.5
-		offset = canvas.width / 6
+		scale = 1
+		offset = 0
+
+		const frameWidth =
+			canvas && scale ? getFrameAtXPosition(canvas.width) - getFrameAtXPosition(0) : 0
+
+		scale = frameWidth / value.length / 1.5
+		offset = canvas.width / 1.5 / 4
 	})
 
 	subscribe(frame, () => {
