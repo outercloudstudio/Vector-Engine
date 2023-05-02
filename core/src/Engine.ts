@@ -33,13 +33,9 @@ export class Engine {
 
 	audioTrack: AudioBuffer | undefined = undefined
 
-	inferenceAudio: boolean = false
-
-	constructor(project: any, data: any, inferenceAudio?: boolean) {
+	constructor(project: any, data: any) {
 		this.project = project
 		this.data = data
-
-		if (inferenceAudio) this.inferenceAudio = inferenceAudio
 	}
 
 	async load() {
@@ -80,4 +76,6 @@ export class Engine {
 
 		await this.currentScene.next()
 	}
+
+	referencedMarker(name: string): void {}
 }

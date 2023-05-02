@@ -16,7 +16,7 @@ function animatedVector(
 	value?: OptionalReactor<Vector>,
 	length?: number,
 	mode?: any
-): AsyncGenerator | Vector | void {
+): Generator | Vector | void {
 	if (value === undefined) return me['_' + property]()
 
 	if (length === undefined) {
@@ -29,18 +29,24 @@ function animatedVector(
 		return
 	}
 
-	return async function* () {
-		if (me.scene == undefined) throw new Error('Can not animate without being added to a scene!')
+	if (me.scene == undefined) throw new Error('Can not animate without being added to a scene!')
 
-		const from = me['_' + property]()
-		const to = unreactive(value)
+	const from = me['_' + property]()
+	const to = unreactive(value)
 
-		for (let i = 1; i <= Math.ceil(length * me.scene.engine.frameRate); i++) {
+	const aside = new Aside(function* () {
+		for (let i = 1; i <= Math.ceil(length * me.scene.engine.frameRate - 1); i++) {
 			me['_' + property](from.lerp(to, mode(i / Math.ceil(length * me.scene.engine.frameRate))))
 
 			yield null
 		}
-	}.call(me)
+
+		me['_' + property](to)
+	})
+
+	me.scene.addAside(aside)
+
+	return waitFor(aside)
 }
 
 function animatedNumber(
@@ -49,7 +55,7 @@ function animatedNumber(
 	value?: OptionalReactor<number>,
 	length?: number,
 	mode?: any
-): Promise<Generator> | number | void {
+): Generator | number | void {
 	if (value === undefined) return me['_' + property]()
 
 	if (length === undefined) {
@@ -68,26 +74,18 @@ function animatedNumber(
 	const to = unreactive(value)
 
 	const aside = new Aside(function* () {
-		for (let i = 1; i <= Math.ceil(length * me.scene.engine.frameRate); i++) {
+		for (let i = 1; i <= Math.ceil(length * me.scene.engine.frameRate) - 1; i++) {
 			me['_' + property](lerp(from, to, mode(i / Math.ceil(length * me.scene.engine.frameRate))))
 
 			yield null
 		}
+
+		me['_' + property](to)
 	})
 
-	return new Promise<Generator>(async res => {
-		await aside.next()
+	me.scene.addAside(aside)
 
-		if (aside.done) return
-
-		me.scene.asides.push(aside)
-
-		res(
-			(function* () {
-				yield* waitFor(aside)
-			})()
-		)
-	})
+	return waitFor(aside)
 }
 
 function animatedString(me: any, property: string, value?: OptionalReactor<string>): string | void {
@@ -125,34 +123,34 @@ export class TransformElement extends Element {
 
 	public position(): Vector
 	public position(value: OptionalReactor<Vector>): void
-	public position(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public position(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public position(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'position', value, length, mode)
 	}
 
 	public rotation(): number
 	public rotation(value: OptionalReactor<number>): void
-	public rotation(value: OptionalReactor<number>, length: number, mode: any): Promise<Generator>
+	public rotation(value: OptionalReactor<number>, length: number, mode: any): Generator
 	public rotation(
 		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Promise<Generator> | number | void {
+	): Generator | number | void {
 		return animatedNumber(this, 'rotation', value, length, mode)
 	}
 
 	public scale(): Vector
 	public scale(value: OptionalReactor<Vector>): void
-	public scale(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public scale(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public scale(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'scale', value, length, mode)
 	}
 }
@@ -183,12 +181,12 @@ export class RenderElement extends TransformElement {
 
 	public origin(): Vector
 	public origin(value: OptionalReactor<Vector>): void
-	public origin(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public origin(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public origin(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'origin', value, length, mode)
 	}
 }
@@ -229,56 +227,56 @@ export class Rect extends RenderElement {
 
 	public size(): Vector
 	public size(value: OptionalReactor<Vector>): void
-	public size(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public size(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public size(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'size', value, length, mode)
 	}
 
 	public color(): Vector
 	public color(value: OptionalReactor<Vector>): void
-	public color(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public color(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public color(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'color', value, length, mode)
 	}
 
 	public outline(): Vector
 	public outline(value: OptionalReactor<Vector>): void
-	public outline(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public outline(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public outline(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'outline', value, length, mode)
 	}
 
 	public outlineWidth(): number
 	public outlineWidth(value: OptionalReactor<number>): void
-	public outlineWidth(value: OptionalReactor<number>, length: number, mode: any): Promise<Generator>
+	public outlineWidth(value: OptionalReactor<number>, length: number, mode: any): Generator
 	public outlineWidth(
 		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Promise<Generator> | number | void {
+	): Generator | number | void {
 		return animatedNumber(this, 'outlineWidth', value, length, mode)
 	}
 
 	public radius(): number
 	public radius(value: OptionalReactor<number>): void
-	public radius(value: OptionalReactor<number>, length: number, mode: any): Promise<Generator>
+	public radius(value: OptionalReactor<number>, length: number, mode: any): Generator
 	public radius(
 		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Promise<Generator> | number | void {
+	): Generator | number | void {
 		return animatedNumber(this, 'radius', value, length, mode)
 	}
 
@@ -367,45 +365,45 @@ export class Ellipse extends RenderElement {
 
 	public size(): Vector
 	public size(value: OptionalReactor<Vector>): void
-	public size(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public size(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public size(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'size', value, length, mode)
 	}
 
 	public color(): Vector
 	public color(value: OptionalReactor<Vector>): void
-	public color(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public color(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public color(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'color', value, length, mode)
 	}
 
 	public outline(): Vector
 	public outline(value: OptionalReactor<Vector>): void
-	public outline(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public outline(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public outline(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'outline', value, length, mode)
 	}
 
 	public outlineWidth(): number
 	public outlineWidth(value: OptionalReactor<number>): void
-	public outlineWidth(value: OptionalReactor<number>, length: number, mode: any): Promise<Generator>
+	public outlineWidth(value: OptionalReactor<number>, length: number, mode: any): Generator
 	public outlineWidth(
 		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Promise<Generator> | number | void {
+	): Generator | number | void {
 		return animatedNumber(this, 'outlineWidth', value, length, mode)
 	}
 
@@ -502,45 +500,45 @@ export class VectorText extends RenderElement {
 
 	public size(): number
 	public size(value: OptionalReactor<number>): void
-	public size(value: OptionalReactor<number>, length: number, mode: any): Promise<Generator>
+	public size(value: OptionalReactor<number>, length: number, mode: any): Generator
 	public size(
 		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Promise<Generator> | number | void {
+	): Generator | number | void {
 		return animatedNumber(this, 'size', value, length, mode)
 	}
 
 	public color(): Vector
 	public color(value: OptionalReactor<Vector>): void
-	public color(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public color(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public color(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'color', value, length, mode)
 	}
 
 	public outline(): Vector
 	public outline(value: OptionalReactor<Vector>): void
-	public outline(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public outline(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public outline(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'outline', value, length, mode)
 	}
 
 	public outlineWidth(): number
 	public outlineWidth(value: OptionalReactor<number>): void
-	public outlineWidth(value: OptionalReactor<number>, length: number, mode: any): Promise<Generator>
+	public outlineWidth(value: OptionalReactor<number>, length: number, mode: any): Generator
 	public outlineWidth(
 		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Promise<Generator> | number | void {
+	): Generator | number | void {
 		return animatedNumber(this, 'outlineWidth', value, length, mode)
 	}
 
@@ -614,23 +612,23 @@ export class VectorImage extends RenderElement {
 
 	public size(): Vector
 	public size(value: OptionalReactor<Vector>): void
-	public size(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public size(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public size(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'size', value, length, mode)
 	}
 
 	public color(): Vector
 	public color(value: OptionalReactor<Vector>): void
-	public color(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public color(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public color(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'color', value, length, mode)
 	}
 
@@ -744,34 +742,34 @@ export class VectorVideo extends RenderElement {
 
 	public size(): Vector
 	public size(value: OptionalReactor<Vector>): void
-	public size(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public size(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public size(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'size', value, length, mode)
 	}
 
 	public color(): Vector
 	public color(value: OptionalReactor<Vector>): void
-	public color(value: OptionalReactor<Vector>, length: number, mode: any): AsyncGenerator
+	public color(value: OptionalReactor<Vector>, length: number, mode: any): Generator
 	public color(
 		value?: OptionalReactor<Vector>,
 		length?: number,
 		mode?: any
-	): AsyncGenerator | Vector | void {
+	): Generator | Vector | void {
 		return animatedVector(this, 'color', value, length, mode)
 	}
 
 	public time(): number
 	public time(value: OptionalReactor<number>): void
-	public time(value: OptionalReactor<number>, length: number, mode: any): Promise<Generator>
+	public time(value: OptionalReactor<number>, length: number, mode: any): Generator
 	public time(
 		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Promise<Generator> | number | void {
+	): Generator | number | void {
 		return animatedNumber(this, 'time', value, length, mode)
 	}
 

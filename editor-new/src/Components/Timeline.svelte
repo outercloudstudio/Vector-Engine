@@ -3,7 +3,7 @@
 	import { engine, engineData, frame } from '../Stores/EngineStore'
 	import { get } from 'svelte/store'
 	import { pause } from '../Stores/PlayStore'
-	import { audioInference } from '../Stores/InferenceStore'
+	import { audioInference, markerInference, sceneInference } from '../Stores/InferenceStore'
 
 	let canvas: undefined | HTMLCanvasElement = undefined
 	let containerWidth = 1920
@@ -17,11 +17,16 @@
 	async function mouseDown(event: MouseEvent) {
 		mouse = true
 
-		const newFrame = Math.round(getFrameAtXPosition(event.clientX))
+		const currentEngine = get(engine)
+
+		const newFrame = Math.max(
+			0,
+			Math.min(currentEngine.length - 1, Math.round(getFrameAtXPosition(event.clientX)))
+		)
 
 		pause()
 
-		await get(engine).jumpToFrame(newFrame)
+		await currentEngine.jumpToFrame(newFrame)
 		frame.set(newFrame)
 	}
 
@@ -30,7 +35,12 @@
 
 		pause()
 
-		frame.set(Math.round(getFrameAtXPosition(event.clientX)))
+		const newFrame = Math.max(
+			0,
+			Math.min(get(engine).length - 1, Math.round(getFrameAtXPosition(event.clientX)))
+		)
+
+		frame.set(newFrame)
 	}
 
 	async function mouseUp(event: MouseEvent) {
@@ -161,7 +171,7 @@
 		ctx.fillRect(
 			getXPositionOfFrame(0),
 			0,
-			getXPositionOfFrame(get(engine).length) - getXPositionOfFrame(0),
+			getXPositionOfFrame(get(engine).length - 1) - getXPositionOfFrame(0),
 			canvas.height
 		)
 	}
@@ -191,7 +201,7 @@
 		const frameWidth =
 			canvas && scale ? getFrameAtXPosition(canvas.width) - getFrameAtXPosition(0) : 0
 
-		scale = frameWidth / value.length / 1.5
+		scale = frameWidth / (value.length - 1) / 1.5
 		offset = canvas.width / 1.5 / 4
 	})
 
@@ -218,13 +228,30 @@
 >
 	<canvas bind:this={canvas} width={containerWidth} height={containerHeight} />
 
-	<!-- {#if $engineData}
-		{#each $engineData.project.markers as marker}
-			<div class="marker" style="left: {marker.frame * 5 * scale + offset}px">
-				<p>{marker.name}</p>
-			</div>
+	{#if $engineData}
+		{#each $sceneInference as scene}
+			<p
+				class="scene"
+				style="left: {scene.frame * 5 * scale + offset}px; width:calc({scene.length *
+					5 *
+					scale}px - 0.4rem)"
+			>
+				{scene.name}
+			</p>
 		{/each}
-	{/if} -->
+
+		{#each $markerInference as marker}
+			<div
+				class="marker-length"
+				style="left: {marker.frame * 5 * scale + offset}px; width:calc({marker.length *
+					5 *
+					scale}px + 0.4rem)"
+			/>
+			<p class="marker" style="left: {(marker.frame + marker.length) * 5 * scale + offset}px">
+				{marker.name}
+			</p>
+		{/each}
+	{/if}
 </main>
 
 <style>
@@ -252,19 +279,49 @@
 		height: 100%;
 	}
 
+	.marker-length {
+		background-color: var(--secondary);
+
+		border-radius: 0.2rem;
+
+		position: absolute;
+		top: 52px;
+
+		height: 1.3rem;
+	}
+
 	.marker {
 		background-color: var(--grab);
 
 		border-radius: 0.4rem;
 		border-top-left-radius: 0;
 
-		position: absolute;
-		top: 24px;
-	}
-
-	.marker > p {
 		margin: 0;
+
 		padding: 0.2rem;
 		font-size: 0.7rem;
+
+		display: table;
+
+		position: absolute;
+		top: 52px;
+
+		z-index: 1;
+	}
+
+	.scene {
+		background-color: var(--secondary);
+
+		border-radius: 0.2rem;
+
+		margin: 0;
+
+		padding: 0.2rem;
+		font-size: 0.7rem;
+
+		position: absolute;
+		top: 24px;
+
+		color: var(--alternate-text);
 	}
 </style>

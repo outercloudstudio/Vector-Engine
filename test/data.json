@@ -1,6 +1,9 @@
 {
 	"project": {
-		"markers": {}
+		"markers": {
+			"Hi": 0.1,
+			"Bye": 0.3
+		}
 	},
 	"editor": {
 		"volume": 1,

@@ -1,11 +1,8 @@
-import { get, writable } from 'svelte/store'
-import { engine } from './EngineStore'
+import { get, writable, type Writable } from 'svelte/store'
+import { engine, engineData, engineProject } from './EngineStore'
+import { Engine } from '@vector-engine/core'
 
 export const audioInference = writable([])
-
-engine.subscribe(() => {
-	inferenceAudio()
-})
 
 export function inferenceAudio() {
 	audioInference.set([])
@@ -58,3 +55,77 @@ export function inferenceAudio() {
 
 	audioInference.set(volumePerFrame)
 }
+
+export const markerInference: Writable<
+	{
+		name: string
+		frame: number
+		length: number
+	}[]
+> = writable([])
+
+export const sceneInference: Writable<
+	{
+		name: string
+		frame: number
+		length: number
+	}[]
+> = writable([])
+
+export async function inferenceSimulated() {
+	const markers = []
+	const scenes = []
+
+	const inferenceEngine = new Engine(get(engineProject), get(engineData).project)
+	inferenceEngine.referencedMarker = name => {
+		const currentEngineData = get(engineData)
+
+		if (currentEngineData.project.markers[name] === undefined) {
+			currentEngineData.project.markers[name] = 0.1
+
+			window.dispatchEvent(new CustomEvent('update-data', { detail: currentEngineData }))
+		}
+
+		markers.push({
+			name,
+			frame: inferenceEngine.frame,
+			length: Math.floor(currentEngineData.project.markers[name] * inferenceEngine.frameRate),
+		})
+	}
+
+	await inferenceEngine.load()
+
+	let lastSceneStart = 0
+	let lastSceneName = inferenceEngine.currentScene.name
+
+	for (let frame = 0; frame < inferenceEngine.length; frame++) {
+		await inferenceEngine.next()
+
+		if (inferenceEngine.currentScene.name !== lastSceneName) {
+			scenes.push({
+				name: inferenceEngine.currentScene.name,
+				frame: lastSceneStart,
+				length: frame - lastSceneStart,
+			})
+
+			lastSceneStart = frame
+			lastSceneName = inferenceEngine.currentScene.name
+		}
+	}
+
+	scenes.push({
+		name: inferenceEngine.currentScene.name,
+		frame: lastSceneStart,
+		length: inferenceEngine.length - lastSceneStart - 1,
+	})
+
+	markerInference.set(markers)
+	sceneInference.set(scenes)
+}
+
+engine.subscribe(value => {
+	if (value === undefined) return
+
+	inferenceAudio()
+	inferenceSimulated()
+})

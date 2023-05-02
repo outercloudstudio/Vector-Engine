@@ -4,6 +4,13 @@ import { Element, RenderElement } from './Elements'
 import { Vector } from './Vector'
 import { Aside } from './Aside'
 
+export function makeScene(name: string, context: (context: SceneContext) => AsyncGenerator) {
+	return {
+		name,
+		context,
+	}
+}
+
 export type SceneContext = {
 	Transitions: {
 		Fade(render: CanvasImageSource, time: number): OffscreenCanvas
@@ -19,12 +26,10 @@ export type SceneContext = {
 	seconds(frames: number): number
 	minutesFrames(frames: number): number
 	frames(seconds: number): number
-	aside(
-		context: (() => Generator) | (() => AsyncGenerator) | AsyncGenerator | Generator
-	): Promise<Aside>
+	aside(context: (() => Generator) | (() => AsyncGenerator) | AsyncGenerator | Generator): Aside
 }
 
-export function useSceneContext(scene: Scene): SceneContext {
+function useSceneContext(scene: Scene): SceneContext {
 	return {
 		Transitions: {
 			Fade: (render: CanvasImageSource, time: number) => {
@@ -85,13 +90,19 @@ export function useSceneContext(scene: Scene): SceneContext {
 		},
 
 		wait: function* (length: number) {
-			for (let i = 1; i <= Math.ceil(length * scene.engine.frameRate); i++) {
+			for (let i = 1; i <= Math.ceil(length * scene.engine.frameRate) - 1; i++) {
 				yield null
 			}
 		},
 
 		waitForMarker: function* (name: string) {
-			for (let frame = 0; frame < scene.engine.data.markers[name]; frame++) {
+			scene.engine.referencedMarker(name)
+
+			for (
+				let frame = 0;
+				frame < Math.floor(scene.engine.data.markers[name] * scene.engine.frameRate);
+				frame++
+			) {
 				yield
 			}
 		},
@@ -116,15 +127,10 @@ export function useSceneContext(scene: Scene): SceneContext {
 			return frames / scene.engine.frameRate
 		},
 
-		async aside(
-			context: (() => Generator) | (() => AsyncGenerator) | AsyncGenerator | Generator
-		): Promise<Aside> {
+		aside(context: (() => Generator) | (() => AsyncGenerator) | AsyncGenerator | Generator): Aside {
 			const aside = new Aside(context)
-			await aside.next()
 
-			if (aside.done) return
-
-			scene.asides.push(aside)
+			scene.addAside(aside)
 
 			return aside
 		},
@@ -139,14 +145,18 @@ export class Scene {
 	engine: Engine
 	elements: Element[] = []
 	asides: Aside[] = []
+	newAsides: Aside[] = []
 
 	transition: any = null
 	transitionLength: number = 0
 
-	id: string = uuid()
+	name: string
 
 	constructor(context: any, engine: Engine) {
-		this.unloadedContext = context
+		this.unloadedContext = context.context
+
+		this.name = context.name
+
 		this.engine = engine
 	}
 
@@ -211,9 +221,17 @@ export class Scene {
 		this.asides = this.asides.filter(context => context != undefined)
 
 		await this.context.next()
+
+		await Promise.all(this.newAsides.map(aside => aside.next()))
+		this.asides = this.asides.concat(this.newAsides.filter(aside => !aside.done))
+		this.newAsides = []
 	}
 
 	addElement(element: Element) {
 		this.elements.push(element)
+	}
+
+	addAside(aside: Aside) {
+		this.newAsides.push(aside)
 	}
 }
