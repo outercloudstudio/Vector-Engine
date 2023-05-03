@@ -17,8 +17,3 @@ declare module '*.mp4' {
 	const value: HTMLVideoElement
 	export default value
 }
-
-declare module '*.mkv' {
-	const value: HTMLVideoElement
-	export default value
-}

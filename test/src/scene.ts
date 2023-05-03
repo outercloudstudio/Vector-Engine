@@ -1,6 +1,6 @@
 // import testImage from '../Assets/image.png'
 // import testImage2 from '../Assets/test.png'
-import video from '../Assets/test.mp4'
+import video from '../Assets/test2.mp4'
 
 import {
 	Ease,
