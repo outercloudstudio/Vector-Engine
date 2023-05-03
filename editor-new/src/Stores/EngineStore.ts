@@ -14,5 +14,7 @@ export async function makeEngine(newProject: any, newData: any) {
 
 	await newEngine.load()
 
+	await newEngine.jumpToFrame(get(frame))
+
 	engine.set(newEngine)
 }
