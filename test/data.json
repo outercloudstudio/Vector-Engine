@@ -1,8 +1,7 @@
 {
 	"project": {
 		"markers": {
-			"Hi": 0.1,
-			"Bye": 0.3
+			"open security": 6.45
 		}
 	},
 	"editor": {

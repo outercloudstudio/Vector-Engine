@@ -788,7 +788,7 @@ export class VectorVideo extends RenderElement {
 			console.warn('Seeked video with delta: ', Math.abs(time - this.video.currentTime))
 
 			await new Promise<void>(res => {
-				this.video.fastSeek(time)
+				this.video.fastSeek(time + 0.1)
 
 				this.video.addEventListener('seeked', () => res())
 			})
