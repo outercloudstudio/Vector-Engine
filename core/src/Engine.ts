@@ -3,7 +3,10 @@ import { Scene, SceneContext } from './Scene'
 export function makeProject(
 	frameRate: number,
 	length: number,
-	scene: (context: SceneContext) => AsyncGenerator,
+	scene: {
+		name: string
+		context: (context: SceneContext) => AsyncGenerator
+	},
 	audioTrack: AudioBuffer | undefined
 ) {
 	return {
@@ -36,6 +39,8 @@ export class Engine {
 	constructor(project: any, data: any) {
 		this.project = project
 		this.data = data
+		this.frameRate = project.frameRate
+		this.length = project.length
 	}
 
 	async load() {

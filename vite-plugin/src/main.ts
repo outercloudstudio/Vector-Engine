@@ -94,10 +94,7 @@ export default async function VectorEngine(configURI: string) {
         import { loadImage } from '@vector-engine/core'
         export default await loadImage('${id}')
         `
-			} else if (id.endsWith('.mp4')) {
-				console.log('Video')
-				console.log(id)
-
+			} else if (id.endsWith('.mp4') || id.endsWith('.mkv')) {
 				return `
         import { loadVideo } from '@vector-engine/core'
         export default await loadVideo('${id}')

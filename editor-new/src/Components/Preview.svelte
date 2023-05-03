@@ -17,6 +17,9 @@
 	let mouseDownX = 0
 	let mouseDownY = 0
 
+	let rendering = false
+	let requestedRender = false
+
 	function mouseDown(event: MouseEvent) {
 		mouse = true
 
@@ -62,18 +65,34 @@
 	async function render() {
 		if (!canvas) return
 
+		if (rendering) {
+			requestedRender = true
+
+			return
+		}
+
+		rendering = true
+
 		const engineValue = get(engine)
 
 		if (engineValue === undefined) return
 
-		const render = await engineValue.render()
+		const engineRender = await engineValue.render()
 
 		const ctx = canvas.getContext('2d')!
 		ctx.imageSmoothingEnabled = false
 
 		ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-		ctx.drawImage(render, 0, 0, canvas.width, canvas.height)
+		ctx.drawImage(engineRender, 0, 0, canvas.width, canvas.height)
+
+		rendering = false
+
+		if (requestedRender) {
+			requestedRender = false
+
+			render()
+		}
 	}
 
 	subscribe(engine, value => {

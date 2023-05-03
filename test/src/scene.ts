@@ -1,6 +1,6 @@
-import testImage from '../Assets/image.png'
-import testImage2 from '../Assets/test.png'
-// import video from '../Assets/test.mp4'
+// import testImage from '../Assets/image.png'
+// import testImage2 from '../Assets/test.png'
+import video from '../Assets/test.mp4'
 
 import {
 	Ease,
@@ -19,16 +19,16 @@ import {
 
 export default makeScene(
 	'Scene',
-	async function* ({ add, relative, aside, wait, waitForMarker }: SceneContext) {
-		// const videoEl = add(
-		//   new VectorVideo({
-		//     position: relative(new Vector(0.5, 0.5)),
-		//     size: new Vector(1920, 1080),
-		//     video: video,
-		//   })
-		// )
+	async function* ({ add, relative, wait, waitForMarker }: SceneContext) {
+		const videoEl = add(
+			new VectorVideo({
+				position: relative(new Vector(0.5, 0.5)),
+				size: new Vector(1920, 1080),
+				video: video,
+			})
+		)
 
-		// aside(videoEl.play())
+		yield* videoEl.play()
 
 		yield* wait(0.2)
 

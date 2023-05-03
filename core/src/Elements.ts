@@ -705,7 +705,7 @@ export class VectorImage extends RenderElement {
 export class VectorVideo extends RenderElement {
 	video: HTMLVideoElement = undefined
 	protected _size: Reactor<Vector> = reactive(new Vector(100, 100))
-	protected _color: Reactor<Vector> = reactive(color('#FFFFFFFF'))
+	protected _alpha: Reactor<number> = reactive(1)
 	protected _time: Reactor<number> = reactive(0)
 
 	constructor(options?: {
@@ -716,7 +716,7 @@ export class VectorVideo extends RenderElement {
 		priority?: number
 		video?: HTMLVideoElement
 		size?: OptionalReactor<Vector>
-		color?: OptionalReactor<Vector>
+		alpha?: OptionalReactor<number>
 		time?: OptionalReactor<number>
 	}) {
 		super(options)
@@ -727,12 +727,14 @@ export class VectorVideo extends RenderElement {
 
 		if (options.size !== undefined) this._size = ensureReactive(options.size)
 
-		if (options.color !== undefined) this._color = ensureReactive(options.color)
+		if (options.alpha !== undefined) this._alpha = ensureReactive(options.alpha)
 
 		if (options.time !== undefined) this._time = ensureReactive(options.time)
 	}
 
 	public async *play() {
+		this.video.play()
+
 		while (this.time() < this.video.duration) {
 			this.time(this.time() + 1 / this.scene.engine.frameRate)
 
@@ -751,15 +753,15 @@ export class VectorVideo extends RenderElement {
 		return animatedVector(this, 'size', value, length, mode)
 	}
 
-	public color(): Vector
-	public color(value: OptionalReactor<Vector>): void
-	public color(value: OptionalReactor<Vector>, length: number, mode: any): Generator
-	public color(
-		value?: OptionalReactor<Vector>,
+	public alpha(): number
+	public alpha(value: OptionalReactor<number>): void
+	public alpha(value: OptionalReactor<number>, length: number, mode: any): Generator
+	public alpha(
+		value?: OptionalReactor<number>,
 		length?: number,
 		mode?: any
-	): Generator | Vector | void {
-		return animatedVector(this, 'color', value, length, mode)
+	): Generator | number | void {
+		return animatedNumber(this, 'alpha', value, length, mode)
 	}
 
 	public time(): number
@@ -774,19 +776,23 @@ export class VectorVideo extends RenderElement {
 	}
 
 	async render(canvas: OffscreenCanvas) {
-		const color = this._color()
+		const alpha = this._alpha()
 
-		if (color.w === 0) return
+		if (alpha === 0) return
 
-		if (this.time() >= this.video.duration) return
+		const time = this.time()
 
-		await new Promise<void>(res => {
-			if (this.time() === this.video.currentTime && this.video.currentTime !== 0) return
+		if (time >= this.video.duration) return
 
-			this.video.currentTime = this.time()
+		if (Math.abs(time - this.video.currentTime) > 0.3) {
+			console.warn('Seeked video with delta: ', Math.abs(time - this.video.currentTime))
 
-			this.video.addEventListener('seeked', () => res())
-		})
+			await new Promise<void>(res => {
+				this.video.fastSeek(time)
+
+				this.video.addEventListener('seeked', () => res())
+			})
+		}
 
 		const ctx = canvas.getContext('2d')
 
@@ -811,42 +817,25 @@ export class VectorVideo extends RenderElement {
 
 		ctx.imageSmoothingEnabled = false
 
-		const red = color.x * 255
-		const blue = color.y * 255
-		const green = color.y * 255
-		const alpha = color.w
+		const sourceOffsetX = ((bestWidth - width) / 2 / bestWidth) * this.video.videoWidth
+		const sourceOffsetY = ((bestHeight - height) / 2 / bestHeight) * this.video.videoHeight
 
-		const colorCanvas = new OffscreenCanvas(width, height)
-		const colorCtx = colorCanvas.getContext('2d')
-		colorCtx.imageSmoothingEnabled = false
+		ctx.save()
 
-		colorCtx.fillStyle = `rgb(${red}, ${green}, ${blue})`
-		colorCtx.fillRect(0, 0, width, height)
-		colorCtx.globalCompositeOperation = 'multiply'
+		ctx.globalAlpha = alpha
 
-		colorCtx.drawImage(
+		ctx.drawImage(
 			this.video,
-			(width - bestWidth) / 2,
-			(height - bestHeight) / 2,
-			bestWidth,
-			bestHeight
+			sourceOffsetX,
+			sourceOffsetY,
+			this.video.videoWidth - sourceOffsetX * 2,
+			this.video.videoHeight - sourceOffsetY * 2,
+			-width * origin.x,
+			-height * origin.y,
+			width,
+			height
 		)
-		colorCtx.globalCompositeOperation = 'destination-atop'
 
-		colorCtx.drawImage(
-			this.video,
-			(width - bestWidth) / 2,
-			(height - bestHeight) / 2,
-			bestWidth,
-			bestHeight
-		)
-		colorCtx.globalCompositeOperation = 'destination-in'
-
-		colorCtx.fillStyle = `rgb(1, 1, 1, ${alpha})`
-		colorCtx.fillRect(0, 0, width, height)
-
-		ctx.drawImage(colorCanvas, -width * origin.x, -height * origin.y)
-
-		ctx.imageSmoothingEnabled = true
+		ctx.restore()
 	}
 }
