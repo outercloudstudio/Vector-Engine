@@ -192,8 +192,14 @@
 		renderPlayhead(canvas, ctx)
 	}
 
+	let setView = false
+
 	subscribe(engine, value => {
 		if (value === undefined) return
+
+		if (setView) return
+
+		setView = true
 
 		scale = 1
 		offset = 0

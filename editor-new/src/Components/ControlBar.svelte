@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { get } from 'svelte/store'
 	import { back, next, pause, play, playing, restart } from '../Stores/PlayStore'
-	import { engine, frame } from '../Stores/EngineStore'
+	import { engine, exportAnimation, frame } from '../Stores/EngineStore'
 
 	function playOrPause() {
 		if (get(playing)) {
@@ -25,6 +25,10 @@
 		</span>
 
 		<span class="material-symbols-outlined icon-button" on:mouseup={next}> skip_next </span>
+
+		<span class="material-symbols-outlined icon-button" on:mouseup={() => exportAnimation('render')}>
+			save
+		</span>
 	</div>
 
 	<p class="align-right">{$engine ? $engine.length : 60}</p>

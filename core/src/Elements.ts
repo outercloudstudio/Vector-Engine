@@ -293,6 +293,7 @@ export class Rect extends RenderElement {
 		const outlineWidth = this._outlineWidth()
 		const radius = this._radius()
 
+		ctx.translate(1920 / 2, 1080 / 2)
 		ctx.translate(position.x, position.y)
 		ctx.rotate((rotation * Math.PI) / 180)
 		ctx.translate(-size.x * origin.x * scale.x, -size.y * origin.x * scale.y)
@@ -419,6 +420,7 @@ export class Ellipse extends RenderElement {
 		const outline = this._outline()
 		const outlineWidth = this._outlineWidth()
 
+		ctx.translate(1920 / 2, 1080 / 2)
 		ctx.translate(position.x, position.y)
 		ctx.rotate((rotation * Math.PI) / 180)
 		ctx.translate(-size.x * origin.x, -size.y * origin.x)
@@ -555,6 +557,7 @@ export class VectorText extends RenderElement {
 		const outline = this._outline()
 		const outlineWidth = this._outlineWidth()
 
+		ctx.translate(1920 / 2, 1080 / 2)
 		ctx.translate(position.x, position.y)
 		ctx.rotate((rotation * Math.PI) / 180)
 
@@ -642,6 +645,7 @@ export class VectorImage extends RenderElement {
 		const size = this._size()
 		const color = this._color()
 
+		ctx.translate(1920 / 2, 1080 / 2)
 		ctx.translate(position.x, position.y)
 		ctx.rotate((rotation * Math.PI) / 180)
 
@@ -802,6 +806,7 @@ export class VectorVideo extends RenderElement {
 		const origin = this._origin()
 		const size = this._size()
 
+		ctx.translate(1920 / 2, 1080 / 2)
 		ctx.translate(position.x, position.y)
 		ctx.rotate((rotation * Math.PI) / 180)
 

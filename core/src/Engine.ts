@@ -41,6 +41,7 @@ export class Engine {
 		this.data = data
 		this.frameRate = project.frameRate
 		this.length = project.length
+		this.audioTrack = project.audioTrack
 	}
 
 	async load() {
