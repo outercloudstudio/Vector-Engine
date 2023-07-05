@@ -1,0 +1,30 @@
+[package]
+name = "vector_engine"
+version = "0.0.0"
+description = "A Tauri App"
+authors = ["Outer Cloud"]
+license = ""
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.4", features = [] }
+
+[dependencies]
+tauri = { version = "1.4", features = ["shell-open"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+notify = "6.0.1"
+swc = { git = "https://github.com/swc-project/swc" }
+swc_ecma_parser = { git = "https://github.com/swc-project/swc" }
+swc_ecma_ast = { git = "https://github.com/swc-project/swc" }
+swc_ecma_transforms_typescript = { git = "https://github.com/swc-project/swc" }
+
+[dependencies.swc_common]
+git = "https://github.com/swc-project/swc"
+features = ["tty-emitter"]
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
