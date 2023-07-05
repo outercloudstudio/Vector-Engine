@@ -1,43 +1,44 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{
-	path::Path,
-	sync::{Arc, Mutex},
-};
+use std::{path::Path, thread, time::Duration};
 
 use notify::{RecursiveMode, Watcher};
-
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-	format!("Hello, {}! You've been greeted from Rust!", name)
-}
+use tauri::Manager;
 
 fn main() {
-	let watcher = notify::recommended_watcher(|res| match res {
-		Ok(event) => println!("event: {:?}", event),
-		Err(e) => println!("watch error: {:?}", e),
-	})
-	.unwrap();
-
-	let watcher_arc_mutex = Arc::new(Mutex::new(watcher));
-
-	let watcher_arc_mutex_setup_reference = watcher_arc_mutex.clone();
-
 	tauri::Builder::default()
-		.invoke_handler(tauri::generate_handler![greet])
-		.setup(move |_app| {
+		.setup(|app| {
 			println!("Setup app!");
 
-			let mut watcher_lock = watcher_arc_mutex_setup_reference.lock().unwrap();
+			let app_handle = app.handle();
 
-			watcher_lock
-				.watch(
-					Path::new("D:/Vector Engine Projects/Tauri/"),
-					RecursiveMode::Recursive,
-				)
+			thread::spawn(move || {
+				let mut watcher = notify::recommended_watcher(move |res| match res {
+					Ok(event) => {
+						println!("event: {:?}", event);
+
+						app_handle
+							.emit_all("test", String::from("Worked!"))
+							.unwrap();
+
+						return;
+					}
+					Err(e) => println!("watch error: {:?}", e),
+				})
 				.unwrap();
+
+				watcher
+					.watch(
+						Path::new("D:/Vector Engine Projects/Tauri/"),
+						RecursiveMode::Recursive,
+					)
+					.unwrap();
+
+				loop {
+					thread::sleep(Duration::from_millis(1));
+				}
+			});
 
 			println!(
 				"{}",
