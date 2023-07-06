@@ -18,7 +18,7 @@ export default function VectorEngine(): Plugin {
 			if (id === '\0virtual:@vector-engine/inject') {
 				return `
         import editor from '@vector-engine/editor'
-        import * as project from '${posix.resolve('./project.ts')}'
+        import * as project from '${posix.resolve('./src/project.ts')}'
         `
 			}
 		},
