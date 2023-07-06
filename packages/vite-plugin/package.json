@@ -1,0 +1,13 @@
+{
+	"name": "@vector-engine/vite-plugin",
+	"main": "build/vite-plugin.js",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "tsc"
+	},
+	"devDependencies": {
+		"@types/node": "^18.13.0"
+	}
+}

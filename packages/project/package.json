@@ -1,0 +1,12 @@
+{
+	"name": "@vector-engine/project",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite"
+	},
+	"devDependencies": {
+		"@types/node": "^18.13.0"
+	}
+}
