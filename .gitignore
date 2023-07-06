@@ -23,4 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 
-packages/vite-plugin/build/*
+packages/vite-plugin/build

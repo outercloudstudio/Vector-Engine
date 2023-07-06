@@ -10,26 +10,19 @@ export default function VectorEngine(): Plugin {
 	return {
 		name: 'vector-engine',
 		resolveId(id, importer, options) {
-			console.log('💥 Resolving: ', id, importer)
 			if (id === 'virtual:@vector-engine/inject') {
 				return '\0virtual:@vector-engine/inject'
 			}
 		},
 		load(id) {
-			console.log('💾 Loading:', id)
-
-			console.log(posix.resolve('./main.ts'))
-
 			if (id === '\0virtual:@vector-engine/inject') {
 				return `
         import editor from '@vector-engine/editor'
-        import project from '${posix.resolve('./project.ts')}'
+        import * as project from '${posix.resolve('./project.ts')}'
         `
 			}
 		},
 		transform(code, id) {
-			console.log('⚙️ Transforming: ', id)
-
 			if (id.startsWith(toPosix(resolve('./'))) && id.endsWith('.ts')) {
 				return (
 					code +
@@ -43,8 +36,6 @@ export default function VectorEngine(): Plugin {
 			server.middlewares.use((req, res, next) => {
 				const [base, query] = req.url.split('?')
 				const params = new URLSearchParams(query)
-
-				console.log('❓ Fetching:', req.url)
 
 				if (req.url === '/') {
 					res.setHeader('Content-Type', 'text/html')
