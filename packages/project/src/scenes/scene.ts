@@ -1,5 +1,5 @@
-console.log('hi scene2')
+import { scene } from '@vector-engine/core'
 
-export default function scene() {
-	console.log('hi')
-}
+export default scene(async function* () {
+	console.log('Scene!')
+})

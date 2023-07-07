@@ -9,7 +9,8 @@
 	"workspaces": [
 		"packages/editor",
 		"packages/vite-plugin",
-		"packages/project"
+		"packages/project",
+		"packages/core"
 	],
 	"devDependencies": {
 		"@swc/cli": "^0.1.62",
