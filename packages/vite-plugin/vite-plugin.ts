@@ -2,6 +2,7 @@ import type { Plugin } from 'vite'
 
 import { posix, resolve, sep, parse } from 'path'
 import { readdirSync } from 'fs'
+import { watch } from 'chokidar'
 
 function toPosix(path: string) {
 	return path.split(sep).join(posix.sep)
@@ -38,6 +39,8 @@ export default function VectorEngine(): Plugin {
 
 				for (const scene of readdirSync(sceneDirectory)) {
 					const name = parse(scene).name
+
+					if (!/^[A-Za-z0-9_]+$/.test(name)) continue
 
 					sceneImports += `import ${name} from '${posix.join(
 						posix.resolve('./src/scenes/'),
@@ -103,6 +106,22 @@ export default function VectorEngine(): Plugin {
 
 				next()
 			})
+
+			watch(resolve('./src/scenes/'))
+				.on('add', (event, path) => {
+					const module = server.moduleGraph.getModuleById('\0virtual:@vector-engine/scenes')
+
+					if (module === undefined) return
+
+					server.reloadModule(module)
+				})
+				.on('unlink', (event, path) => {
+					const module = server.moduleGraph.getModuleById('\0virtual:@vector-engine/scenes')
+
+					if (module === undefined) return
+
+					server.reloadModule(module)
+				})
 		},
 	}
 }
