@@ -1,3 +1,3 @@
 import { use } from './lib'
 
-console.log('Project main2')
+console.log('Project main')
