@@ -22,7 +22,7 @@
 <style>
 	.grid {
 		display: grid;
-		grid-template-rows: 75% 25%;
+		grid-template-rows: 70% 30%;
 		grid-template-columns: 20% 80%;
 
 		width: 100vw;
