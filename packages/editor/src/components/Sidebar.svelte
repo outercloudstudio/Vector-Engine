@@ -1,46 +1,19 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte'
 	import { scenes } from '../stores/projectStore'
+	import { createEventDispatcher } from 'svelte'
+	import { hold, held, heldX, heldY } from '../stores/heldStore'
 
 	const tabs = ['Clips', 'Export', 'Inspect', 'Debug']
 	let activeTab = tabs[0]
 
-	let heldClip: string | null = null
-	let heldX: number = 0
-	let heldY: number = 0
-
 	function holdClip(event: MouseEvent, scene: string) {
 		event.preventDefault()
 
-		heldClip = scene
-
-		heldX = event.clientX
-		heldY = event.clientY
-	}
-
-	onMount(() => {
-		window.addEventListener('mousemove', moveClip)
-		window.addEventListener('mouseup', dropClip)
-	})
-
-	onDestroy(() => {
-		window.removeEventListener('mousemove', moveClip)
-		window.removeEventListener('mouseup', dropClip)
-	})
-
-	function moveClip(event: MouseEvent) {
-		if (heldClip === null) return
-
-		heldX = event.clientX
-		heldY = event.clientY
-	}
-
-	function dropClip(event: MouseEvent) {
-		if (heldClip === null) return
-
-		heldClip = null
-
-		console.log('Dropped')
+		hold({
+			type: 'clip',
+			content: scene,
+			origin: 'sidebar',
+		})
 	}
 </script>
 
@@ -62,9 +35,9 @@
 			{/each}
 		</div>
 
-		{#if heldClip !== null}
-			<div id="held-clip" class="clip" style="left: {heldX}px; top: {heldY}px;">
-				<p>{heldClip}</p>
+		{#if $held !== null && $held.origin === 'sidebar'}
+			<div id="held-clip" class="clip" style="left: {$heldX}px; top: {$heldY}px;">
+				<p>{$held.content}</p>
 			</div>
 		{/if}
 	{/if}

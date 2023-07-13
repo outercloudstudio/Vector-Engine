@@ -1,7 +1,14 @@
 <script lang="ts">
+	import { dropped, droppedOn, held } from '../stores/heldStore'
+
+	let componentBody: HTMLElement
+
+	$: if ($dropped !== null && droppedOn(componentBody)) {
+		console.log('Dropped!')
+	}
 </script>
 
-<main />
+<main bind:this={componentBody} />
 
 <style>
 	main {
