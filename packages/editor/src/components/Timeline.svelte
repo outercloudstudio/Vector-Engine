@@ -29,7 +29,7 @@
 		timeLines = [0, 20, 40, 60]
 	}
 
-	function frameToPixelOffset(frame: number) {
+	$: frameToPixelOffset = function (frame: number) {
 		if (componentMainElement === undefined) return 0
 
 		return (
@@ -37,7 +37,13 @@
 		)
 	}
 
-	function layerToPixelOffset(layer: number) {
+	$: pixelOffsetToFrame = function (x: number) {
+		if (componentMainElement === undefined) return 0
+
+		return (x / componentMainElement.getBoundingClientRect().width) * viewFrameLength + viewStartFrame
+	}
+
+	$: layerToPixelOffset = function (layer: number) {
 		if (componentMainElement === undefined) return 0
 
 		return (
@@ -46,7 +52,18 @@
 	}
 
 	function wheelScroll(event: WheelEvent) {
-		layerOffset -= event.deltaY / 100 / 4
+		if (!event.shiftKey) {
+			layerOffset -= event.deltaY / 100 / 4
+		} else {
+			const mouseFrame = pixelOffsetToFrame(event.clientX)
+			const mouseXFactor = (mouseFrame - viewStartFrame) / viewFrameLength
+
+			viewFrameLength += event.deltaY / 100
+
+			const newFrameAtFactor = viewStartFrame + viewFrameLength * mouseXFactor
+
+			viewStartFrame += mouseFrame - newFrameAtFactor
+		}
 
 		viewStartFrame += ((event.deltaX / 36) * viewFrameLength) / 20
 	}
@@ -61,7 +78,7 @@
 
 	<div class="timeline" on:wheel={wheelScroll}>
 		{#each timeLines as line}
-			<div class="time-line" style="left: {frameToPixelOffset(line) || viewStartFrame}px;">
+			<div class="time-line" style="left: {frameToPixelOffset(line)}px;">
 				<div class="time-line-text">
 					<p class="time">{Math.floor((line / 60) * 100) / 100}</p>
 					<p class="frame">[{line}]</p>
@@ -74,11 +91,8 @@
 			{#each clips as clip}
 				<div
 					class="clip"
-					style="left: {frameToPixelOffset(clip.start) || viewStartFrame}px; width: {frameToPixelOffset(
-						clip.end
-					) - frameToPixelOffset(clip.start) || viewStartFrame}px; bottom: {layerToPixelOffset(
-						clip.layer
-					) || layerOffset}px"
+					style="left: {frameToPixelOffset(clip.start)}px; width: {frameToPixelOffset(clip.end) -
+						frameToPixelOffset(clip.start)}px; bottom: {layerToPixelOffset(clip.layer)}px"
 				>
 					<p>{clip.assetId}</p>
 				</div>
