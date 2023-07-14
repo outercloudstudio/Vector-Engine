@@ -1,7 +1,14 @@
 <script lang="ts">
 	import { assets } from '../stores/projectStore'
 
+	let componentMainElement: HTMLElement
+
+	let viewStartFrame = 0
+	let viewFrameLength = 60
+	let layerOffset = 0
+
 	let clips = []
+	let timeLines = []
 
 	$: if (Object.keys($assets).length > 0) {
 		clips = [
@@ -18,10 +25,24 @@
 				layer: 1,
 			},
 		]
+
+		timeLines = [0, 20, 40]
+	}
+
+	function frameToPixelOffset(frame: number) {
+		return (
+			(componentMainElement.getBoundingClientRect().width * (frame - viewStartFrame)) / viewFrameLength
+		)
+	}
+
+	function layerToPixelOffset(layer: number) {
+		return (
+			componentMainElement.getBoundingClientRect().height / 2 + (layer - layerOffset) * 38 - 32 / 2
+		)
 	}
 </script>
 
-<main>
+<main bind:this={componentMainElement}>
 	<div class="control-bar">
 		<button class="material-symbols-outlined"> skip_previous </button>
 		<button class="material-symbols-outlined"> play_arrow </button>
@@ -29,11 +50,21 @@
 	</div>
 
 	<div class="clips">
+		{#each timeLines as line}
+			<div class="time-line" style="left: {frameToPixelOffset(line)}px;">
+				<div class="time-line-text">
+					<p class="time">{Math.floor((line / 60) * 100) / 100}</p>
+					<p class="frame">[{line}]</p>
+				</div>
+				<div class="line" />
+			</div>
+		{/each}
+
 		{#each clips as clip}
 			<div
 				class="clip"
-				style="left: {clip.start * 40}px; width: {(clip.end - clip.start) * 40}px; bottom: {clip.layer *
-					38}px"
+				style="left: {frameToPixelOffset(clip.start)}px; width: {frameToPixelOffset(clip.end) -
+					frameToPixelOffset(clip.start)}px; bottom: {layerToPixelOffset(clip.layer)}px"
 			>
 				<p>{clip.assetId}</p>
 			</div>
@@ -77,8 +108,6 @@
 		position: relative;
 
 		flex-grow: 1;
-
-		margin: 8px;
 	}
 
 	.clip {
@@ -99,5 +128,60 @@
 
 	.clip > p {
 		text-align: center;
+	}
+
+	.time-line {
+		display: table;
+
+		position: absolute;
+
+		top: 0px;
+
+		translate: -50% 0;
+
+		height: 100%;
+
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.time-line-text {
+		display: flex;
+
+		align-items: baseline;
+
+		position: relative;
+
+		margin-bottom: 4px;
+	}
+
+	.time-line-text > .time {
+		display: table;
+
+		margin: 0;
+	}
+
+	.time-line-text > .frame {
+		display: table;
+
+		font-size: small;
+
+		margin: 0;
+
+		position: absolute;
+
+		left: calc(100% + 2px);
+		bottom: 2px;
+
+		color: var(--secondary-text);
+	}
+
+	.line {
+		width: 1px;
+
+		flex-grow: 1;
+
+		background: var(--secondary);
 	}
 </style>
