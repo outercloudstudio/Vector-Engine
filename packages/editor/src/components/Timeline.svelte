@@ -58,7 +58,7 @@
 			const mouseFrame = pixelOffsetToFrame(event.clientX)
 			const mouseXFactor = (mouseFrame - viewStartFrame) / viewFrameLength
 
-			viewFrameLength += event.deltaY / 100
+			viewFrameLength = Math.exp(Math.log(viewFrameLength) + event.deltaY / 5000)
 
 			const newFrameAtFactor = viewStartFrame + viewFrameLength * mouseXFactor
 
