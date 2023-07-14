@@ -71,6 +71,8 @@
 		background: var(--main);
 
 		height: 30px;
+
+		cursor: pointer;
 	}
 
 	.tabs > button:hover {
@@ -103,6 +105,8 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
+
+		cursor: pointer;
 	}
 
 	.asset > p {
