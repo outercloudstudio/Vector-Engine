@@ -26,19 +26,29 @@
 			},
 		]
 
-		timeLines = [0, 20, 40]
+		timeLines = [0, 20, 40, 60]
 	}
 
 	function frameToPixelOffset(frame: number) {
+		if (componentMainElement === undefined) return 0
+
 		return (
 			(componentMainElement.getBoundingClientRect().width * (frame - viewStartFrame)) / viewFrameLength
 		)
 	}
 
 	function layerToPixelOffset(layer: number) {
+		if (componentMainElement === undefined) return 0
+
 		return (
 			componentMainElement.getBoundingClientRect().height / 2 + (layer - layerOffset) * 38 - 32 / 2
 		)
+	}
+
+	function wheelScroll(event: WheelEvent) {
+		layerOffset -= event.deltaY / 100 / 4
+
+		viewStartFrame += ((event.deltaX / 36) * viewFrameLength) / 20
 	}
 </script>
 
@@ -49,9 +59,9 @@
 		<button class="material-symbols-outlined"> skip_next </button>
 	</div>
 
-	<div class="clips">
+	<div class="timeline" on:wheel={wheelScroll}>
 		{#each timeLines as line}
-			<div class="time-line" style="left: {frameToPixelOffset(line)}px;">
+			<div class="time-line" style="left: {frameToPixelOffset(line) || viewStartFrame}px;">
 				<div class="time-line-text">
 					<p class="time">{Math.floor((line / 60) * 100) / 100}</p>
 					<p class="frame">[{line}]</p>
@@ -60,15 +70,20 @@
 			</div>
 		{/each}
 
-		{#each clips as clip}
-			<div
-				class="clip"
-				style="left: {frameToPixelOffset(clip.start)}px; width: {frameToPixelOffset(clip.end) -
-					frameToPixelOffset(clip.start)}px; bottom: {layerToPixelOffset(clip.layer)}px"
-			>
-				<p>{clip.assetId}</p>
-			</div>
-		{/each}
+		<div class="clips">
+			{#each clips as clip}
+				<div
+					class="clip"
+					style="left: {frameToPixelOffset(clip.start) || viewStartFrame}px; width: {frameToPixelOffset(
+						clip.end
+					) - frameToPixelOffset(clip.start) || viewStartFrame}px; bottom: {layerToPixelOffset(
+						clip.layer
+					) || layerOffset}px"
+				>
+					<p>{clip.assetId}</p>
+				</div>
+			{/each}
+		</div>
 	</div>
 </main>
 
@@ -104,10 +119,20 @@
 		cursor: pointer;
 	}
 
-	.clips {
+	.timeline {
 		position: relative;
 
 		flex-grow: 1;
+	}
+
+	.clips {
+		margin-top: 32px;
+
+		overflow: hidden;
+
+		height: 100%;
+
+		position: relative;
 	}
 
 	.clip {
