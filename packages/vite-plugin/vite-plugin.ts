@@ -1,14 +1,53 @@
 import type { Plugin } from 'vite'
 
-import { posix, resolve, sep, parse } from 'path'
-import { readdirSync } from 'fs'
+import { posix, resolve, sep, parse, join, basename, relative } from 'path'
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs'
 import { watch } from 'chokidar'
+import { createHash } from 'crypto'
 
 function toPosix(path: string) {
 	return path.split(sep).join(posix.sep)
 }
 
 export default function VectorEngine(): Plugin {
+	const metaFilePath = resolve('./vector-engine.meta.json')
+
+	function makeMetaFile() {
+		const meta = {
+			assets: [],
+		}
+
+		const foldersToRead: string[] = []
+
+		foldersToRead.push(resolve('./assets/'))
+
+		while (foldersToRead.length > 0) {
+			const currentFolder = foldersToRead.shift()
+
+			for (const item of readdirSync(currentFolder)) {
+				const itemPath = join(currentFolder, item)
+
+				if (statSync(itemPath).isFile()) {
+					meta.assets.push({
+						id: createHash('sha256').update(itemPath).digest('hex'),
+						path: itemPath,
+						name: basename(itemPath),
+					})
+				} else {
+					foldersToRead.push(itemPath)
+				}
+			}
+		}
+
+		writeFileSync(metaFilePath, JSON.stringify(meta, null, 2))
+	}
+
+	function getMetaFile(): any {
+		if (!existsSync(metaFilePath)) makeMetaFile()
+
+		return JSON.parse(readFileSync(metaFilePath).toString())
+	}
+
 	return {
 		name: 'vector-engine',
 		resolveId(id, importer, options) {
@@ -16,8 +55,8 @@ export default function VectorEngine(): Plugin {
 				return '\0virtual:@vector-engine/editor'
 			}
 
-			if (id === 'virtual:@vector-engine/scenes') {
-				return '\0virtual:@vector-engine/scenes'
+			if (id === 'virtual:@vector-engine/assets') {
+				return '\0virtual:@vector-engine/assets'
 			}
 
 			if (id === 'virtual:@vector-engine/inject') {
@@ -31,42 +70,39 @@ export default function VectorEngine(): Plugin {
         `
 			}
 
-			if (id === '\0virtual:@vector-engine/scenes') {
-				const sceneDirectory = resolve('./src/scenes/')
+			if (id === '\0virtual:@vector-engine/assets') {
+				makeMetaFile()
+				const meta = getMetaFile()
 
-				let sceneImports = ''
-				let sceneObject = '{'
+				const assetDirectory = resolve('./assets/')
 
-				for (const scene of readdirSync(sceneDirectory)) {
-					const name = parse(scene).name
+				let assetImports = ''
+				let assetObject = '{'
 
-					if (!/^[A-Za-z0-9_]+$/.test(name)) continue
+				for (const asset of meta.assets) {
+					assetImports += `import asset_${asset.id} from '${toPosix(asset.path)}'\n`
 
-					sceneImports += `import ${name} from '${posix.join(
-						posix.resolve('./src/scenes/'),
-						toPosix(scene)
-					)}'\n`
-
-					sceneObject += `\n\t${name},`
+					assetObject += `\n\t"${asset.id}": asset_${asset.id},`
 				}
 
-				sceneObject += '\n}'
+				assetObject += '\n}'
 
 				return `
-        ${sceneImports}
+        ${assetImports}
 
-        export default ${sceneObject}
+        export default ${assetObject}
         `
 			}
 
 			if (id === '\0virtual:@vector-engine/inject') {
 				return `
-        import * as project from '${posix.resolve('./src/project.ts')}'
-        import scenes from 'virtual:@vector-engine/scenes'
+        import * as project from '${posix.resolve('./project.ts')}'
+        import assets from 'virtual:@vector-engine/assets'
+        import * as meta from '${posix.resolve('./vector-engine.meta.json')}'
 
         import.meta.hot.accept()
 
-        document.dispatchEvent(new CustomEvent('@vector-engine/project-reload', { detail: { project: project, scenes: scenes } } ))
+        document.dispatchEvent(new CustomEvent('@vector-engine/project-reload', { detail: { project, assets, meta } } ))
         `
 			}
 		},
@@ -107,18 +143,22 @@ export default function VectorEngine(): Plugin {
 				next()
 			})
 
-			watch(resolve('./src/scenes/'))
+			watch(resolve('./assets/'), {})
 				.on('add', (event, path) => {
-					const module = server.moduleGraph.getModuleById('\0virtual:@vector-engine/scenes')
+					const module = server.moduleGraph.getModuleById('\0virtual:@vector-engine/assets')
 
 					if (module === undefined) return
+
+					makeMetaFile()
 
 					server.reloadModule(module)
 				})
 				.on('unlink', (event, path) => {
-					const module = server.moduleGraph.getModuleById('\0virtual:@vector-engine/scenes')
+					const module = server.moduleGraph.getModuleById('\0virtual:@vector-engine/assets')
 
 					if (module === undefined) return
+
+					makeMetaFile()
 
 					server.reloadModule(module)
 				})

@@ -2,10 +2,6 @@
 	import { dropped, droppedOn, held } from '../stores/heldStore'
 
 	let componentBody: HTMLElement
-
-	$: if ($dropped !== null && droppedOn(componentBody)) {
-		console.log('Dropped!')
-	}
 </script>
 
 <main bind:this={componentBody} />

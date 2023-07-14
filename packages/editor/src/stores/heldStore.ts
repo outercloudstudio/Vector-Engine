@@ -39,6 +39,8 @@ export function hold(holdable: Holdable) {
 }
 
 export function droppedOn(element: HTMLElement): boolean {
+	if (element === undefined) return false
+
 	const bounds = element.getBoundingClientRect()
 
 	const x = get(heldX)

@@ -1,24 +1,42 @@
 <script lang="ts">
 	import { onMount } from 'svelte'
-	import { scenes } from '../stores/projectStore'
+	import { assets } from '../stores/projectStore'
+	import { dropped, droppedOn } from '../stores/heldStore'
+	import type { Scene } from '@vector-engine/core'
+
+	let previewingClip: Scene | null = null
 
 	let canvas: HTMLCanvasElement
 
-	scenes.subscribe(scenes => {
-		if (scenes.scene === undefined) return
+	function render() {
+		if (previewingClip === null) return
 
 		const offscreenCanvas = new OffscreenCanvas(1920, 1080)
 
-		scenes.scene.render(offscreenCanvas)
+		previewingClip.render(offscreenCanvas)
 
 		const context = canvas.getContext('2d')
 
 		context.clearRect(0, 0, 1920, 1080)
 		context.drawImage(offscreenCanvas, 0, 0)
+	}
+
+	let componentBody: HTMLElement
+
+	$: if ($dropped !== null && droppedOn(componentBody)) {
+		previewingClip = $assets[$dropped.content]
+
+		render()
+	}
+
+	assets.subscribe(scenes => {
+		if (previewingClip === null && scenes.scene !== undefined) previewingClip = scenes.scene
+
+		render()
 	})
 </script>
 
-<main>
+<main bind:this={componentBody}>
 	<canvas bind:this={canvas} width="1920" height="1080" />
 </main>
 

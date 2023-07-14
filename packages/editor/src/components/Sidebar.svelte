@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { scenes } from '../stores/projectStore'
+	import { assets } from '../stores/projectStore'
 	import { createEventDispatcher } from 'svelte'
 	import { hold, held, heldX, heldY } from '../stores/heldStore'
 
@@ -28,7 +28,7 @@
 
 	{#if activeTab === 'Clips'}
 		<div class="content">
-			{#each Object.keys($scenes) as scene}
+			{#each Object.keys($assets) as scene}
 				<div on:mousedown={event => holdClip(event, scene)} class="clip">
 					<p>{scene}</p>
 				</div>
