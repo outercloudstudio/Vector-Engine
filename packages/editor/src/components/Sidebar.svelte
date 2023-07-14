@@ -1,17 +1,16 @@
 <script lang="ts">
-	import { assets } from '../stores/projectStore'
-	import { createEventDispatcher } from 'svelte'
+	import { assets, meta } from '../stores/projectStore'
 	import { hold, held, heldX, heldY } from '../stores/heldStore'
 
-	const tabs = ['Clips', 'Export', 'Inspect', 'Debug']
+	const tabs = ['Assets', 'Export', 'Inspect', 'Debug']
 	let activeTab = tabs[0]
 
-	function holdClip(event: MouseEvent, scene: string) {
+	function holdClip(event: MouseEvent, assetId: string) {
 		event.preventDefault()
 
 		hold({
-			type: 'clip',
-			content: scene,
+			type: 'asset',
+			content: assetId,
 			origin: 'sidebar',
 		})
 	}
@@ -26,18 +25,18 @@
 		{/each}
 	</div>
 
-	{#if activeTab === 'Clips'}
+	{#if activeTab === 'Assets'}
 		<div class="content">
-			{#each Object.keys($assets) as scene}
-				<div on:mousedown={event => holdClip(event, scene)} class="clip">
-					<p>{scene}</p>
+			{#each Object.keys($assets) as assetId}
+				<div on:mousedown={event => holdClip(event, assetId)} class="asset">
+					<p>{$meta.assets[assetId].name}</p>
 				</div>
 			{/each}
 		</div>
 
 		{#if $held !== null && $held.origin === 'sidebar'}
-			<div id="held-clip" class="clip" style="left: {$heldX}px; top: {$heldY}px;">
-				<p>{$held.content}</p>
+			<div id="held-asset" class="asset" style="left: {$heldX}px; top: {$heldY}px;">
+				<p>{$meta.assets[$held.content].name}</p>
 			</div>
 		{/if}
 	{/if}
@@ -93,7 +92,7 @@
 		gap: 10px;
 	}
 
-	.clip {
+	.asset {
 		width: 150px;
 		height: 75px;
 
@@ -106,11 +105,11 @@
 		align-items: center;
 	}
 
-	.clip > p {
+	.asset > p {
 		user-select: none;
 	}
 
-	#held-clip {
+	#held-asset {
 		position: absolute;
 
 		transform: translate(-50%, -50%);

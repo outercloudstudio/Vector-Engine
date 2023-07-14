@@ -1,9 +1,10 @@
 import type { Plugin } from 'vite'
 
-import { posix, resolve, sep, parse, join, basename, relative } from 'path'
+import { posix, resolve, sep, parse, join, basename } from 'path'
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs'
 import { watch } from 'chokidar'
 import { createHash } from 'crypto'
+import { Meta } from '@vector-engine/core'
 
 function toPosix(path: string) {
 	return path.split(sep).join(posix.sep)
@@ -13,8 +14,8 @@ export default function VectorEngine(): Plugin {
 	const metaFilePath = resolve('./vector-engine.meta.json')
 
 	function makeMetaFile() {
-		const meta = {
-			assets: [],
+		const meta: Meta = {
+			assets: {},
 		}
 
 		const foldersToRead: string[] = []
@@ -28,11 +29,10 @@ export default function VectorEngine(): Plugin {
 				const itemPath = join(currentFolder, item)
 
 				if (statSync(itemPath).isFile()) {
-					meta.assets.push({
-						id: createHash('sha256').update(itemPath).digest('hex'),
+					meta.assets[createHash('sha256').update(itemPath).digest('hex')] = {
 						path: itemPath,
 						name: basename(itemPath),
-					})
+					}
 				} else {
 					foldersToRead.push(itemPath)
 				}
@@ -42,7 +42,7 @@ export default function VectorEngine(): Plugin {
 		writeFileSync(metaFilePath, JSON.stringify(meta, null, 2))
 	}
 
-	function getMetaFile(): any {
+	function getMetaFile(): Meta {
 		if (!existsSync(metaFilePath)) makeMetaFile()
 
 		return JSON.parse(readFileSync(metaFilePath).toString())
@@ -74,15 +74,15 @@ export default function VectorEngine(): Plugin {
 				makeMetaFile()
 				const meta = getMetaFile()
 
-				const assetDirectory = resolve('./assets/')
-
 				let assetImports = ''
 				let assetObject = '{'
 
-				for (const asset of meta.assets) {
-					assetImports += `import asset_${asset.id} from '${toPosix(asset.path)}'\n`
+				for (const assetId of Object.keys(meta.assets)) {
+					const asset = meta.assets[assetId]
 
-					assetObject += `\n\t"${asset.id}": asset_${asset.id},`
+					assetImports += `import asset_${assetId} from '${toPosix(asset.path)}'\n`
+
+					assetObject += `\n\t"${assetId}": asset_${assetId},`
 				}
 
 				assetObject += '\n}'

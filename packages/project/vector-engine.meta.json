@@ -1,14 +1,12 @@
 {
-  "assets": [
-    {
-      "id": "bb3ecb5f3a814e07248612cfaec80a4270f6f62385a8a8069d416dcb3a9b3b8b",
+  "assets": {
+    "bb3ecb5f3a814e07248612cfaec80a4270f6f62385a8a8069d416dcb3a9b3b8b": {
       "path": "D:\\Vector Engine\\packages\\project\\assets\\scene2.ts",
       "name": "scene2.ts"
     },
-    {
-      "id": "78b965502aa04de3e2fe7b945076d509dda8bab4fa0db4d9d9e82175fd6da128",
+    "78b965502aa04de3e2fe7b945076d509dda8bab4fa0db4d9d9e82175fd6da128": {
       "path": "D:\\Vector Engine\\packages\\project\\assets\\scenes\\scene.ts",
       "name": "scene.ts"
     }
-  ]
+  }
 }

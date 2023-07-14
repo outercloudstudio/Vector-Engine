@@ -1,10 +1,7 @@
 <script lang="ts">
-	import { dropped, droppedOn, held } from '../stores/heldStore'
-
-	let componentBody: HTMLElement
 </script>
 
-<main bind:this={componentBody} />
+<main />
 
 <style>
 	main {

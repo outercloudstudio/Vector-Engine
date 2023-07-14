@@ -1,4 +1,5 @@
-import { Element } from './elements/element'
+import { Element } from '../elements/element'
+import { Asset } from './asset'
 
 export function scene(generator: (scene: Scene) => Generator): Scene {
 	const scene = new Scene(generator)
@@ -6,11 +7,13 @@ export function scene(generator: (scene: Scene) => Generator): Scene {
 	return scene
 }
 
-export class Scene {
+export class Scene extends Asset {
 	private context: Generator
 	private elements: Element[] = []
 
 	constructor(generator: (scene: Scene) => Generator) {
+		super()
+
 		this.context = generator(this)
 		this.context.next()
 	}
