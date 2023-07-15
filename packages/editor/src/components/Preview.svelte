@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { assets } from '../stores/projectStore'
-	import { dropped, droppedOn } from '../stores/heldStore'
+	import { dropped, heldOn } from '../stores/heldStore'
 
 	let previewingAssetId: string | null = null
 
@@ -21,7 +21,7 @@
 
 	let componentBody: HTMLElement
 
-	$: if ($dropped !== null && droppedOn(componentBody)) {
+	$: if ($dropped !== null && heldOn(componentBody)) {
 		previewingAssetId = $dropped.content
 
 		render()

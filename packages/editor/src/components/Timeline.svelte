@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { heldOn, heldX, heldY, held, dropped } from '../stores/heldStore'
 	import { assets } from '../stores/projectStore'
 
 	let componentMainElement: HTMLElement
@@ -38,6 +39,14 @@
 	$: pixelOffsetToFrame = function (x: number) {
 		if (componentMainElement === undefined) return 0
 
+		return Math.floor(
+			(x / componentMainElement.getBoundingClientRect().width) * viewFrameLength + viewStartFrame
+		)
+	}
+
+	$: pixelOffsetToFrameContinuous = function (x: number) {
+		if (componentMainElement === undefined) return 0
+
 		return (x / componentMainElement.getBoundingClientRect().width) * viewFrameLength + viewStartFrame
 	}
 
@@ -47,6 +56,20 @@
 		return (
 			componentMainElement.getBoundingClientRect().height / 2 + (layer - layerOffset) * 38 - 32 / 2
 		)
+	}
+
+	$: pixelOffsetToLayer = function (y: number) {
+		if (componentMainElement === undefined) return 0
+
+		return Math.floor(
+			(componentMainElement.getBoundingClientRect().height / 2 - y + 32 + 32 / 2) / 38 + layerOffset
+		)
+	}
+
+	function globalYtoLocalY(y: number) {
+		if (componentMainElement === undefined) return 0
+
+		return y - componentMainElement.getBoundingClientRect().y
 	}
 
 	function wheelScroll(event: WheelEvent) {
@@ -69,7 +92,7 @@
 	$: if (componentMainElement !== undefined) {
 		let newTimeLines = []
 
-		const frameWidth = pixelOffsetToFrame(128) - pixelOffsetToFrame(0)
+		const frameWidth = pixelOffsetToFrameContinuous(128) - pixelOffsetToFrameContinuous(0)
 
 		const frameStep = frameWidth >= 1 ? Math.ceil(frameWidth / 5) * 5 : 1
 
@@ -84,6 +107,48 @@
 		}
 
 		timeLines = newTimeLines
+	}
+
+	$: if (
+		heldOn(componentMainElement) &&
+		$heldX !== undefined &&
+		$heldY !== undefined &&
+		$held &&
+		$held.type === 'asset' &&
+		$held.origin !== 'timeline'
+	) {
+		held.set({
+			type: 'asset',
+			content: $held.content,
+			origin: 'timeline',
+		})
+	}
+
+	$: if (
+		!heldOn(componentMainElement) &&
+		$heldX !== undefined &&
+		$heldY !== undefined &&
+		$held &&
+		$held.type === 'asset' &&
+		$held.origin === 'timeline'
+	) {
+		held.set({
+			type: 'asset',
+			content: $held.content,
+			origin: 'sidebar',
+		})
+	}
+
+	$: if ($dropped !== null && heldOn(componentMainElement)) {
+		clips.push({
+			assetId: $dropped.content,
+			start: pixelOffsetToFrame($heldX),
+			end: Math.max(pixelOffsetToFrame($heldX + 256), pixelOffsetToFrame($heldX) + 1),
+			layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
+		})
+		clips = clips
+
+		dropped.set(null)
 	}
 </script>
 
@@ -118,6 +183,17 @@
 					<p>{clip.assetId}</p>
 				</div>
 			{/each}
+
+			{#if $held !== null && $held.origin === 'timeline'}
+				<div
+					class="clip"
+					style="left: {$heldX}px; width: 256px; bottom: {layerToPixelOffset(
+						pixelOffsetToLayer(globalYtoLocalY($heldY))
+					)}px"
+				>
+					<p>{$held.content}</p>
+				</div>
+			{/if}
 		</div>
 
 		<div class="zero-cover" style="left: {frameToPixelOffset(0)}px" />
@@ -192,6 +268,8 @@
 
 	.clip > p {
 		text-align: center;
+
+		user-select: none;
 	}
 
 	.time-line {
@@ -224,6 +302,8 @@
 		display: table;
 
 		margin: 0;
+
+		user-select: none;
 	}
 
 	.time-line-text > .frame {
@@ -239,6 +319,8 @@
 		bottom: 2px;
 
 		color: var(--secondary-text);
+
+		user-select: none;
 	}
 
 	.line {
