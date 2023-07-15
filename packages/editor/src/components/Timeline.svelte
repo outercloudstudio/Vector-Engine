@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { heldOn, heldX, heldY, held, dropped } from '../stores/heldStore'
+	import { heldOn, heldX, heldY, held, dropped, hold } from '../stores/heldStore'
 	import { assets } from '../stores/projectStore'
 
 	let componentMainElement: HTMLElement
@@ -10,23 +10,6 @@
 
 	let clips = []
 	let timeLines = []
-
-	$: if (Object.keys($assets).length > 0) {
-		clips = [
-			{
-				assetId: Object.keys($assets)[0],
-				start: 5,
-				end: 20,
-				layer: 0,
-			},
-			{
-				assetId: Object.keys($assets)[0],
-				start: 15,
-				end: 30,
-				layer: 1,
-			},
-		]
-	}
 
 	$: frameToPixelOffset = function (frame: number) {
 		if (componentMainElement === undefined) return 0
@@ -140,15 +123,44 @@
 	}
 
 	$: if ($dropped !== null && heldOn(componentMainElement)) {
-		clips.push({
-			assetId: $dropped.content,
-			start: pixelOffsetToFrame($heldX),
-			end: Math.max(pixelOffsetToFrame($heldX + 256), pixelOffsetToFrame($heldX) + 1),
-			layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
-		})
+		if ($dropped.type === 'asset') {
+			clips.push({
+				id: self.crypto.randomUUID(),
+				assetId: $dropped.content,
+				start: pixelOffsetToFrame($heldX),
+				end: Math.max(pixelOffsetToFrame($heldX + 256), pixelOffsetToFrame($heldX) + 1),
+				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
+			})
+		} else {
+			clips.push({
+				id: $dropped.content.id,
+				assetId: $dropped.content.assetId,
+				start: pixelOffsetToFrame($heldX),
+				end: Math.max(pixelOffsetToFrame($heldX + 256), pixelOffsetToFrame($heldX) + 1),
+				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
+			})
+		}
+
 		clips = clips
 
 		dropped.set(null)
+	}
+
+	function holdClip(event: MouseEvent, clip: any) {
+		event.preventDefault()
+
+		hold({
+			type: 'clip',
+			content: clip,
+			origin: 'timeline',
+		})
+
+		clips.splice(
+			clips.findIndex(otherClip => otherClip.id === clip.id),
+			1
+		)
+
+		clips = clips
 	}
 </script>
 
@@ -176,6 +188,7 @@
 		<div class="clips">
 			{#each clips as clip}
 				<div
+					on:mousedown={event => holdClip(event, clip)}
 					class="clip"
 					style="left: {frameToPixelOffset(clip.start)}px; width: {frameToPixelOffset(clip.end) -
 						frameToPixelOffset(clip.start)}px; bottom: {layerToPixelOffset(clip.layer)}px"
@@ -191,7 +204,7 @@
 						pixelOffsetToLayer(globalYtoLocalY($heldY))
 					)}px"
 				>
-					<p>{$held.content}</p>
+					<p>{$held.type === 'asset' ? $held.content : $held.content.assetId}</p>
 				</div>
 			{/if}
 		</div>

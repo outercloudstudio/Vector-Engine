@@ -5,7 +5,7 @@
 	const tabs = ['Assets', 'Export', 'Inspect', 'Debug']
 	let activeTab = tabs[0]
 
-	function holdClip(event: MouseEvent, assetId: string) {
+	function holdAsset(event: MouseEvent, assetId: string) {
 		event.preventDefault()
 
 		hold({
@@ -28,7 +28,7 @@
 	{#if activeTab === 'Assets'}
 		<div class="content">
 			{#each Object.keys($assets) as assetId}
-				<div on:mousedown={event => holdClip(event, assetId)} class="asset">
+				<div on:mousedown={event => holdAsset(event, assetId)} class="asset">
 					<p>{$meta.assets[assetId].name}</p>
 				</div>
 			{/each}

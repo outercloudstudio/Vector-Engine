@@ -21,7 +21,7 @@
 
 	let componentBody: HTMLElement
 
-	$: if ($dropped !== null && heldOn(componentBody)) {
+	$: if ($dropped !== null && heldOn(componentBody) && $dropped.type === 'asset') {
 		previewingAssetId = $dropped.content
 
 		render()
