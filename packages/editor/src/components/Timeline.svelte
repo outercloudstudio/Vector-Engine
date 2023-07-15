@@ -25,8 +25,6 @@
 				layer: 1,
 			},
 		]
-
-		timeLines = [0, 20, 40, 60]
 	}
 
 	$: frameToPixelOffset = function (frame: number) {
@@ -65,7 +63,27 @@
 			viewStartFrame += mouseFrame - newFrameAtFactor
 		}
 
-		viewStartFrame += ((event.deltaX / 36) * viewFrameLength) / 20
+		viewStartFrame += ((event.deltaX / 36) * viewFrameLength) / 20 / 4
+	}
+
+	$: if (componentMainElement !== undefined) {
+		let newTimeLines = []
+
+		const frameWidth = pixelOffsetToFrame(128) - pixelOffsetToFrame(0)
+
+		const frameStep = frameWidth >= 1 ? Math.ceil(frameWidth / 5) * 5 : 1
+
+		const firstLabel = Math.floor(pixelOffsetToFrame(0) / frameStep) * frameStep
+
+		for (
+			let frame = firstLabel;
+			frame <= Math.ceil(viewStartFrame) + viewFrameLength + frameStep;
+			frame += frameStep
+		) {
+			newTimeLines.push(frame)
+		}
+
+		timeLines = newTimeLines
 	}
 </script>
 
