@@ -96,7 +96,10 @@
 
 	<div class="timeline" on:wheel={wheelScroll}>
 		{#each timeLines as line}
-			<div class="time-line" style="left: {frameToPixelOffset(line)}px;">
+			<div
+				class="time-line"
+				style="left: {frameToPixelOffset(line)}px; z-index: {line === 0 ? 2 : 0};"
+			>
 				<div class="time-line-text">
 					<p class="time">{Math.floor((line / 60) * 100) / 100}</p>
 					<p class="frame">[{line}]</p>
@@ -116,6 +119,8 @@
 				</div>
 			{/each}
 		</div>
+
+		<div class="zero-cover" style="left: {frameToPixelOffset(0)}px" />
 	</div>
 </main>
 
@@ -181,6 +186,8 @@
 		align-items: center;
 
 		position: absolute;
+
+		z-index: 3;
 	}
 
 	.clip > p {
@@ -240,5 +247,20 @@
 		flex-grow: 1;
 
 		background: var(--secondary);
+	}
+
+	.zero-cover {
+		z-index: 1;
+
+		position: absolute;
+
+		background: #00000033;
+
+		width: 100%;
+		height: 100%;
+
+		top: 0;
+
+		translate: -100% 0%;
 	}
 </style>
