@@ -16,6 +16,12 @@
 		)
 	}
 
+	$: framesToPixels = function (frame: number) {
+		if (componentMainElement === undefined) return 0
+
+		return (componentMainElement.getBoundingClientRect().width * frame) / viewFrameLength
+	}
+
 	$: pixelOffsetToFrame = function (x: number) {
 		if (componentMainElement === undefined) return 0
 
@@ -75,9 +81,16 @@
 		viewStartFrame += ((event.deltaX / 36) * viewFrameLength) / 20 / 4
 	}
 
-	let clips = []
+	let clips: {
+		id: string
+		assetId: string
+		frame: number
+		length: number
+		layer: number
+	}[] = []
 	let timeLines = []
 
+	// Renders timeline elements
 	$: if (componentMainElement !== undefined) {
 		let newTimeLines = []
 
@@ -100,6 +113,7 @@
 
 	let originalHeldObject: Holdable | null = null
 
+	// Handles a held asset being held over the timeline
 	$: if (
 		heldOn(componentMainElement) &&
 		$heldX !== undefined &&
@@ -115,8 +129,11 @@
 			content: originalHeldObject.content,
 			origin: 'timeline',
 		})
+
+		heldClipOffset = 0
 	}
 
+	// Handles a held asset no longer being held over the timeline
 	$: if (
 		!heldOn(componentMainElement) &&
 		$heldX !== undefined &&
@@ -130,15 +147,16 @@
 		originalHeldObject = null
 	}
 
-	$: if ($dropped !== null && heldOn(componentMainElement)) {
-		console.log('Dropped!')
+	let heldClipOffset = 0
 
+	// Handles held objects being dropped onto the timeline
+	$: if ($dropped !== null && heldOn(componentMainElement)) {
 		if ($dropped.type === 'asset') {
 			clips.push({
 				id: self.crypto.randomUUID(),
 				assetId: $dropped.content,
-				start: pixelOffsetToFrame($heldX),
-				end: Math.max(pixelOffsetToFrame($heldX + 256), pixelOffsetToFrame($heldX) + 1),
+				frame: pixelOffsetToFrame($heldX),
+				length: 60,
 				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
 			})
 
@@ -147,8 +165,8 @@
 			clips.push({
 				id: $dropped.content.id,
 				assetId: $dropped.content.assetId,
-				start: pixelOffsetToFrame($heldX),
-				end: Math.max(pixelOffsetToFrame($heldX + 256), pixelOffsetToFrame($heldX) + 1),
+				frame: pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)),
+				length: 60,
 				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
 			})
 		}
@@ -173,6 +191,8 @@
 		)
 
 		clips = clips
+
+		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
 	}
 </script>
 
@@ -202,8 +222,9 @@
 				<div
 					on:mousedown={event => holdClip(event, clip)}
 					class="clip"
-					style="left: {frameToPixelOffset(clip.start)}px; width: {frameToPixelOffset(clip.end) -
-						frameToPixelOffset(clip.start)}px; top: {layerToPixelOffset(clip.layer)}px"
+					style="left: {frameToPixelOffset(clip.frame)}px; width: {framesToPixels(
+						clip.length
+					)}px; top: {layerToPixelOffset(clip.layer)}px"
 				>
 					<p>{clip.assetId}</p>
 				</div>
@@ -213,12 +234,25 @@
 		<div class="zero-cover" style="left: {frameToPixelOffset(0)}px" />
 	</div>
 
-	{#if $held !== null && $held.origin === 'timeline'}
+	{#if $held !== null && $held.origin === 'timeline' && heldOn(clipsElement) && $heldX !== undefined && $heldY !== undefined}
 		<div
 			class="clip"
-			style="left: {$heldX}px; width: 256px; top: {heldOn(clipsElement)
-				? localYToGlobalY(layerToPixelOffset(pixelOffsetToLayer(globalYtoLocalY($heldY))))
-				: $heldY}px"
+			style="left: {frameToPixelOffset(
+				pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset))
+			)}px; width: {framesToPixels(60)}px; top: {localYToGlobalY(
+				layerToPixelOffset(pixelOffsetToLayer(globalYtoLocalY($heldY)))
+			)}px"
+		>
+			<p>{$held.type === 'asset' ? $held.content : $held.content.assetId}</p>
+		</div>
+	{/if}
+
+	{#if $held !== null && $held.origin === 'timeline' && !heldOn(clipsElement) && $heldX !== undefined && $heldY !== undefined}
+		<div
+			class="clip"
+			style="left: {$heldX + framesToPixels(heldClipOffset)}px; width: {framesToPixels(
+				60
+			)}px; top: {$heldY - 16}px"
 		>
 			<p>{$held.type === 'asset' ? $held.content : $held.content.assetId}</p>
 		</div>
