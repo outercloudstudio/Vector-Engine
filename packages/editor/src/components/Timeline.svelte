@@ -1,15 +1,12 @@
 <script lang="ts">
-	import { heldOn, heldX, heldY, held, dropped, hold } from '../stores/heldStore'
-	import { assets } from '../stores/projectStore'
+	import { heldOn, heldX, heldY, held, dropped, hold, type Holdable } from '../stores/heldStore'
 
 	let componentMainElement: HTMLElement
+	let clipsElement: HTMLElement
 
 	let viewStartFrame = 0
 	let viewFrameLength = 60
 	let layerOffset = 0
-
-	let clips = []
-	let timeLines = []
 
 	$: frameToPixelOffset = function (frame: number) {
 		if (componentMainElement === undefined) return 0
@@ -37,7 +34,7 @@
 		if (componentMainElement === undefined) return 0
 
 		return (
-			componentMainElement.getBoundingClientRect().height / 2 + (layer - layerOffset) * 38 - 32 / 2
+			componentMainElement.getBoundingClientRect().height / 2 + (layerOffset - layer) * 38 - 32 / 2
 		)
 	}
 
@@ -45,14 +42,20 @@
 		if (componentMainElement === undefined) return 0
 
 		return Math.floor(
-			(componentMainElement.getBoundingClientRect().height / 2 - y + 32 + 32 / 2) / 38 + layerOffset
+			(componentMainElement.getBoundingClientRect().height / 2 - y + 32 / 2) / 38 + layerOffset
 		)
 	}
 
 	function globalYtoLocalY(y: number) {
-		if (componentMainElement === undefined) return 0
+		if (clipsElement === undefined) return 0
 
-		return y - componentMainElement.getBoundingClientRect().y
+		return y - clipsElement.getBoundingClientRect().y
+	}
+
+	function localYToGlobalY(y: number) {
+		if (clipsElement === undefined) return 0
+
+		return clipsElement.getBoundingClientRect().y + y
 	}
 
 	function wheelScroll(event: WheelEvent) {
@@ -71,6 +74,9 @@
 
 		viewStartFrame += ((event.deltaX / 36) * viewFrameLength) / 20 / 4
 	}
+
+	let clips = []
+	let timeLines = []
 
 	$: if (componentMainElement !== undefined) {
 		let newTimeLines = []
@@ -92,6 +98,8 @@
 		timeLines = newTimeLines
 	}
 
+	let originalHeldObject: Holdable | null = null
+
 	$: if (
 		heldOn(componentMainElement) &&
 		$heldX !== undefined &&
@@ -100,9 +108,11 @@
 		$held.type === 'asset' &&
 		$held.origin !== 'timeline'
 	) {
+		originalHeldObject = $held
+
 		held.set({
 			type: 'asset',
-			content: $held.content,
+			content: originalHeldObject.content,
 			origin: 'timeline',
 		})
 	}
@@ -112,17 +122,17 @@
 		$heldX !== undefined &&
 		$heldY !== undefined &&
 		$held &&
-		$held.type === 'asset' &&
-		$held.origin === 'timeline'
+		$held.origin === 'timeline' &&
+		originalHeldObject !== null
 	) {
-		held.set({
-			type: 'asset',
-			content: $held.content,
-			origin: 'sidebar',
-		})
+		held.set(originalHeldObject)
+
+		originalHeldObject = null
 	}
 
 	$: if ($dropped !== null && heldOn(componentMainElement)) {
+		console.log('Dropped!')
+
 		if ($dropped.type === 'asset') {
 			clips.push({
 				id: self.crypto.randomUUID(),
@@ -131,6 +141,8 @@
 				end: Math.max(pixelOffsetToFrame($heldX + 256), pixelOffsetToFrame($heldX) + 1),
 				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
 			})
+
+			originalHeldObject = null
 		} else {
 			clips.push({
 				id: $dropped.content.id,
@@ -171,7 +183,7 @@
 		<button class="material-symbols-outlined"> skip_next </button>
 	</div>
 
-	<div class="timeline" on:wheel={wheelScroll}>
+	<div on:wheel={wheelScroll} class="timeline">
 		{#each timeLines as line}
 			<div
 				class="time-line"
@@ -185,32 +197,32 @@
 			</div>
 		{/each}
 
-		<div class="clips">
+		<div bind:this={clipsElement} class="clips">
 			{#each clips as clip}
 				<div
 					on:mousedown={event => holdClip(event, clip)}
 					class="clip"
 					style="left: {frameToPixelOffset(clip.start)}px; width: {frameToPixelOffset(clip.end) -
-						frameToPixelOffset(clip.start)}px; bottom: {layerToPixelOffset(clip.layer)}px"
+						frameToPixelOffset(clip.start)}px; top: {layerToPixelOffset(clip.layer)}px"
 				>
 					<p>{clip.assetId}</p>
 				</div>
 			{/each}
-
-			{#if $held !== null && $held.origin === 'timeline'}
-				<div
-					class="clip"
-					style="left: {$heldX}px; width: 256px; bottom: {layerToPixelOffset(
-						pixelOffsetToLayer(globalYtoLocalY($heldY))
-					)}px"
-				>
-					<p>{$held.type === 'asset' ? $held.content : $held.content.assetId}</p>
-				</div>
-			{/if}
 		</div>
 
 		<div class="zero-cover" style="left: {frameToPixelOffset(0)}px" />
 	</div>
+
+	{#if $held !== null && $held.origin === 'timeline'}
+		<div
+			class="clip"
+			style="left: {$heldX}px; width: 256px; top: {heldOn(clipsElement)
+				? localYToGlobalY(layerToPixelOffset(pixelOffsetToLayer(globalYtoLocalY($heldY))))
+				: $heldY}px"
+		>
+			<p>{$held.type === 'asset' ? $held.content : $held.content.assetId}</p>
+		</div>
+	{/if}
 </main>
 
 <style>

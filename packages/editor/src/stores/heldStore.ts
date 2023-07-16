@@ -22,6 +22,10 @@ export const held: Writable<Holdable | null> = writable(null, set => {
 
 		dropped.set(get(held))
 
+		setTimeout(() => {
+			dropped.set(null)
+		}, 1)
+
 		held.set(null)
 	}
 
