@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { heldOn, heldX, heldY, held, dropped, hold, type Holdable } from '../stores/heldStore'
+	import { frame as globalFrame, play } from '../stores/playStateStore'
 
 	let componentMainElement: HTMLElement
 	let clipsElement: HTMLElement
@@ -194,6 +195,10 @@
 
 		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
 	}
+
+	$: console.log($globalFrame)
+
+	play()
 </script>
 
 <main bind:this={componentMainElement}>
