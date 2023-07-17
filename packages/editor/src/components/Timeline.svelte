@@ -90,13 +90,6 @@
 		viewStartFrame += ((event.deltaX / 36) * viewFrameLength) / 20 / 4
 	}
 
-	let clips: {
-		id: string
-		assetId: string
-		frame: number
-		length: number
-		layer: number
-	}[] = []
 	let timeLines = []
 
 	// Renders timeline elements
@@ -156,31 +149,100 @@
 		originalHeldObject = null
 	}
 
+	type Clip = {
+		id: string
+		assetId: string
+		frame: number
+		length: number
+	}
+
+	let layers: {
+		[key: number]: Clip[]
+	} = {}
+
+	function nextValidFrame(frame: number, length: number, layer: number) {
+		let nextOpenSpace = Math.max(0, frame)
+
+		if (layers[layer] === undefined) return nextOpenSpace
+
+		for (let clipIndex = 0; clipIndex < layers[layer].length; clipIndex++) {
+			console.log(
+				nextOpenSpace,
+				nextOpenSpace + length,
+				layers[layer][clipIndex].frame,
+				layers[layer][clipIndex].frame + layers[layer][clipIndex].length
+			)
+
+			const startIntersects =
+				layers[layer][clipIndex].frame >= nextOpenSpace &&
+				layers[layer][clipIndex].frame < nextOpenSpace + length
+
+			const endIntersects =
+				layers[layer][clipIndex].frame + layers[layer][clipIndex].length >= nextOpenSpace &&
+				layers[layer][clipIndex].frame + layers[layer][clipIndex].length < nextOpenSpace + length
+
+			if (startIntersects || endIntersects)
+				nextOpenSpace = layers[layer][clipIndex].frame + layers[layer][clipIndex].length
+		}
+
+		return nextOpenSpace
+	}
+
+	function addClip(assetId: string, frame: number, length: number, layer: number, id?: string) {
+		if (layers[layer] === undefined) layers[layer] = []
+
+		let insertFrame = layers[layer].findIndex(clip => clip.frame >= frame)
+
+		if (insertFrame === -1) insertFrame = layers[layer].length
+
+		layers[layer].splice(insertFrame, 0, {
+			id: id || self.crypto.randomUUID(),
+			assetId,
+			frame: nextValidFrame(frame, length, layer),
+			length,
+		})
+
+		layers = layers
+
+		console.log(layers)
+	}
+
+	function removeClip(id: string): Clip {
+		for (const layer of Object.keys(layers)) {
+			const clipIndex = layers[layer].findIndex(clip => clip.id === id)
+
+			if (clipIndex !== -1) {
+				layers[layer].splice(clipIndex, 1)
+
+				layers = layers
+
+				return layers[layer][clipIndex]
+			}
+		}
+	}
+
 	let heldClipOffset = 0
 
 	// Handles held objects being dropped onto the timeline
 	$: if ($dropped !== null && heldOn(componentMainElement)) {
 		if ($dropped.type === 'asset') {
-			clips.push({
-				id: self.crypto.randomUUID(),
-				assetId: $dropped.content,
-				frame: Math.max(0, pixelOffsetToFrame($heldX)),
-				length: 60,
-				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
-			})
+			addClip(
+				$dropped.content,
+				pixelOffsetToFrame($heldX),
+				60,
+				pixelOffsetToLayer(globalYtoLocalY($heldY))
+			)
 
 			originalHeldObject = null
 		} else {
-			clips.push({
-				id: $dropped.content.id,
-				assetId: $dropped.content.assetId,
-				frame: Math.max(0, pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset))),
-				length: 60,
-				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
-			})
+			addClip(
+				$dropped.content.assetId,
+				pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)),
+				60,
+				pixelOffsetToLayer(globalYtoLocalY($heldY)),
+				$dropped.content.id
+			)
 		}
-
-		clips = clips
 
 		dropped.set(null)
 	}
@@ -194,12 +256,7 @@
 			origin: 'timeline',
 		})
 
-		clips.splice(
-			clips.findIndex(otherClip => otherClip.id === clip.id),
-			1
-		)
-
-		clips = clips
+		removeClip(clip.id)
 
 		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
 	}
@@ -265,16 +322,18 @@
 		{/each}
 
 		<div bind:this={clipsElement} class="clips">
-			{#each clips as clip}
-				<div
-					on:mousedown={event => holdClip(event, clip)}
-					class="clip"
-					style="left: {frameToPixelOffset(clip.frame)}px; width: {framesToPixels(
-						clip.length
-					)}px; top: {layerToPixelOffset(clip.layer)}px"
-				>
-					<p>{clip.assetId}</p>
-				</div>
+			{#each Object.keys(layers).map(layer => parseInt(layer)) as layer}
+				{#each layers[layer] as clip}
+					<div
+						on:mousedown={event => holdClip(event, clip)}
+						class="clip"
+						style="left: {frameToPixelOffset(clip.frame)}px; width: {framesToPixels(
+							clip.length
+						)}px; top: {layerToPixelOffset(layer)}px"
+					>
+						<p>{clip.assetId}</p>
+					</div>
+				{/each}
 			{/each}
 		</div>
 
@@ -287,7 +346,11 @@
 		<div
 			class="clip"
 			style="left: {frameToPixelOffset(
-				Math.max(0, pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)))
+				nextValidFrame(
+					pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)),
+					60,
+					pixelOffsetToLayer(globalYtoLocalY($heldY))
+				)
 			)}px; width: {framesToPixels(60)}px; top: {localYToGlobalY(
 				layerToPixelOffset(pixelOffsetToLayer(globalYtoLocalY($heldY)))
 			)}px"
