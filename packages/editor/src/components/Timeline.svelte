@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { heldOn, heldX, heldY, held, dropped, hold, type Holdable } from '../stores/heldStore'
-	import { frame as globalFrame, play } from '../stores/playStateStore'
+	import { frame as globalFrame, play, playing, pause } from '../stores/playStateStore'
 
 	let componentMainElement: HTMLElement
 	let clipsElement: HTMLElement
@@ -195,16 +195,18 @@
 
 		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
 	}
-
-	$: console.log($globalFrame)
-
-	play()
 </script>
 
 <main bind:this={componentMainElement}>
 	<div class="control-bar">
 		<button class="material-symbols-outlined"> skip_previous </button>
-		<button class="material-symbols-outlined"> play_arrow </button>
+
+		{#if !$playing}
+			<button on:click={play} class="material-symbols-outlined"> play_arrow </button>
+		{:else}
+			<button on:click={pause} class="material-symbols-outlined"> pause </button>
+		{/if}
+
 		<button class="material-symbols-outlined"> skip_next </button>
 	</div>
 
@@ -235,6 +237,8 @@
 				</div>
 			{/each}
 		</div>
+
+		<div class="play-head" style="left: {frameToPixelOffset($globalFrame)}px;" />
 
 		<div class="zero-cover" style="left: {frameToPixelOffset(0)}px" />
 	</div>
@@ -408,5 +412,19 @@
 		top: 0;
 
 		translate: -100% 0%;
+	}
+
+	.play-head {
+		z-index: 4;
+
+		width: 1px;
+
+		background: #ffffff;
+
+		height: 100%;
+
+		position: absolute;
+
+		top: 0;
 	}
 </style>
