@@ -31,6 +31,14 @@
 		)
 	}
 
+	$: pixelOffsetToFrameRounded = function (x: number) {
+		if (componentMainElement === undefined) return 0
+
+		return Math.round(
+			(x / componentMainElement.getBoundingClientRect().width) * viewFrameLength + viewStartFrame
+		)
+	}
+
 	$: pixelOffsetToFrameContinuous = function (x: number) {
 		if (componentMainElement === undefined) return 0
 
@@ -156,7 +164,7 @@
 			clips.push({
 				id: self.crypto.randomUUID(),
 				assetId: $dropped.content,
-				frame: pixelOffsetToFrame($heldX),
+				frame: Math.max(0, pixelOffsetToFrame($heldX)),
 				length: 60,
 				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
 			})
@@ -166,7 +174,7 @@
 			clips.push({
 				id: $dropped.content.id,
 				assetId: $dropped.content.assetId,
-				frame: pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)),
+				frame: Math.max(0, pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset))),
 				length: 60,
 				layer: pixelOffsetToLayer(globalYtoLocalY($heldY)),
 			})
@@ -195,6 +203,32 @@
 
 		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
 	}
+
+	let movePlayheadMouseDown = false
+
+	function movePlayheadOnMouseDown(event: MouseEvent) {
+		if ($held !== null) return
+
+		movePlayheadMouseDown = true
+
+		globalFrame.set(Math.max(0, pixelOffsetToFrameRounded(event.clientX)))
+	}
+
+	function movePlayheadOnMouseUp(event: MouseEvent) {
+		if ($held !== null) return
+
+		movePlayheadMouseDown = false
+
+		globalFrame.set(Math.max(0, pixelOffsetToFrameRounded(event.clientX)))
+	}
+
+	function movePlayheadOnMouseMove(event: MouseEvent) {
+		if ($held !== null) return
+
+		if (!movePlayheadMouseDown) return
+
+		globalFrame.set(Math.max(0, pixelOffsetToFrameRounded(event.clientX)))
+	}
 </script>
 
 <main bind:this={componentMainElement}>
@@ -210,7 +244,13 @@
 		<button class="material-symbols-outlined"> skip_next </button>
 	</div>
 
-	<div on:wheel={wheelScroll} class="timeline">
+	<div
+		on:wheel={wheelScroll}
+		on:mousedown={movePlayheadOnMouseDown}
+		on:mouseup={movePlayheadOnMouseUp}
+		on:mousemove={movePlayheadOnMouseMove}
+		class="timeline"
+	>
 		{#each timeLines as line}
 			<div
 				class="time-line"
@@ -247,7 +287,7 @@
 		<div
 			class="clip"
 			style="left: {frameToPixelOffset(
-				pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset))
+				Math.max(0, pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)))
 			)}px; width: {framesToPixels(60)}px; top: {localYToGlobalY(
 				layerToPixelOffset(pixelOffsetToLayer(globalYtoLocalY($heldY)))
 			)}px"
