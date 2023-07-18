@@ -3,6 +3,7 @@
 	import { dropped, heldOn } from '../stores/heldStore'
 	import { frame as globalFrame } from '../stores/playStateStore'
 	import { clipsAtFrame, layers } from '../stores/timelineStore'
+	import { Asset } from '@vector-engine/core'
 
 	let previewingAssetId: string | null = null
 
@@ -13,10 +14,13 @@
 
 		if (previewingAssetId === null) {
 			for (const clip of clipsAtFrame($globalFrame)) {
-				$assets[clip.assetId].render(offscreenCanvas)
+				clip.asset.toFrame($globalFrame - clip.frame)
+				clip.asset.render(offscreenCanvas)
 			}
 		} else {
-			$assets[previewingAssetId].render(offscreenCanvas)
+			const asset: Asset = $assets[previewingAssetId]()
+			asset.toFrame(0)
+			asset.render(offscreenCanvas)
 		}
 
 		const context = canvas.getContext('2d')

@@ -1,7 +1,7 @@
 import { writable, type Writable } from 'svelte/store'
 import { type Meta, Asset } from '@vector-engine/core'
 
-export const assets: Writable<{ [key: string]: Asset }> = writable({})
+export const assets: Writable<{ [key: string]: () => Asset }> = writable({})
 export const meta: Writable<Meta> = writable({
 	assets: {},
 })

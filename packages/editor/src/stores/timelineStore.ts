@@ -1,8 +1,10 @@
+import type { Asset } from '@vector-engine/core'
 import { get, writable, type Writable } from 'svelte/store'
 
 export type Clip = {
 	id: string
 	assetId: string
+	asset: Asset
 	frame: number
 	length: number
 }
@@ -49,6 +51,7 @@ export function nextValidFrame(frame: number, length: number, layer: number) {
 
 export function addClip(
 	assetId: string,
+	asset: Asset,
 	frame: number,
 	length: number,
 	layer: number,
@@ -65,6 +68,7 @@ export function addClip(
 	layersReference[layer].splice(insertFrame, 0, {
 		id: id || self.crypto.randomUUID(),
 		assetId,
+		asset,
 		frame: nextValidFrame(frame, length, layer),
 		length,
 	})

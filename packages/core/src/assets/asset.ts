@@ -1,7 +1,7 @@
 export class Asset {
 	constructor() {}
 
-	nextFrame() {}
+	toFrame(frame: number) {}
 
 	render(canvas: OffscreenCanvas) {}
 }

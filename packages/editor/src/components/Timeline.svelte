@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { heldOn, heldX, heldY, held, dropped, hold, type Holdable } from '../stores/heldStore'
 	import { frame as globalFrame, play, playing, pause } from '../stores/playStateStore'
+	import { assets } from '../stores/projectStore'
 	import {
 		layers,
 		addClip,
@@ -163,6 +164,7 @@
 		if ($dropped.type === 'asset') {
 			addClip(
 				$dropped.content,
+				$assets[$dropped.content](),
 				pixelOffsetToFrame($heldX),
 				60,
 				pixelOffsetToLayer(globalYtoLocalY($heldY))
@@ -172,6 +174,7 @@
 		} else {
 			addClip(
 				$dropped.content.assetId,
+				$assets[$dropped.content.assetId](),
 				pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)),
 				$dropped.content.length,
 				pixelOffsetToLayer(globalYtoLocalY($heldY)),
