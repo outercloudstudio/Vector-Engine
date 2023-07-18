@@ -1,17 +1,23 @@
 <script lang="ts">
 	import { assets } from '../stores/projectStore'
 	import { dropped, heldOn } from '../stores/heldStore'
+	import { frame as globalFrame } from '../stores/playStateStore'
+	import { clipsAtFrame, layers } from '../stores/timelineStore'
 
 	let previewingAssetId: string | null = null
 
 	let canvas: HTMLCanvasElement
 
 	function render() {
-		if (previewingAssetId === null) return
-
 		const offscreenCanvas = new OffscreenCanvas(1920, 1080)
 
-		$assets[previewingAssetId].render(offscreenCanvas)
+		if (previewingAssetId === null) {
+			for (const clip of clipsAtFrame($globalFrame)) {
+				$assets[clip.assetId].render(offscreenCanvas)
+			}
+		} else {
+			$assets[previewingAssetId].render(offscreenCanvas)
+		}
 
 		const context = canvas.getContext('2d')
 
@@ -27,12 +33,26 @@
 		render()
 	}
 
-	assets.subscribe(assets => {
-		if (previewingAssetId === null && Object.keys(assets).length > 0)
-			previewingAssetId = Object.keys(assets)[0]
+	$: if (canvas !== undefined) {
+		if (previewingAssetId === null && Object.keys($assets).length > 0)
+			previewingAssetId = Object.keys($assets)[0]
 
 		render()
-	})
+	}
+
+	$: if (canvas !== undefined && $assets !== undefined && $layers !== undefined) {
+		if (previewingAssetId === null) render()
+	}
+
+	let lastRenderedGlobalFrame = -1
+
+	$: if ($globalFrame !== lastRenderedGlobalFrame && canvas !== undefined) {
+		lastRenderedGlobalFrame = $globalFrame
+
+		previewingAssetId = null
+
+		render()
+	}
 </script>
 
 <main bind:this={componentBody}>

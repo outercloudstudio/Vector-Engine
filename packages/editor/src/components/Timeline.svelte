@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { heldOn, heldX, heldY, held, dropped, hold, type Holdable } from '../stores/heldStore'
 	import { frame as globalFrame, play, playing, pause } from '../stores/playStateStore'
+	import {
+		layers,
+		addClip,
+		removeClip,
+		findClipLocation,
+		nextValidFrame,
+	} from '../stores/timelineStore'
 
 	let componentMainElement: HTMLElement
 	let clipsElement: HTMLElement
@@ -149,87 +156,6 @@
 		originalHeldObject = null
 	}
 
-	type Clip = {
-		id: string
-		assetId: string
-		frame: number
-		length: number
-	}
-
-	let layers: {
-		[key: number]: Clip[]
-	} = {}
-
-	function nextValidFrame(frame: number, length: number, layer: number) {
-		let nextOpenSpace = Math.max(0, frame)
-
-		if (layers[layer] === undefined) return nextOpenSpace
-
-		for (let clipIndex = 0; clipIndex < layers[layer].length; clipIndex++) {
-			const startIntersects =
-				layers[layer][clipIndex].frame >= nextOpenSpace &&
-				layers[layer][clipIndex].frame < nextOpenSpace + length
-
-			const endIntersects =
-				layers[layer][clipIndex].frame + layers[layer][clipIndex].length >= nextOpenSpace &&
-				layers[layer][clipIndex].frame + layers[layer][clipIndex].length < nextOpenSpace + length
-
-			const otherStartIntersects =
-				nextOpenSpace >= layers[layer][clipIndex].frame &&
-				nextOpenSpace < layers[layer][clipIndex].frame + layers[layer][clipIndex].length
-
-			const otherEndIntersects =
-				nextOpenSpace + length >= layers[layer][clipIndex].frame &&
-				nextOpenSpace + length < layers[layer][clipIndex].frame + layers[layer][clipIndex].length
-
-			if (startIntersects || endIntersects || otherStartIntersects || otherEndIntersects)
-				nextOpenSpace = layers[layer][clipIndex].frame + layers[layer][clipIndex].length
-		}
-
-		return nextOpenSpace
-	}
-
-	function addClip(assetId: string, frame: number, length: number, layer: number, id?: string) {
-		if (layers[layer] === undefined) layers[layer] = []
-
-		let insertFrame = layers[layer].findIndex(clip => clip.frame >= frame)
-
-		if (insertFrame === -1) insertFrame = layers[layer].length
-
-		layers[layer].splice(insertFrame, 0, {
-			id: id || self.crypto.randomUUID(),
-			assetId,
-			frame: nextValidFrame(frame, length, layer),
-			length,
-		})
-
-		layers = layers
-	}
-
-	function removeClip(id: string): Clip {
-		for (const layer of Object.keys(layers)) {
-			const clipIndex = layers[layer].findIndex(clip => clip.id === id)
-
-			if (clipIndex !== -1) {
-				layers[layer].splice(clipIndex, 1)
-
-				layers = layers
-
-				return layers[layer][clipIndex]
-			}
-		}
-	}
-
-	function findClipLocation(id: string): { layer: number; index: number } | null {
-		for (const layer of Object.keys(layers).map(layer => parseInt(layer))) {
-			for (let clipIndex = 0; clipIndex < layers[layer].length; clipIndex++) {
-				if (layers[layer][clipIndex].id === id) return { layer, index: clipIndex }
-			}
-		}
-
-		return null
-	}
-
 	let heldClipOffset = 0
 
 	// Handles held objects being dropped onto the timeline
@@ -295,45 +221,45 @@
 		if (resizeClipSide === 'right') {
 			const clipLocation = findClipLocation(resizeClipId)
 
-			let newLength = frame - layers[clipLocation.layer][clipLocation.index].frame
+			let newLength = frame - $layers[clipLocation.layer][clipLocation.index].frame
 
 			if (newLength < 1) newLength = 1
 
 			if (
-				layers[clipLocation.layer][clipLocation.index + 1] !== undefined &&
-				frame > layers[clipLocation.layer][clipLocation.index + 1].frame
+				$layers[clipLocation.layer][clipLocation.index + 1] !== undefined &&
+				frame > $layers[clipLocation.layer][clipLocation.index + 1].frame
 			)
 				newLength =
-					layers[clipLocation.layer][clipLocation.index + 1].frame -
-					layers[clipLocation.layer][clipLocation.index].frame
+					$layers[clipLocation.layer][clipLocation.index + 1].frame -
+					$layers[clipLocation.layer][clipLocation.index].frame
 
-			layers[clipLocation.layer][clipLocation.index].length = newLength
+			$layers[clipLocation.layer][clipLocation.index].length = newLength
 		}
 
 		if (resizeClipSide === 'left') {
 			const clipLocation = findClipLocation(resizeClipId)
 
-			const oldStart = layers[clipLocation.layer][clipLocation.index].frame
+			const oldStart = $layers[clipLocation.layer][clipLocation.index].frame
 
 			let newStart = frame
-			if (newStart >= oldStart + layers[clipLocation.layer][clipLocation.index].length)
-				newStart = oldStart + layers[clipLocation.layer][clipLocation.index].length - 1
+			if (newStart >= oldStart + $layers[clipLocation.layer][clipLocation.index].length)
+				newStart = oldStart + $layers[clipLocation.layer][clipLocation.index].length - 1
 
 			if (newStart < 0) newStart = 0
 
 			if (
-				layers[clipLocation.layer][clipLocation.index - 1] !== undefined &&
+				$layers[clipLocation.layer][clipLocation.index - 1] !== undefined &&
 				frame <
-					layers[clipLocation.layer][clipLocation.index - 1].frame +
-						layers[clipLocation.layer][clipLocation.index - 1].length
+					$layers[clipLocation.layer][clipLocation.index - 1].frame +
+						$layers[clipLocation.layer][clipLocation.index - 1].length
 			)
 				newStart =
-					layers[clipLocation.layer][clipLocation.index - 1].frame +
-					layers[clipLocation.layer][clipLocation.index - 1].length
+					$layers[clipLocation.layer][clipLocation.index - 1].frame +
+					$layers[clipLocation.layer][clipLocation.index - 1].length
 
-			layers[clipLocation.layer][clipLocation.index].frame = newStart
-			layers[clipLocation.layer][clipLocation.index].length =
-				layers[clipLocation.layer][clipLocation.index].length + (oldStart - newStart)
+			$layers[clipLocation.layer][clipLocation.index].frame = newStart
+			$layers[clipLocation.layer][clipLocation.index].length =
+				$layers[clipLocation.layer][clipLocation.index].length + (oldStart - newStart)
 		}
 	}
 
@@ -402,8 +328,8 @@
 		{/each}
 
 		<div bind:this={clipsElement} class="clips">
-			{#each Object.keys(layers).map(layer => parseInt(layer)) as layer}
-				{#each layers[layer] as clip}
+			{#each Object.keys($layers).map(layer => parseInt(layer)) as layer}
+				{#each $layers[layer] as clip}
 					<div
 						on:mousedown={event => holdClip(event, clip)}
 						class="clip"
