@@ -5,8 +5,8 @@
 	let componentMainElement: HTMLElement
 	let clipsElement: HTMLElement
 
-	let viewStartFrame = 0
-	let viewFrameLength = 60
+	let viewStartFrame = -15
+	let viewFrameLength = 360
 	let layerOffset = 0
 
 	$: frameToPixelOffset = function (frame: number) {
@@ -166,13 +166,6 @@
 		if (layers[layer] === undefined) return nextOpenSpace
 
 		for (let clipIndex = 0; clipIndex < layers[layer].length; clipIndex++) {
-			console.log(
-				nextOpenSpace,
-				nextOpenSpace + length,
-				layers[layer][clipIndex].frame,
-				layers[layer][clipIndex].frame + layers[layer][clipIndex].length
-			)
-
 			const startIntersects =
 				layers[layer][clipIndex].frame >= nextOpenSpace &&
 				layers[layer][clipIndex].frame < nextOpenSpace + length
@@ -221,6 +214,16 @@
 		}
 	}
 
+	function findClipLocation(id: string): { layer: number; index: number } | null {
+		for (const layer of Object.keys(layers).map(layer => parseInt(layer))) {
+			for (let clipIndex = 0; clipIndex < layers[layer].length; clipIndex++) {
+				if (layers[layer][clipIndex].id === id) return { layer, index: clipIndex }
+			}
+		}
+
+		return null
+	}
+
 	let heldClipOffset = 0
 
 	// Handles held objects being dropped onto the timeline
@@ -259,6 +262,44 @@
 		removeClip(clip.id)
 
 		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
+	}
+
+	let heldId: string | null = null
+	let heldSide: 'left' | 'right' = 'right'
+
+	function resizeClipRight(id: string) {
+		heldSide = 'right'
+		heldId = id
+
+		console.log(id)
+	}
+
+	function resizeClipMouseUp() {
+		heldId = null
+	}
+
+	function resizeClipMouseMove(event: MouseEvent) {
+		if (heldId === null) return
+
+		const frame = pixelOffsetToFrameRounded(event.clientX)
+
+		if (heldSide === 'right') {
+			const clipLocation = findClipLocation(heldId)
+
+			let newLength = frame - layers[clipLocation.layer][clipLocation.index].frame
+
+			if (newLength < 1) newLength = 1
+
+			if (
+				layers[clipLocation.layer][clipLocation.index + 1] !== undefined &&
+				frame > layers[clipLocation.layer][clipLocation.index + 1].frame
+			)
+				newLength =
+					layers[clipLocation.layer][clipLocation.index + 1].frame -
+					layers[clipLocation.layer][clipLocation.index].frame
+
+			layers[clipLocation.layer][clipLocation.index].length = newLength
+		}
 	}
 
 	let movePlayheadMouseDown = false
@@ -305,7 +346,9 @@
 		on:wheel={wheelScroll}
 		on:mousedown={movePlayheadOnMouseDown}
 		on:mouseup={movePlayheadOnMouseUp}
+		on:mouseup={resizeClipMouseUp}
 		on:mousemove={movePlayheadOnMouseMove}
+		on:mousemove={resizeClipMouseMove}
 		class="timeline"
 	>
 		{#each timeLines as line}
@@ -332,6 +375,9 @@
 						)}px; top: {layerToPixelOffset(layer)}px"
 					>
 						<p>{clip.assetId}</p>
+
+						<div class="resize-left" />
+						<div on:mousedown|stopPropagation={() => resizeClipRight(clip.id)} class="resize-right" />
 					</div>
 				{/each}
 			{/each}
@@ -435,12 +481,40 @@
 		position: absolute;
 
 		z-index: 3;
+
+		cursor: move;
 	}
 
 	.clip > p {
 		text-align: center;
 
 		user-select: none;
+	}
+
+	.resize-left {
+		width: 8px;
+		height: 100%;
+
+		cursor: col-resize;
+
+		position: absolute;
+
+		left: 0;
+
+		background: blue;
+	}
+
+	.resize-right {
+		width: 8px;
+		height: 100%;
+
+		cursor: col-resize;
+
+		position: absolute;
+
+		right: 0;
+
+		background: blue;
 	}
 
 	.time-line {
