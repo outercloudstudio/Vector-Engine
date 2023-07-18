@@ -174,7 +174,15 @@
 				layers[layer][clipIndex].frame + layers[layer][clipIndex].length >= nextOpenSpace &&
 				layers[layer][clipIndex].frame + layers[layer][clipIndex].length < nextOpenSpace + length
 
-			if (startIntersects || endIntersects)
+			const otherStartIntersects =
+				nextOpenSpace >= layers[layer][clipIndex].frame &&
+				nextOpenSpace < layers[layer][clipIndex].frame + layers[layer][clipIndex].length
+
+			const otherEndIntersects =
+				nextOpenSpace + length >= layers[layer][clipIndex].frame &&
+				nextOpenSpace + length < layers[layer][clipIndex].frame + layers[layer][clipIndex].length
+
+			if (startIntersects || endIntersects || otherStartIntersects || otherEndIntersects)
 				nextOpenSpace = layers[layer][clipIndex].frame + layers[layer][clipIndex].length
 		}
 
