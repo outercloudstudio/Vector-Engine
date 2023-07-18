@@ -204,8 +204,6 @@
 		})
 
 		layers = layers
-
-		console.log(layers)
 	}
 
 	function removeClip(id: string): Clip {
@@ -249,7 +247,7 @@
 			addClip(
 				$dropped.content.assetId,
 				pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)),
-				60,
+				$dropped.content.length,
 				pixelOffsetToLayer(globalYtoLocalY($heldY)),
 				$dropped.content.id
 			)
@@ -272,27 +270,30 @@
 		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
 	}
 
-	let heldId: string | null = null
-	let heldSide: 'left' | 'right' = 'right'
+	let resizeClipId: string | null = null
+	let resizeClipSide: 'left' | 'right' = 'right'
+
+	function resizeClipLeft(id: string) {
+		resizeClipSide = 'left'
+		resizeClipId = id
+	}
 
 	function resizeClipRight(id: string) {
-		heldSide = 'right'
-		heldId = id
-
-		console.log(id)
+		resizeClipSide = 'right'
+		resizeClipId = id
 	}
 
 	function resizeClipMouseUp() {
-		heldId = null
+		resizeClipId = null
 	}
 
 	function resizeClipMouseMove(event: MouseEvent) {
-		if (heldId === null) return
+		if (resizeClipId === null) return
 
 		const frame = pixelOffsetToFrameRounded(event.clientX)
 
-		if (heldSide === 'right') {
-			const clipLocation = findClipLocation(heldId)
+		if (resizeClipSide === 'right') {
+			const clipLocation = findClipLocation(resizeClipId)
 
 			let newLength = frame - layers[clipLocation.layer][clipLocation.index].frame
 
@@ -308,6 +309,32 @@
 
 			layers[clipLocation.layer][clipLocation.index].length = newLength
 		}
+
+		if (resizeClipSide === 'left') {
+			const clipLocation = findClipLocation(resizeClipId)
+
+			const oldStart = layers[clipLocation.layer][clipLocation.index].frame
+
+			let newStart = frame
+			if (newStart >= oldStart + layers[clipLocation.layer][clipLocation.index].length)
+				newStart = oldStart + layers[clipLocation.layer][clipLocation.index].length - 1
+
+			if (newStart < 0) newStart = 0
+
+			if (
+				layers[clipLocation.layer][clipLocation.index - 1] !== undefined &&
+				frame <
+					layers[clipLocation.layer][clipLocation.index - 1].frame +
+						layers[clipLocation.layer][clipLocation.index - 1].length
+			)
+				newStart =
+					layers[clipLocation.layer][clipLocation.index - 1].frame +
+					layers[clipLocation.layer][clipLocation.index - 1].length
+
+			layers[clipLocation.layer][clipLocation.index].frame = newStart
+			layers[clipLocation.layer][clipLocation.index].length =
+				layers[clipLocation.layer][clipLocation.index].length + (oldStart - newStart)
+		}
 	}
 
 	let movePlayheadMouseDown = false
@@ -322,6 +349,8 @@
 
 	function movePlayheadOnMouseUp(event: MouseEvent) {
 		if ($held !== null) return
+
+		if (resizeClipId !== null) return
 
 		movePlayheadMouseDown = false
 
@@ -384,7 +413,7 @@
 					>
 						<p>{clip.assetId}</p>
 
-						<div class="resize-left" />
+						<div on:mousedown|stopPropagation={() => resizeClipLeft(clip.id)} class="resize-left" />
 						<div on:mousedown|stopPropagation={() => resizeClipRight(clip.id)} class="resize-right" />
 					</div>
 				{/each}
@@ -405,9 +434,9 @@
 					60,
 					pixelOffsetToLayer(globalYtoLocalY($heldY))
 				)
-			)}px; width: {framesToPixels(60)}px; top: {localYToGlobalY(
-				layerToPixelOffset(pixelOffsetToLayer(globalYtoLocalY($heldY)))
-			)}px"
+			)}px; width: {framesToPixels(
+				$held.type === 'asset' ? 60 : $held.content.length
+			)}px; top: {localYToGlobalY(layerToPixelOffset(pixelOffsetToLayer(globalYtoLocalY($heldY))))}px"
 		>
 			<p>{$held.type === 'asset' ? $held.content : $held.content.assetId}</p>
 		</div>
@@ -508,8 +537,6 @@
 		position: absolute;
 
 		left: 0;
-
-		background: blue;
 	}
 
 	.resize-right {
@@ -521,8 +548,6 @@
 		position: absolute;
 
 		right: 0;
-
-		background: blue;
 	}
 
 	.time-line {
@@ -611,5 +636,7 @@
 		position: absolute;
 
 		top: 0;
+
+		pointer-events: none;
 	}
 </style>
