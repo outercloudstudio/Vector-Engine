@@ -37,13 +37,6 @@
 		render()
 	}
 
-	$: if (canvas !== undefined) {
-		if (previewingAssetId === null && Object.keys($assets).length > 0)
-			previewingAssetId = Object.keys($assets)[0]
-
-		render()
-	}
-
 	$: if (canvas !== undefined && $assets !== undefined && $layers !== undefined) {
 		if (previewingAssetId === null) render()
 	}

@@ -1,5 +1,6 @@
 import type { Asset } from '@vector-engine/core'
 import { get, writable, type Writable } from 'svelte/store'
+import { assets } from './projectStore'
 
 export type Clip = {
 	id: string
@@ -118,3 +119,13 @@ export function clipsAtFrame(frame: number): Clip[] {
 
 	return clips
 }
+
+assets.subscribe(assets => {
+	const layersReference = get(layers)
+
+	for (const layer of Object.keys(layersReference).map(layer => parseInt(layer))) {
+		for (const clip of layersReference[layer]) {
+			clip.asset = assets[clip.assetId]()
+		}
+	}
+})
