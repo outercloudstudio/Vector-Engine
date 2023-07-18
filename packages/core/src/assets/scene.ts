@@ -26,9 +26,10 @@ export class Scene extends Asset {
 			this.elements = []
 			this.context = this.generator(this)
 			this.context.next()
+			this.internalFrame = 0
 		}
 
-		for (this.internalFrame = 0; this.internalFrame < frame; this.internalFrame++) {
+		for (; this.internalFrame < frame; this.internalFrame++) {
 			this.context.next()
 		}
 	}

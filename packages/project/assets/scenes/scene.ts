@@ -4,6 +4,8 @@ export default scene(function* (scene: Scene) {
 	scene.add(new Rect(Vector2.zero(), new Vector2(100, 100)))
 
 	for (let frame = 0; frame < 10; frame++) {
+		console.log(frame)
+
 		yield 1
 	}
 
