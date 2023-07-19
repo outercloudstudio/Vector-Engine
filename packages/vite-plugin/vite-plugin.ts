@@ -1,7 +1,14 @@
 import type { Plugin } from 'vite'
 
 import { posix, resolve, sep, parse, join, basename } from 'path'
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs'
+import {
+	createReadStream,
+	existsSync,
+	readFileSync,
+	readdirSync,
+	statSync,
+	writeFileSync,
+} from 'fs'
 import { watch } from 'chokidar'
 import { createHash } from 'crypto'
 import { Meta } from '@vector-engine/core'
@@ -132,6 +139,8 @@ export default function VectorEngine(): Plugin {
 				const params = new URLSearchParams(query)
 
 				if (req.url === '/') {
+					console.log('Getting Index')
+
 					res.setHeader('Content-Type', 'text/html')
 
 					res.end(
@@ -157,6 +166,19 @@ export default function VectorEngine(): Plugin {
             </html>
             `
 					)
+
+					return
+				}
+
+				if (base === '/@asset') {
+					const type = params.get('type')
+					const path = params.get('path')
+
+					console.log('Getting asset', type, path)
+
+					res.setHeader('Content-Type', 'image/png')
+
+					res.end(readFileSync(path))
 
 					return
 				}
@@ -193,6 +215,26 @@ export default function VectorEngine(): Plugin {
 
 				//ffmpeg -ss 00:00:04 -i input.mp4 -frames:v 1 screenshot.png
 			})
+
+			// return () => {
+			// 	server.middlewares.use((req, res, next) => {
+			// 		const [base, query] = req.url.split('?')
+			// 		const params = new URLSearchParams(query)
+
+			// if (base === '/@asset') {
+			// 	const type = params.get('type')
+			// 	const path = params.get('path')
+
+			// 	console.log('Getting asset', type, path)
+
+			// 	res.setHeader('Content-Type', 'image/png')
+
+			// 	res.end(readFileSync(path))
+			// }
+
+			// 		next()
+			// 	})
+			// }
 		},
 	}
 }
