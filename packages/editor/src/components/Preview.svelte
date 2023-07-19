@@ -9,18 +9,20 @@
 
 	let canvas: HTMLCanvasElement
 
-	function render() {
+	async function render() {
 		const offscreenCanvas = new OffscreenCanvas(1920, 1080)
 
 		if (previewingAssetId === null) {
 			for (const clip of clipsAtFrame($globalFrame)) {
 				clip.asset.toFrame($globalFrame - clip.frame)
-				clip.asset.render(offscreenCanvas)
+
+				await clip.asset.render(offscreenCanvas)
 			}
 		} else {
 			const asset: Asset = $assets[previewingAssetId]()
 			asset.toFrame(0)
-			asset.render(offscreenCanvas)
+
+			await asset.render(offscreenCanvas)
 		}
 
 		const context = canvas.getContext('2d')

@@ -1,5 +1,13 @@
 {
   "assets": {
+    "78228a53a5a595b7f439990d16e63cf4325e956f90f56778bc69bef0cb07255e": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\BQvkeq.png",
+      "name": "BQvkeq.png"
+    },
+    "a14780ce82e46feb8d43969deaa67e8930c1231bb56f30f36a4d69493c2fa1a7": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\pexels-berke-can-5825947-1920x1080-30fps.mp4",
+      "name": "pexels-berke-can-5825947-1920x1080-30fps.mp4"
+    },
     "bb3ecb5f3a814e07248612cfaec80a4270f6f62385a8a8069d416dcb3a9b3b8b": {
       "path": "D:\\Vector Engine\\packages\\project\\assets\\scene2.ts",
       "name": "scene2.ts"

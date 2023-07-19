@@ -87,6 +87,9 @@ export default function VectorEngine(): Plugin {
 
 				assetObject += '\n}'
 
+				console.log(assetImports)
+				console.log(assetObject)
+
 				return `
         ${assetImports}
 
@@ -103,6 +106,15 @@ export default function VectorEngine(): Plugin {
         import.meta.hot.accept()
 
         document.dispatchEvent(new CustomEvent('@vector-engine/project-reload', { detail: { project, assets, meta } } ))
+        `
+			}
+		},
+		transform(code, id) {
+			if (id.endsWith('.png') || id.endsWith('.jpg')) {
+				return `
+        import { image } from '@vector-engine/core'
+
+        export default image('${id}')
         `
 			}
 		},
@@ -163,6 +175,10 @@ export default function VectorEngine(): Plugin {
 
 					server.reloadModule(module)
 				})
+
+			server.ws.on('@vector-engine/image', (data, client) => {
+				client.send('@vector-engine/image', readFileSync(data.path))
+			})
 		},
 	}
 }

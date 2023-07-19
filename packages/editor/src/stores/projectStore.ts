@@ -7,6 +7,8 @@ export const meta: Writable<Meta> = writable({
 })
 
 document.addEventListener('@vector-engine/project-reload', (event: CustomEvent) => {
+	console.log(event.detail.assets)
+
 	assets.set(event.detail.assets)
 	meta.set(event.detail.meta)
 })

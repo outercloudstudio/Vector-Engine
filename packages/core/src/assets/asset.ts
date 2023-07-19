@@ -3,5 +3,5 @@ export class Asset {
 
 	toFrame(frame: number) {}
 
-	render(canvas: OffscreenCanvas) {}
+	async render(canvas: OffscreenCanvas) {}
 }
