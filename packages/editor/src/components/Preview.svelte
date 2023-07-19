@@ -9,7 +9,18 @@
 
 	let canvas: HTMLCanvasElement
 
+	let requestingRender = false
+	let rendering = false
+
 	async function render() {
+		if (rendering) {
+			requestingRender = true
+
+			return
+		}
+
+		rendering = true
+
 		const offscreenCanvas = new OffscreenCanvas(1920, 1080)
 
 		if (previewingAssetId === null) {
@@ -29,6 +40,14 @@
 
 		context.clearRect(0, 0, 1920, 1080)
 		context.drawImage(offscreenCanvas, 0, 0)
+
+		rendering = false
+
+		if (requestingRender) {
+			requestingRender = false
+
+			render()
+		}
 	}
 
 	let componentBody: HTMLElement

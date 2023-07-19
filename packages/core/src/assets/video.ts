@@ -22,18 +22,25 @@ export class VideoClip extends Asset {
 	}
 
 	async render(canvas: OffscreenCanvas) {
-		if (this.video === null)
-			this.video = await new Promise<HTMLVideoElement>(res => {
-				const video = document.createElement('video')
+		if (this.video === null) {
+			this.video = document.createElement('video')
+			this.video.autoplay = true
+			this.video.src = `/@asset?type=video&path=${encodeURI(this.path)}`
 
-				video.addEventListener('loadeddata', () => res(video))
+			let intervalId: number = 0
 
-				video.src = `/@asset?type=video&path=${encodeURI(this.path)}`
+			await new Promise<void>(res => {
+				intervalId = setInterval(() => {
+					if (this.video.readyState === 4) res()
+				}, 1)
 			})
 
-		if (this.frames[this.internalFrame] === undefined) {
-			console.log(this.video.videoWidth, this.video.videoHeight)
+			clearInterval(intervalId)
 
+			console.warn('Loaded Video')
+		}
+
+		if (this.frames[this.internalFrame] === undefined) {
 			const frameCanvas = new OffscreenCanvas(this.video.videoWidth, this.video.videoHeight)
 			const context = frameCanvas.getContext('2d')
 
@@ -47,14 +54,20 @@ export class VideoClip extends Asset {
 				1080 / 2 - this.video.videoHeight / 2
 			)
 
-			const image = new Image()
-
 			const fileReader = new FileReader()
 
-			image.src = await new Promise<string>(async res => {
+			const dataUrl = await new Promise<string>(async res => {
 				fileReader.onload = event => res(event.target.result.toString())
 
 				fileReader.readAsDataURL(await frameCanvas.convertToBlob())
+			})
+
+			const image = await new Promise<HTMLImageElement>(res => {
+				const image = new Image()
+
+				image.addEventListener('load', () => res(image))
+
+				image.src = dataUrl
 			})
 
 			this.frames[this.internalFrame] = image

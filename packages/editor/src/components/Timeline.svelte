@@ -297,7 +297,12 @@
 
 <main bind:this={componentMainElement}>
 	<div class="control-bar">
-		<button class="material-symbols-outlined"> skip_previous </button>
+		<button
+			on:click={() => globalFrame.set(Math.max(0, $globalFrame - 1))}
+			class="material-symbols-outlined"
+		>
+			skip_previous
+		</button>
 
 		{#if !$playing}
 			<button on:click={play} class="material-symbols-outlined"> play_arrow </button>
@@ -305,7 +310,9 @@
 			<button on:click={pause} class="material-symbols-outlined"> pause </button>
 		{/if}
 
-		<button class="material-symbols-outlined"> skip_next </button>
+		<button on:click={() => globalFrame.set($globalFrame + 1)} class="material-symbols-outlined">
+			skip_next
+		</button>
 	</div>
 
 	<div
