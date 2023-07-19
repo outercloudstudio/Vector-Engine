@@ -1,4 +1,3 @@
-import { Element } from '../elements/element'
 import { Asset } from './asset'
 
 export function image(path: string): () => ImageClip {
@@ -44,6 +43,6 @@ export class ImageClip extends Asset {
 		}
 
 		const context = canvas.getContext('2d')
-		context.drawImage(this.image, 0, 0)
+		context.drawImage(this.image, 1920 / 2 - this.image.width / 2, 1080 / 2 - this.image.height / 2)
 	}
 }

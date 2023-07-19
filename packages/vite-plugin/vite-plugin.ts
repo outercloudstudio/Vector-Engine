@@ -117,6 +117,14 @@ export default function VectorEngine(): Plugin {
         export default image('${id}')
         `
 			}
+
+			if (id.endsWith('.mp4')) {
+				return `
+        import { video } from '@vector-engine/core'
+
+        export default video('${id}')
+        `
+			}
 		},
 		configureServer(server) {
 			server.middlewares.use((req, res, next) => {
@@ -178,6 +186,12 @@ export default function VectorEngine(): Plugin {
 
 			server.ws.on('@vector-engine/image', (data, client) => {
 				client.send('@vector-engine/image', readFileSync(data.path))
+			})
+
+			server.ws.on('@vector-engine/video', (data, client) => {
+				client.send('@vector-engine/video', readFileSync(data.path))
+
+				//ffmpeg -ss 00:00:04 -i input.mp4 -frames:v 1 screenshot.png
 			})
 		},
 	}
