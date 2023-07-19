@@ -273,6 +273,7 @@
 
 		movePlayheadMouseDown = true
 
+		pause()
 		globalFrame.set(Math.max(0, pixelOffsetToFrameRounded(event.clientX)))
 	}
 
