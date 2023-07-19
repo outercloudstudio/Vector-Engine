@@ -176,7 +176,13 @@ export default function VectorEngine(): Plugin {
 
 					console.log('Getting asset', type, path)
 
-					res.setHeader('Content-Type', 'image/png')
+					if (type === 'image') {
+						res.setHeader('Content-Type', 'image/png')
+					}
+
+					if (type === 'video') {
+						res.setHeader('Content-Type', 'video/mp4')
+					}
 
 					res.end(readFileSync(path))
 

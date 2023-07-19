@@ -15,17 +15,14 @@ export class ImageClip extends Asset {
 	}
 
 	async render(canvas: OffscreenCanvas) {
-		if (this.image === null) {
-			const image = await new Promise<HTMLImageElement>(res => {
+		if (this.image === null)
+			this.image = await new Promise<HTMLImageElement>(res => {
 				const image = new Image()
 
 				image.addEventListener('load', () => res(image))
 
 				image.src = `/@asset?type=image&path=${encodeURI(this.path)}`
 			})
-
-			this.image = image
-		}
 
 		const context = canvas.getContext('2d')
 		context.drawImage(this.image, 1920 / 2 - this.image.width / 2, 1080 / 2 - this.image.height / 2)
