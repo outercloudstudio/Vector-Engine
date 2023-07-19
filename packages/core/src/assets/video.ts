@@ -25,6 +25,8 @@ export class VideoClip extends Asset {
 		if (this.video === null) {
 			this.video = document.createElement('video')
 			this.video.autoplay = true
+			this.video.muted = true
+			this.video.pause()
 			this.video.src = `/@asset?type=video&path=${encodeURI(this.path)}`
 
 			let intervalId: number = 0
