@@ -166,6 +166,7 @@
 				$dropped.content,
 				$assets[$dropped.content](),
 				pixelOffsetToFrame($heldX),
+				0,
 				60,
 				pixelOffsetToLayer(globalYtoLocalY($heldY))
 			)
@@ -176,6 +177,7 @@
 				$dropped.content.assetId,
 				$assets[$dropped.content.assetId](),
 				pixelOffsetToFrame($heldX + framesToPixels(heldClipOffset)),
+				$dropped.content.firstClipFrame,
 				$dropped.content.length,
 				pixelOffsetToLayer(globalYtoLocalY($heldY)),
 				$dropped.content.id
@@ -260,7 +262,19 @@
 					$layers[clipLocation.layer][clipLocation.index - 1].frame +
 					$layers[clipLocation.layer][clipLocation.index - 1].length
 
+			let newFirstClipFrame =
+				$layers[clipLocation.layer][clipLocation.index].firstClipFrame + (newStart - oldStart)
+
+			console.log(newFirstClipFrame)
+
+			if (newFirstClipFrame < 0) {
+				newStart += -newFirstClipFrame
+
+				newFirstClipFrame = 0
+			}
+
 			$layers[clipLocation.layer][clipLocation.index].frame = newStart
+			$layers[clipLocation.layer][clipLocation.index].firstClipFrame = newFirstClipFrame
 			$layers[clipLocation.layer][clipLocation.index].length =
 				$layers[clipLocation.layer][clipLocation.index].length + (oldStart - newStart)
 		}

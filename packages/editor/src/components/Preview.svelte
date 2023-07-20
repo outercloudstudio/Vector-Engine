@@ -25,7 +25,7 @@
 
 		if (previewingAssetId === null) {
 			for (const clip of clipsAtFrame($globalFrame)) {
-				clip.asset.toFrame($globalFrame - clip.frame)
+				clip.asset.toFrame($globalFrame - clip.frame + clip.firstClipFrame)
 
 				await clip.asset.render(offscreenCanvas)
 			}

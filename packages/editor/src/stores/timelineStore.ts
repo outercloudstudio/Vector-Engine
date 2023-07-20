@@ -7,6 +7,7 @@ export type Clip = {
 	assetId: string
 	asset: Asset
 	frame: number
+	firstClipFrame: number
 	length: number
 }
 
@@ -54,6 +55,7 @@ export function addClip(
 	assetId: string,
 	asset: Asset,
 	frame: number,
+	firstClipFrame: number,
 	length: number,
 	layer: number,
 	id?: string
@@ -71,6 +73,7 @@ export function addClip(
 		assetId,
 		asset,
 		frame: nextValidFrame(frame, length, layer),
+		firstClipFrame,
 		length,
 	})
 
