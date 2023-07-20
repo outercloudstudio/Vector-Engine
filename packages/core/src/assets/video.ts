@@ -32,7 +32,7 @@ export class VideoClip extends Asset {
 			let intervalId: number = 0
 
 			await new Promise<void>(res => {
-				intervalId = setInterval(() => {
+				intervalId = <any>setInterval(() => {
 					if (this.video.readyState === 4) res()
 				}, 1)
 			})

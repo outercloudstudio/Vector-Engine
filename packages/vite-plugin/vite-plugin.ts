@@ -94,9 +94,6 @@ export default function VectorEngine(): Plugin {
 
 				assetObject += '\n}'
 
-				console.log(assetImports)
-				console.log(assetObject)
-
 				return `
         ${assetImports}
 
@@ -139,8 +136,6 @@ export default function VectorEngine(): Plugin {
 				const params = new URLSearchParams(query)
 
 				if (req.url === '/') {
-					console.log('Getting Index')
-
 					res.setHeader('Content-Type', 'text/html')
 
 					res.end(
@@ -174,14 +169,12 @@ export default function VectorEngine(): Plugin {
 					const type = params.get('type')
 					const path = params.get('path')
 
-					console.log('Getting asset', type, path)
-
 					if (type === 'image') {
 						res.setHeader('Content-Type', 'image/png')
 					}
 
 					if (type === 'video') {
-						res.setHeader('Content-Type', 'video/mp4')
+						if (path.endsWith('.mp4')) res.setHeader('Content-Type', 'video/mp4')
 					}
 
 					res.end(readFileSync(path))
@@ -218,29 +211,7 @@ export default function VectorEngine(): Plugin {
 
 			server.ws.on('@vector-engine/video', (data, client) => {
 				client.send('@vector-engine/video', readFileSync(data.path))
-
-				//ffmpeg -ss 00:00:04 -i input.mp4 -frames:v 1 screenshot.png
 			})
-
-			// return () => {
-			// 	server.middlewares.use((req, res, next) => {
-			// 		const [base, query] = req.url.split('?')
-			// 		const params = new URLSearchParams(query)
-
-			// if (base === '/@asset') {
-			// 	const type = params.get('type')
-			// 	const path = params.get('path')
-
-			// 	console.log('Getting asset', type, path)
-
-			// 	res.setHeader('Content-Type', 'image/png')
-
-			// 	res.end(readFileSync(path))
-			// }
-
-			// 		next()
-			// 	})
-			// }
 		},
 	}
 }
