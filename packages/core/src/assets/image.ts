@@ -1,10 +1,14 @@
+import { Vector2 } from '../vector'
 import { Asset } from './asset'
 
-export function image(path: string): () => ImageClip {
-	return () => new ImageClip(path)
+export function image(path: string): () => ImageAsset {
+	return () => new ImageAsset(path)
 }
 
-export class ImageClip extends Asset {
+export class ImageAsset extends Asset {
+	position: Vector2
+	size: Vector2
+
 	private image: HTMLImageElement | null = null
 	private path: string
 
@@ -25,6 +29,12 @@ export class ImageClip extends Asset {
 			})
 
 		const context = canvas.getContext('2d')
-		context.drawImage(this.image, 1920 / 2 - this.image.width / 2, 1080 / 2 - this.image.height / 2)
+		context.drawImage(
+			this.image,
+			1920 / 2 - this.size.x / 2 + this.position.x,
+			1080 / 2 - this.size.y / 2 + this.position.y,
+			this.size.x,
+			this.size.y
+		)
 	}
 }

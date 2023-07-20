@@ -1,3 +1,3 @@
 export class Element {
-	render(canvas: OffscreenCanvas) {}
+	async render(canvas: OffscreenCanvas) {}
 }

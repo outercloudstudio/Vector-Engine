@@ -1,4 +1,5 @@
-import { Rect, Scene, Vector2, scene } from '@vector-engine/core'
+import { Rect, Scene, Vector2, VectorImage, scene } from '@vector-engine/core'
+import testImage from '../BQvkeq.png'
 
 export default scene(function* (scene: Scene) {
 	scene.add(new Rect(Vector2.zero(), new Vector2(100, 100)))
@@ -7,5 +8,6 @@ export default scene(function* (scene: Scene) {
 		yield 1
 	}
 
-	scene.add(new Rect(new Vector2(300, -300), new Vector2(100, 100)))
+	scene.add(new VectorImage(testImage, Vector2.zero(), new Vector2(400, 400)))
+	scene.add(new Rect(Vector2.zero(), new Vector2(100, 100)))
 })

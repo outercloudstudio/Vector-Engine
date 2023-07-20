@@ -36,7 +36,7 @@ export class Scene extends Asset {
 
 	async render(canvas: OffscreenCanvas) {
 		for (const element of this.elements) {
-			element.render(canvas)
+			await element.render(canvas)
 		}
 	}
 

@@ -1,10 +1,10 @@
 import { Asset } from './asset'
 
-export function video(path: string): () => VideoClip {
-	return () => new VideoClip(path)
+export function video(path: string): () => VideoAsset {
+	return () => new VideoAsset(path)
 }
 
-export class VideoClip extends Asset {
+export class VideoAsset extends Asset {
 	private video: HTMLVideoElement | null = null
 	private frames: HTMLImageElement[] = []
 	private path: string

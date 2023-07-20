@@ -12,7 +12,7 @@ export class Rect extends Element {
 		this.size = size
 	}
 
-	render(canvas: OffscreenCanvas) {
+	async render(canvas: OffscreenCanvas) {
 		const context = canvas.getContext('2d')
 
 		context.fillStyle = 'black'
