@@ -2,6 +2,7 @@
 	import { heldOn, heldX, heldY, held, dropped, hold, type Holdable } from '../stores/heldStore'
 	import { frame as globalFrame, play, playing, pause } from '../stores/playStateStore'
 	import { assets } from '../stores/projectStore'
+	import { selected } from '../stores/selectedStore'
 	import {
 		layers,
 		addClip,
@@ -172,7 +173,9 @@
 			)
 
 			originalHeldObject = null
-		} else {
+		}
+
+		if ($dropped.type === 'clip') {
 			addClip(
 				$dropped.content.assetId,
 				$assets[$dropped.content.assetId](),
@@ -187,18 +190,38 @@
 		dropped.set(null)
 	}
 
+	let selectClipId = null
+
 	function holdClip(event: MouseEvent, clip: any) {
 		event.preventDefault()
 
-		hold({
+		selectClipId = clip.id
+
+		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
+
+		setTimeout(() => {
+			if (selectClipId === null) return
+
+			hold({
+				type: 'clip',
+				content: clip,
+				origin: 'timeline',
+			})
+
+			removeClip(clip.id)
+		}, 200)
+	}
+
+	function mouseUpClip() {
+		if (selectClipId === null) return
+
+		selected.set({
 			type: 'clip',
-			content: clip,
+			content: $layers[findClipLocation(selectClipId).layer][findClipLocation(selectClipId).index],
 			origin: 'timeline',
 		})
 
-		removeClip(clip.id)
-
-		heldClipOffset = clip.frame - pixelOffsetToFrameContinuous($heldX)
+		selectClipId = null
 	}
 
 	let resizeClipId: string | null = null
@@ -265,8 +288,6 @@
 			let newFirstClipFrame =
 				$layers[clipLocation.layer][clipLocation.index].firstClipFrame + (newStart - oldStart)
 
-			console.log(newFirstClipFrame)
-
 			if (newFirstClipFrame < 0) {
 				newStart += -newFirstClipFrame
 
@@ -283,7 +304,7 @@
 	let movePlayheadMouseDown = false
 
 	function movePlayheadOnMouseDown(event: MouseEvent) {
-		if ($held !== null) return
+		if (selectClipId !== null) return
 
 		movePlayheadMouseDown = true
 
@@ -291,22 +312,16 @@
 		globalFrame.set(Math.max(0, pixelOffsetToFrameRounded(event.clientX)))
 	}
 
-	function movePlayheadOnMouseUp(event: MouseEvent) {
-		if ($held !== null) return
-
-		if (resizeClipId !== null) return
-
-		movePlayheadMouseDown = false
-
-		globalFrame.set(Math.max(0, pixelOffsetToFrameRounded(event.clientX)))
-	}
-
 	function movePlayheadOnMouseMove(event: MouseEvent) {
-		if ($held !== null) return
+		if ($held !== null || selectClipId !== null) return
 
 		if (!movePlayheadMouseDown) return
 
 		globalFrame.set(Math.max(0, pixelOffsetToFrameRounded(event.clientX)))
+	}
+
+	function movePlayheadOnMouseUp() {
+		movePlayheadMouseDown = false
 	}
 </script>
 
@@ -357,6 +372,7 @@
 				{#each $layers[layer] as clip}
 					<div
 						on:mousedown={event => holdClip(event, clip)}
+						on:mouseup={mouseUpClip}
 						class="clip"
 						style="left: {frameToPixelOffset(clip.frame)}px; width: {framesToPixels(
 							clip.length
