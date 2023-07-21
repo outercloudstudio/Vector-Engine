@@ -5,10 +5,8 @@
 		"useDefineForClassFields": true,
 		"module": "ESNext",
 		"resolveJsonModule": true,
-		"allowJs": true,
-		"checkJs": true,
+		"allowJs": false,
 		"isolatedModules": true
 	},
-	"include": ["assets/**/*.d.ts", "assets/**/*.ts"],
-	"references": [{ "path": "./tsconfig.node.json" }]
+	"include": ["assets/**/*.d.ts", "assets/**/*.ts"]
 }

@@ -35,6 +35,8 @@ export default function VectorEngine(): Plugin {
 			for (const item of readdirSync(currentFolder)) {
 				const itemPath = join(currentFolder, item)
 
+				if (itemPath === resolve('./assets/vector-engine.d.ts')) continue
+
 				if (statSync(itemPath).isFile()) {
 					meta.assets[createHash('sha256').update(itemPath).digest('hex')] = {
 						path: itemPath,
@@ -103,13 +105,12 @@ export default function VectorEngine(): Plugin {
 
 			if (id === '\0virtual:@vector-engine/inject') {
 				return `
-        import * as project from '${posix.resolve('./project.ts')}'
         import assets from 'virtual:@vector-engine/assets'
         import * as meta from '${posix.resolve('./vector-engine.meta.json')}'
 
         import.meta.hot.accept()
 
-        document.dispatchEvent(new CustomEvent('@vector-engine/project-reload', { detail: { project, assets, meta } } ))
+        document.dispatchEvent(new CustomEvent('@vector-engine/project-reload', { detail: { assets, meta } } ))
         `
 			}
 		},

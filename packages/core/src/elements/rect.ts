@@ -1,21 +1,24 @@
 import { Vector2 } from '../vector'
-import { Element } from './element'
+import { AnimatedReactiveProperty, Element, animatedReactiveProperty } from './element'
 
 export class Rect extends Element {
-	position: Vector2
-	size: Vector2
+	public position: Vector2
+
+	public size: AnimatedReactiveProperty<Vector2> = animatedReactiveProperty<Vector2>(Vector2.zero())
 
 	constructor(position: Vector2, size: Vector2) {
 		super()
 
 		this.position = position
-		this.size = size
+		this.size(size)
 	}
 
-	async render(canvas: OffscreenCanvas) {
+	public async render(canvas: OffscreenCanvas) {
 		const context = canvas.getContext('2d')
 
+		const size = this.size()
+
 		context.fillStyle = 'black'
-		context.fillRect(this.position.x + 1920 / 2, this.position.y + 1080 / 2, this.size.x, this.size.y)
+		context.fillRect(this.position.x + 1920 / 2, this.position.y + 1080 / 2, size.x, size.y)
 	}
 }

@@ -5,10 +5,16 @@ export function scene(generator: (scene: Scene) => Generator): () => Scene {
 	return () => new Scene(generator)
 }
 
+type FinishableGenerator = Generator & { done?: boolean }
+
 export class Scene extends Asset {
 	private generator: (scene: Scene) => Generator
 	private context: Generator
+
+	private additionalContexts: FinishableGenerator[] = []
+
 	private elements: Element[] = []
+
 	private internalFrame: number = 0
 
 	constructor(generator: (scene: Scene) => Generator) {
@@ -16,31 +22,55 @@ export class Scene extends Asset {
 
 		this.generator = generator
 		this.context = this.generator(this)
-		this.context.next()
+
+		this.next()
 	}
 
-	toFrame(frame: number) {
+	private next() {
+		this.context.next()
+
+		console.log(this.additionalContexts)
+
+		for (const context of this.additionalContexts) {
+			const result = context.next()
+
+			if (result.done) context.done = true
+		}
+
+		this.additionalContexts = this.additionalContexts.filter(context => !context.done)
+	}
+
+	public toFrame(frame: number) {
 		if (frame < this.internalFrame) {
 			console.warn('Context reload!')
 
 			this.elements = []
+			this.additionalContexts = []
 			this.context = this.generator(this)
 			this.context.next()
 			this.internalFrame = 0
 		}
 
 		for (; this.internalFrame < frame; this.internalFrame++) {
-			this.context.next()
+			this.next()
 		}
 	}
 
-	async render(canvas: OffscreenCanvas) {
+	public async render(canvas: OffscreenCanvas) {
 		for (const element of this.elements) {
 			await element.render(canvas)
 		}
 	}
 
-	add(element: Element) {
+	public add<ElementType extends Element>(element: ElementType): ElementType {
 		this.elements.push(element)
+
+		element.scene = this
+
+		return element
+	}
+
+	public aside(generator: (() => Generator) | Generator) {
+		this.additionalContexts.push(typeof generator === 'function' ? generator() : generator)
 	}
 }
