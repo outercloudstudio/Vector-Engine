@@ -185,6 +185,8 @@
 				pixelOffsetToLayer(globalYtoLocalY($heldY)),
 				$dropped.content.id
 			)
+
+			selectClipId = null
 		}
 
 		dropped.set(null)

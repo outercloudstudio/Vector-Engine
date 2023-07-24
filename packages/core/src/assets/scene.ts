@@ -29,8 +29,6 @@ export class Scene extends Asset {
 	private next() {
 		this.context.next()
 
-		console.log(this.additionalContexts)
-
 		for (const context of this.additionalContexts) {
 			const result = context.next()
 

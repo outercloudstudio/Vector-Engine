@@ -1,5 +1,6 @@
-import { Rect, Scene, Vector2, scene } from '@vector-engine/core'
+import { Rect, Scene, Vector2, VectorImage, scene } from '@vector-engine/core'
 import { reactive } from '@vector-engine/core/src/reactive'
+import image from '../image.png'
 
 export default scene(function* (scene: Scene) {
 	const rect = scene.add(new Rect(Vector2.zero(), new Vector2(100, 100)))
@@ -7,4 +8,6 @@ export default scene(function* (scene: Scene) {
 	rect2.size(reactive(() => rect.size()))
 
 	rect.size(Vector2.zero(), 1, t => t)
+
+	scene.add(new VectorImage(image, Vector2.zero(), new Vector2(400, 400)))
 })

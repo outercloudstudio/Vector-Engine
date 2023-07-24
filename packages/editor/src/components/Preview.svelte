@@ -52,7 +52,12 @@
 
 	let componentBody: HTMLElement
 
-	$: if ($dropped !== null && heldOn(componentBody) && $dropped.type === 'asset') {
+	$: if (
+		canvas !== undefined &&
+		$dropped !== null &&
+		heldOn(componentBody) &&
+		$dropped.type === 'asset'
+	) {
 		previewingAssetId = $dropped.content
 
 		render()
@@ -64,7 +69,7 @@
 
 	let lastRenderedGlobalFrame = -1
 
-	$: if ($globalFrame !== lastRenderedGlobalFrame && canvas !== undefined) {
+	$: if (canvas !== undefined && $globalFrame !== lastRenderedGlobalFrame && canvas !== undefined) {
 		lastRenderedGlobalFrame = $globalFrame
 
 		previewingAssetId = null
