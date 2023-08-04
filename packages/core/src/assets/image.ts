@@ -41,20 +41,4 @@ export class ImageAsset extends Asset {
 			this.size.y
 		)
 	}
-
-	async getImage(): Promise<HTMLImageElement> {
-		if (this.image === null) {
-			this.image = await new Promise<HTMLImageElement>(res => {
-				const image = new Image()
-
-				image.addEventListener('load', () => res(image))
-
-				image.src = `/@asset?type=image&path=${encodeURI(this.path)}`
-			})
-
-			if (this.size === undefined) this.size = new Vector2(this.image.width, this.image.height)
-		}
-
-		return this.image
-	}
 }
