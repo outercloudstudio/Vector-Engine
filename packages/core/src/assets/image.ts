@@ -33,12 +33,6 @@ export class ImageAsset extends Asset {
 		}
 
 		const context = canvas.getContext('2d')
-		context.drawImage(
-			this.image,
-			1920 / 2 - this.size.x / 2 + this.position.x,
-			1080 / 2 - this.size.y / 2 + this.position.y,
-			this.size.x,
-			this.size.y
-		)
+		context.drawImage(this.image, this.position.x, this.position.y, this.size.x, this.size.y)
 	}
 }

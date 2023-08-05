@@ -43,6 +43,8 @@ export class Filter {
 	constructor() {}
 
 	public async render(canvas: OffscreenCanvas) {
+		console.log(canvas.width, canvas.height)
+
 		const resultCanvas = new OffscreenCanvas(canvas.width, canvas.height)
 
 		const webgl = resultCanvas.getContext('webgl2')
@@ -111,9 +113,6 @@ export class Filter {
 
 		webgl.drawArrays(webgl.TRIANGLES, 0, 6)
 
-		// canvas.getContext('2d').drawImage(resultCanvas, canvas.width, canvas.height)
 		canvas.getContext('2d').drawImage(resultCanvas, 0, 0, canvas.width, canvas.height)
-
-		console.log('render')
 	}
 }

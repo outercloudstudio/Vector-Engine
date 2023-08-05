@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 
 packages/vite-plugin/build
+packages/project/assets/gameplay.mp4
