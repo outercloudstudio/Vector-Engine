@@ -1,7 +1,8 @@
-import { createProgramFromScripts } from './webgl'
+import { createProgramFromScripts } from '../../webgl'
+import { Filter } from '../filter'
 
-export class Filter {
-	private vertex = `
+export class ShaderFilter extends Filter {
+	protected vertex = `
   attribute vec2 a_position;
   attribute vec2 a_texCoord;
 
@@ -28,7 +29,7 @@ export class Filter {
   }
   `
 
-	private fragment = `
+	protected fragment = `
   precision mediump float;
 
   uniform sampler2D u_image;
@@ -40,11 +41,7 @@ export class Filter {
   }
   `
 
-	constructor() {}
-
 	public async render(canvas: OffscreenCanvas) {
-		console.log(canvas.width, canvas.height)
-
 		const resultCanvas = new OffscreenCanvas(canvas.width, canvas.height)
 
 		const webgl = resultCanvas.getContext('webgl2')

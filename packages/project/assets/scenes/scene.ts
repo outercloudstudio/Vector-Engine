@@ -1,7 +1,13 @@
-import { Scene, Vector2, VectorImage, scene } from '@vector-engine/core'
-import { reactive } from '@vector-engine/core/src/reactive'
+import {
+	Filter,
+	GrayScaleFilter,
+	Scene,
+	Vector2,
+	VectorImage,
+	reactive,
+	scene,
+} from '@vector-engine/core'
 import image from '../image.png'
-import { Filter } from '@vector-engine/core/src/filter'
 
 export default scene(function* (scene: Scene) {
 	const img = scene.add(
@@ -11,7 +17,7 @@ export default scene(function* (scene: Scene) {
 			size: new Vector2(500, 400),
 		})
 	)
-	img.filter(new Filter())
+	img.filter(new GrayScaleFilter())
 
 	const img2 = scene.add(
 		new VectorImage({
