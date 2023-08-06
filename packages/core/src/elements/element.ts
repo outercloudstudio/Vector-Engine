@@ -1,16 +1,19 @@
 import { Scene } from '../assets/scene'
-import { Filter } from '../filter'
 import { Interpolator as InterpolationFunction, TimingFunction, interpolate } from '../interpolate'
-import { MaybeReactor, Reactor, ensureReactive, reactive, unreactive } from '../reactive'
+import { MaybeReactor, Reactor, reactive, unreactive } from '../reactive'
 
 export class Element {
 	public scene: Scene | null = null
-	public filters: Filter[] = []
+	public filters: Element[] = []
 
 	public async render(canvas: OffscreenCanvas) {}
 
-	public filter(filter: Filter) {
+	public filter<ElementType extends Element>(filter: ElementType): ElementType {
+		filter.scene = this.scene
+
 		this.filters.push(filter)
+
+		return filter
 	}
 }
 

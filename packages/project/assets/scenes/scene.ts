@@ -1,4 +1,5 @@
 import {
+	DistortionFilter,
 	Filter,
 	GrayScaleFilter,
 	Scene,
@@ -17,7 +18,8 @@ export default scene(function* (scene: Scene) {
 			size: new Vector2(500, 400),
 		})
 	)
-	img.filter(new GrayScaleFilter())
+	const distortionFilter = img.filter(new DistortionFilter({ distortion: -0.3 }))
+	distortionFilter.distortion(0, 1, t => t)
 
 	const img2 = scene.add(
 		new VectorImage({
@@ -27,6 +29,6 @@ export default scene(function* (scene: Scene) {
 		})
 	)
 
-	img.size(new Vector2(img.size().x, 0), 1, t => t)
+	// img.size(new Vector2(img.size().x, 0), 1, t => t)
 	img2.size(reactive(() => new Vector2(img.size().y, img.size().x)))
 })

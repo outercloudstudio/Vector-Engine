@@ -35,6 +35,8 @@ export class VectorImage extends Element {
 			.add(new Vector2(1920 / 2, 1080 / 2))
 		const size = this.size()
 
+		if (size.x === 0 || size.y === 0) return
+
 		if (this.filters.length == 0) {
 			//Render directly to canvas
 			this.image.position = renderPosition

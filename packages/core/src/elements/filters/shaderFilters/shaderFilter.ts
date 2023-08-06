@@ -1,4 +1,4 @@
-import { createProgramFromScripts } from '../../webgl'
+import { createProgramFromScripts } from '../../../webgl'
 import { Filter } from '../filter'
 
 export class ShaderFilter extends Filter {
@@ -42,6 +42,8 @@ export class ShaderFilter extends Filter {
   `
 
 	public async render(canvas: OffscreenCanvas) {
+		if (canvas.width === 0 || canvas.height === 0) return
+
 		const resultCanvas = new OffscreenCanvas(canvas.width, canvas.height)
 
 		const webgl = resultCanvas.getContext('webgl2')
