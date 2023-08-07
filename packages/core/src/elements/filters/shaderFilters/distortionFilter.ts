@@ -4,21 +4,22 @@ import { ShaderFilter } from './shaderFilter'
 
 export class DistortionFilter extends ShaderFilter {
 	public distortion: AnimatedReactiveProperty<number> = animatedReactiveProperty<number>(0)
+	public power: AnimatedReactiveProperty<number> = animatedReactiveProperty<number>(1.5)
 
-	constructor(options?: { distortion?: MaybeReactor<number> }) {
+	constructor(options?: { distortion?: MaybeReactor<number>; power?: MaybeReactor<number> }) {
 		super()
 
 		if (options === undefined) return
 
 		if (options.distortion !== undefined) this.distortion(options.distortion)
+		if (options.power !== undefined) this.power(options.power)
 	}
 
 	protected fragment = ``
 
 	public async render(canvas: OffscreenCanvas) {
-		const distortionString = this.distortion().toFixed(2).toString()
-
-		console.log(distortionString)
+		const distortionString = this.distortion().toFixed(4).toString()
+		const powerString = this.power().toFixed(4).toString()
 
 		this.fragment = `
     precision mediump float;
@@ -31,7 +32,7 @@ export class DistortionFilter extends ShaderFilter {
       vec2 uv = v_texCoord;
       vec2 uvNormalized = uv * 2.0 - 1.0;
       float distortionMagnitude = abs(uvNormalized.x * uvNormalized.y);
-      float smoothDistortionMagnitude = pow(distortionMagnitude, 1.001);
+      float smoothDistortionMagnitude = pow(distortionMagnitude, ${powerString});
       vec2 uvDistorted = uv + uvNormalized * smoothDistortionMagnitude * ${distortionString};
       
       // gl_FragColor = vec4(smoothDistortionMagnitude, smoothDistortionMagnitude, smoothDistortionMagnitude, 1.0);

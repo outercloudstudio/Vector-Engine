@@ -20,6 +20,30 @@
       "path": "D:\\Vector Engine\\packages\\project\\assets\\scene2.ts",
       "name": "scene2.ts"
     },
+    "5e9568142ef596f16b96ab9d995cdc3688b7173cfe7d097b41a34998a588a2d1": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\Intro\\Background1.png",
+      "name": "Background1.png"
+    },
+    "88b8a29d3062fc3b7dc3bc09441d4fc36da74007ffc72485cd9f2085f0644a7e": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\Intro\\DarlingsTextBase.png",
+      "name": "DarlingsTextBase.png"
+    },
+    "91482e757844464cacfbf855fded75be82e4d0d9be6a96f82e4fe9a51d4214d7": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\Intro\\DarlingsTextTop.png",
+      "name": "DarlingsTextTop.png"
+    },
+    "5d6901c3ea60e400f2e59fe6ea904cf455e4429a3adf0dd1869dbc528b012f19": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\Intro\\KillTextBase.png",
+      "name": "KillTextBase.png"
+    },
+    "c241faebe746ff4a58bd27fa18c8abddeeabe8ec39e311e6b2a2c092ec25984d": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\Intro\\KillTextTop.png",
+      "name": "KillTextTop.png"
+    },
+    "581acb877adef61f6a541d510bd05b9d901378df8c290772ba79914a784bf0a0": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\Intro\\PsCharacter.png",
+      "name": "PsCharacter.png"
+    },
     "78b965502aa04de3e2fe7b945076d509dda8bab4fa0db4d9d9e82175fd6da128": {
       "path": "D:\\Vector Engine\\packages\\project\\assets\\scenes\\scene.ts",
       "name": "scene.ts"
