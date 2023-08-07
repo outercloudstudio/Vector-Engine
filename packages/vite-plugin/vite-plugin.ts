@@ -213,6 +213,17 @@ export default function VectorEngine(): Plugin {
 			server.ws.on('@vector-engine/video', (data, client) => {
 				client.send('@vector-engine/video', readFileSync(data.path))
 			})
+
+			server.ws.on('@vector-engine/export', (data, client) => {
+				let { frame, dataUrl } = data
+
+				const base64Data = dataUrl.slice(dataUrl.indexOf(',') + 1)
+				writeFileSync(
+					join(posix.resolve('./export/'), 'frame_' + frame.toString().padStart(4, '0') + '.png'),
+					base64Data,
+					{ encoding: 'base64' }
+				)
+			})
 		},
 	}
 }

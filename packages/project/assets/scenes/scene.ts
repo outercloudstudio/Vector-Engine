@@ -72,18 +72,4 @@ export default scene(function* (scene: Scene) {
 	yield* distortionFilter.distortion(0.01, 1, EaseOutCircle)
 
 	distortionFilter.distortion(0.015, 1, t => t)
-
-	// const distortionFilter = img.filter(new DistortionFilter({ distortion: -0.3 }))
-	// distortionFilter.distortion(0, 1, t => t)
-
-	// const img2 = scene.add(
-	// 	new VectorImage({
-	// 		image,
-	// 		position: new Vector2(400, 0),
-	// 		size: new Vector2(500, 400),
-	// 	})
-	// )
-
-	// img.size(new Vector2(img.size().x, 0), 1, t => t)
-	// img2.size(reactive(() => new Vector2(img.size().y, img.size().x)))
 })

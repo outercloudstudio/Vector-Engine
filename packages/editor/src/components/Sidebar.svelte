@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { assets, meta } from '../stores/projectStore'
 	import { hold, held, heldX, heldY } from '../stores/heldStore'
+	import { clipsAtFrame } from '../stores/timelineStore'
 
 	const tabs = ['Assets', 'Export', 'Inspect', 'Debug']
 	let activeTab = tabs[0]
@@ -13,6 +14,28 @@
 			content: assetId,
 			origin: 'sidebar',
 		})
+	}
+
+	async function exportAnimation() {
+		for (let frame = 0; frame < 120; frame++) {
+			console.log(frame)
+
+			const render = new OffscreenCanvas(1920, 1080)
+
+			for (const clip of clipsAtFrame(frame)) {
+				clip.asset.toFrame(frame - clip.frame + clip.firstClipFrame)
+
+				await clip.asset.render(render)
+			}
+
+			const canvas = document.createElement('canvas')
+			canvas.width = render.width
+			canvas.height = render.height
+
+			canvas.getContext('2d').drawImage(render, 0, 0)
+
+			import.meta.hot.send('@vector-engine/export', { frame, dataUrl: canvas.toDataURL() })
+		}
 	}
 </script>
 
@@ -39,6 +62,10 @@
 				<p>{$meta.assets[$held.content].name}</p>
 			</div>
 		{/if}
+	{/if}
+
+	{#if activeTab === 'Export'}
+		<button on:click={exportAnimation}>Export</button>
 	{/if}
 </main>
 
