@@ -136,6 +136,18 @@ export function findClipLocation(id: string): { layer: number; index: number } |
 	return null
 }
 
+export function findClip(id: string): Clip | null {
+	const timelineReference = get(timeline)
+
+	for (const layer of Object.keys(timelineReference).map(layer => parseInt(layer))) {
+		for (let clipIndex = 0; clipIndex < timelineReference[layer].length; clipIndex++) {
+			if (timelineReference[layer][clipIndex].id === id) return timelineReference[layer][clipIndex]
+		}
+	}
+
+	return null
+}
+
 export function clipsAtFrame(frame: number): Clip[] {
 	const timelineReference = get(timeline)
 

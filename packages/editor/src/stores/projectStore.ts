@@ -19,8 +19,5 @@ document.addEventListener('@vector-engine/project-reload', (event: CustomEvent) 
 })
 
 export function saveProject() {
-	console.log('saving project')
-	console.log(get(project))
-
 	import.meta.hot.send('@vector-engine/update-project', get(project))
 }

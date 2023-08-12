@@ -10,6 +10,7 @@
 		findClipLocation,
 		nextValidFrame,
 		saveTimeline,
+		findClip,
 	} from '../stores/timelineStore'
 
 	let componentMainElement: HTMLElement
@@ -212,11 +213,37 @@
 			})
 
 			removeClip(clip.id)
-		}, 200)
+
+			selectClipId = null
+		}, 2000)
+	}
+
+	let lastHeldX = 0
+	let lastHeldY = 0
+
+	$: if ($heldX !== undefined && $heldY !== undefined) {
+		if ((lastHeldX !== $heldX || lastHeldY !== $heldY) && selectClipId !== null) {
+			const clip = findClip(selectClipId)
+
+			hold({
+				type: 'clip',
+				content: clip,
+				origin: 'timeline',
+			})
+
+			removeClip(selectClipId)
+
+			selectClipId = null
+		}
+
+		lastHeldX = $heldX
+		lastHeldY = $heldY
 	}
 
 	function mouseUpClip() {
 		if (selectClipId === null) return
+
+		console.log('Selected')
 
 		selected.set({
 			type: 'clip',
@@ -241,7 +268,7 @@
 	}
 
 	function resizeClipMouseUp() {
-    if(resizeClipId !== null) saveTimeline()
+		if (resizeClipId !== null) saveTimeline()
 
 		resizeClipId = null
 	}
