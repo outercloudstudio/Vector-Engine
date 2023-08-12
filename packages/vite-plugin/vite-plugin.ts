@@ -131,6 +131,14 @@ export default function VectorEngine(): Plugin {
         export default video('${id}')
         `
 			}
+
+			if (id.endsWith('.mp3')) {
+				return `
+        import { audio } from '@vector-engine/core'
+
+        export default audio('${id}')
+        `
+			}
 		},
 		configureServer(server) {
 			server.middlewares.use((req, res, next) => {

@@ -1,13 +1,30 @@
 {
   "timeline": {
-    "1": [],
+    "0": [
+      {
+        "id": "7640737e-dec9-478a-9aa7-661fa50aa445",
+        "assetId": "bb3ecb5f3a814e07248612cfaec80a4270f6f62385a8a8069d416dcb3a9b3b8b",
+        "frame": 0,
+        "firstClipFrame": 0,
+        "length": 466
+      }
+    ],
     "2": [
       {
         "id": "93fb24b9-24ea-4a4f-9665-39ef96aa5897",
         "assetId": "78b965502aa04de3e2fe7b945076d509dda8bab4fa0db4d9d9e82175fd6da128",
+        "frame": 436,
+        "firstClipFrame": 0,
+        "length": 112
+      }
+    ],
+    "-1": [
+      {
+        "id": "2b5db8f5-042b-4707-a891-3ecde4bed257",
+        "assetId": "9a7e1df4b6b3a688f8c1fe47961506e4115627346e569c202858893d9a817196",
         "frame": 0,
         "firstClipFrame": 0,
-        "length": 60
+        "length": 3536
       }
     ]
   }
