@@ -1,6 +1,6 @@
 import type { Asset } from '@vector-engine/core'
 import { get, writable, type Writable } from 'svelte/store'
-import { assets } from './projectStore'
+import { assets, project, saveProject } from './projectStore'
 
 export type Clip = {
 	id: string
@@ -11,44 +11,67 @@ export type Clip = {
 	length: number
 }
 
-export const layers: Writable<{
+export const timeline: Writable<{
 	[key: number]: Clip[]
 }> = writable({})
 
 export function nextValidFrame(frame: number, length: number, layer: number) {
 	let nextOpenSpace = Math.max(0, frame)
 
-	const layersReference = get(layers)
+	const timelineReference = get(timeline)
 
-	if (layersReference[layer] === undefined) return nextOpenSpace
+	if (timelineReference[layer] === undefined) return nextOpenSpace
 
-	for (let clipIndex = 0; clipIndex < layersReference[layer].length; clipIndex++) {
+	for (let clipIndex = 0; clipIndex < timelineReference[layer].length; clipIndex++) {
 		const startIntersects =
-			layersReference[layer][clipIndex].frame >= nextOpenSpace &&
-			layersReference[layer][clipIndex].frame < nextOpenSpace + length
+			timelineReference[layer][clipIndex].frame >= nextOpenSpace &&
+			timelineReference[layer][clipIndex].frame < nextOpenSpace + length
 
 		const endIntersects =
-			layersReference[layer][clipIndex].frame + layersReference[layer][clipIndex].length >=
+			timelineReference[layer][clipIndex].frame + timelineReference[layer][clipIndex].length >=
 				nextOpenSpace &&
-			layersReference[layer][clipIndex].frame + layersReference[layer][clipIndex].length <
+			timelineReference[layer][clipIndex].frame + timelineReference[layer][clipIndex].length <
 				nextOpenSpace + length
 
 		const otherStartIntersects =
-			nextOpenSpace >= layersReference[layer][clipIndex].frame &&
+			nextOpenSpace >= timelineReference[layer][clipIndex].frame &&
 			nextOpenSpace <
-				layersReference[layer][clipIndex].frame + layersReference[layer][clipIndex].length
+				timelineReference[layer][clipIndex].frame + timelineReference[layer][clipIndex].length
 
 		const otherEndIntersects =
-			nextOpenSpace + length >= layersReference[layer][clipIndex].frame &&
+			nextOpenSpace + length >= timelineReference[layer][clipIndex].frame &&
 			nextOpenSpace + length <
-				layersReference[layer][clipIndex].frame + layersReference[layer][clipIndex].length
+				timelineReference[layer][clipIndex].frame + timelineReference[layer][clipIndex].length
 
 		if (startIntersects || endIntersects || otherStartIntersects || otherEndIntersects)
 			nextOpenSpace =
-				layersReference[layer][clipIndex].frame + layersReference[layer][clipIndex].length
+				timelineReference[layer][clipIndex].frame + timelineReference[layer][clipIndex].length
 	}
 
 	return nextOpenSpace
+}
+
+// We can't just save this timeline to the project timeline since this timelien has asset instances
+export function saveTimeline() {
+	const timelineReference = get(timeline)
+
+	const projectReference = get(project)
+
+	projectReference.timeline = {}
+
+	for (const layer of Object.keys(timelineReference).map(layer => parseInt(layer))) {
+		projectReference.timeline[layer] = timelineReference[layer].map(clip => {
+			return {
+				id: clip.id,
+				assetId: clip.assetId,
+				frame: clip.frame,
+				firstClipFrame: clip.firstClipFrame,
+				length: clip.length,
+			}
+		})
+	}
+
+	saveProject()
 }
 
 export function addClip(
@@ -58,17 +81,18 @@ export function addClip(
 	firstClipFrame: number,
 	length: number,
 	layer: number,
-	id?: string
+	id?: string,
+	save: boolean = true
 ) {
-	const layersReference = get(layers)
+	const timelineReference = get(timeline)
 
-	if (layersReference[layer] === undefined) layersReference[layer] = []
+	if (timelineReference[layer] === undefined) timelineReference[layer] = []
 
-	let insertFrame = layersReference[layer].findIndex(clip => clip.frame >= frame)
+	let insertFrame = timelineReference[layer].findIndex(clip => clip.frame >= frame)
 
-	if (insertFrame === -1) insertFrame = layersReference[layer].length
+	if (insertFrame === -1) insertFrame = timelineReference[layer].length
 
-	layersReference[layer].splice(insertFrame, 0, {
+	timelineReference[layer].splice(insertFrame, 0, {
 		id: id || self.crypto.randomUUID(),
 		assetId,
 		asset,
@@ -77,31 +101,35 @@ export function addClip(
 		length,
 	})
 
-	layers.set(layersReference)
+	timeline.set(timelineReference)
+
+	if (save) saveTimeline()
 }
 
 export function removeClip(id: string): Clip {
-	const layersReference = get(layers)
+	const timelineReference = get(timeline)
 
-	for (const layer of Object.keys(layersReference)) {
-		const clipIndex = layersReference[layer].findIndex(clip => clip.id === id)
+	for (const layer of Object.keys(timelineReference)) {
+		const clipIndex = timelineReference[layer].findIndex(clip => clip.id === id)
 
 		if (clipIndex !== -1) {
-			layersReference[layer].splice(clipIndex, 1)
+			timelineReference[layer].splice(clipIndex, 1)
 
-			layers.set(layersReference)
+			timeline.set(timelineReference)
 
-			return layersReference[layer][clipIndex]
+			saveTimeline()
+
+			return timelineReference[layer][clipIndex]
 		}
 	}
 }
 
 export function findClipLocation(id: string): { layer: number; index: number } | null {
-	const layersReference = get(layers)
+	const timelineReference = get(timeline)
 
-	for (const layer of Object.keys(layersReference).map(layer => parseInt(layer))) {
-		for (let clipIndex = 0; clipIndex < layersReference[layer].length; clipIndex++) {
-			if (layersReference[layer][clipIndex].id === id) return { layer, index: clipIndex }
+	for (const layer of Object.keys(timelineReference).map(layer => parseInt(layer))) {
+		for (let clipIndex = 0; clipIndex < timelineReference[layer].length; clipIndex++) {
+			if (timelineReference[layer][clipIndex].id === id) return { layer, index: clipIndex }
 		}
 	}
 
@@ -109,13 +137,13 @@ export function findClipLocation(id: string): { layer: number; index: number } |
 }
 
 export function clipsAtFrame(frame: number): Clip[] {
-	const layersReference = get(layers)
+	const timelineReference = get(timeline)
 
 	let clips: Clip[] = []
 
-	for (const layer of Object.keys(layersReference).map(layer => parseInt(layer))) {
-		for (let clipIndex = 0; clipIndex < layersReference[layer].length; clipIndex++) {
-			const clip = layersReference[layer][clipIndex]
+	for (const layer of Object.keys(timelineReference).map(layer => parseInt(layer))) {
+		for (let clipIndex = 0; clipIndex < timelineReference[layer].length; clipIndex++) {
+			const clip = timelineReference[layer][clipIndex]
 			if (frame >= clip.frame && frame < clip.frame + clip.length) clips.push(clip)
 		}
 	}
@@ -124,11 +152,33 @@ export function clipsAtFrame(frame: number): Clip[] {
 }
 
 assets.subscribe(assets => {
-	const layersReference = get(layers)
+	const timelineReference = get(timeline)
 
-	for (const layer of Object.keys(layersReference).map(layer => parseInt(layer))) {
-		for (const clip of layersReference[layer]) {
+	for (const layer of Object.keys(timelineReference).map(layer => parseInt(layer))) {
+		for (const clip of timelineReference[layer]) {
 			clip.asset = assets[clip.assetId]()
+		}
+	}
+})
+
+// We can't just set timeline to the project because the project timeline doesn't contain asset instances
+project.subscribe(projectReference => {
+	timeline.set({})
+
+	const assetsReference = get(assets)
+
+	for (const layer of Object.keys(projectReference.timeline).map(layer => parseInt(layer))) {
+		for (const clip of projectReference.timeline[layer]) {
+			addClip(
+				clip.assetId,
+				assetsReference[clip.assetId](),
+				clip.frame,
+				clip.firstClipFrame,
+				clip.length,
+				layer,
+				clip.id,
+				false
+			)
 		}
 	}
 })

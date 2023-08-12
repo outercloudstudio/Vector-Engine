@@ -2,7 +2,7 @@
 	import { assets } from '../stores/projectStore'
 	import { dropped, heldOn } from '../stores/heldStore'
 	import { frame as globalFrame } from '../stores/playStateStore'
-	import { clipsAtFrame, layers } from '../stores/timelineStore'
+	import { clipsAtFrame, timeline } from '../stores/timelineStore'
 	import { Asset } from '@vector-engine/core'
 
 	let previewingAssetId: string | null = null
@@ -63,7 +63,7 @@
 		render()
 	}
 
-	$: if (canvas !== undefined && $assets !== undefined && $layers !== undefined) {
+	$: if (canvas !== undefined && $assets !== undefined && $timeline !== undefined) {
 		if (previewingAssetId === null) render()
 	}
 

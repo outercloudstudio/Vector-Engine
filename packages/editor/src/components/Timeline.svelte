@@ -4,11 +4,12 @@
 	import { assets } from '../stores/projectStore'
 	import { selected } from '../stores/selectedStore'
 	import {
-		layers,
+		timeline,
 		addClip,
 		removeClip,
 		findClipLocation,
 		nextValidFrame,
+		saveTimeline,
 	} from '../stores/timelineStore'
 
 	let componentMainElement: HTMLElement
@@ -219,7 +220,7 @@
 
 		selected.set({
 			type: 'clip',
-			content: $layers[findClipLocation(selectClipId).layer][findClipLocation(selectClipId).index],
+			content: $timeline[findClipLocation(selectClipId).layer][findClipLocation(selectClipId).index],
 			origin: 'timeline',
 		})
 
@@ -240,6 +241,8 @@
 	}
 
 	function resizeClipMouseUp() {
+    if(resizeClipId !== null) saveTimeline()
+
 		resizeClipId = null
 	}
 
@@ -251,44 +254,44 @@
 		if (resizeClipSide === 'right') {
 			const clipLocation = findClipLocation(resizeClipId)
 
-			let newLength = frame - $layers[clipLocation.layer][clipLocation.index].frame
+			let newLength = frame - $timeline[clipLocation.layer][clipLocation.index].frame
 
 			if (newLength < 1) newLength = 1
 
 			if (
-				$layers[clipLocation.layer][clipLocation.index + 1] !== undefined &&
-				frame > $layers[clipLocation.layer][clipLocation.index + 1].frame
+				$timeline[clipLocation.layer][clipLocation.index + 1] !== undefined &&
+				frame > $timeline[clipLocation.layer][clipLocation.index + 1].frame
 			)
 				newLength =
-					$layers[clipLocation.layer][clipLocation.index + 1].frame -
-					$layers[clipLocation.layer][clipLocation.index].frame
+					$timeline[clipLocation.layer][clipLocation.index + 1].frame -
+					$timeline[clipLocation.layer][clipLocation.index].frame
 
-			$layers[clipLocation.layer][clipLocation.index].length = newLength
+			$timeline[clipLocation.layer][clipLocation.index].length = newLength
 		}
 
 		if (resizeClipSide === 'left') {
 			const clipLocation = findClipLocation(resizeClipId)
 
-			const oldStart = $layers[clipLocation.layer][clipLocation.index].frame
+			const oldStart = $timeline[clipLocation.layer][clipLocation.index].frame
 
 			let newStart = frame
-			if (newStart >= oldStart + $layers[clipLocation.layer][clipLocation.index].length)
-				newStart = oldStart + $layers[clipLocation.layer][clipLocation.index].length - 1
+			if (newStart >= oldStart + $timeline[clipLocation.layer][clipLocation.index].length)
+				newStart = oldStart + $timeline[clipLocation.layer][clipLocation.index].length - 1
 
 			if (newStart < 0) newStart = 0
 
 			if (
-				$layers[clipLocation.layer][clipLocation.index - 1] !== undefined &&
+				$timeline[clipLocation.layer][clipLocation.index - 1] !== undefined &&
 				frame <
-					$layers[clipLocation.layer][clipLocation.index - 1].frame +
-						$layers[clipLocation.layer][clipLocation.index - 1].length
+					$timeline[clipLocation.layer][clipLocation.index - 1].frame +
+						$timeline[clipLocation.layer][clipLocation.index - 1].length
 			)
 				newStart =
-					$layers[clipLocation.layer][clipLocation.index - 1].frame +
-					$layers[clipLocation.layer][clipLocation.index - 1].length
+					$timeline[clipLocation.layer][clipLocation.index - 1].frame +
+					$timeline[clipLocation.layer][clipLocation.index - 1].length
 
 			let newFirstClipFrame =
-				$layers[clipLocation.layer][clipLocation.index].firstClipFrame + (newStart - oldStart)
+				$timeline[clipLocation.layer][clipLocation.index].firstClipFrame + (newStart - oldStart)
 
 			if (newFirstClipFrame < 0) {
 				newStart += -newFirstClipFrame
@@ -296,10 +299,10 @@
 				newFirstClipFrame = 0
 			}
 
-			$layers[clipLocation.layer][clipLocation.index].frame = newStart
-			$layers[clipLocation.layer][clipLocation.index].firstClipFrame = newFirstClipFrame
-			$layers[clipLocation.layer][clipLocation.index].length =
-				$layers[clipLocation.layer][clipLocation.index].length + (oldStart - newStart)
+			$timeline[clipLocation.layer][clipLocation.index].frame = newStart
+			$timeline[clipLocation.layer][clipLocation.index].firstClipFrame = newFirstClipFrame
+			$timeline[clipLocation.layer][clipLocation.index].length =
+				$timeline[clipLocation.layer][clipLocation.index].length + (oldStart - newStart)
 		}
 	}
 
@@ -370,8 +373,8 @@
 		{/each}
 
 		<div bind:this={clipsElement} class="clips">
-			{#each Object.keys($layers).map(layer => parseInt(layer)) as layer}
-				{#each $layers[layer] as clip}
+			{#each Object.keys($timeline).map(layer => parseInt(layer)) as layer}
+				{#each $timeline[layer] as clip}
 					<div
 						on:mousedown={event => holdClip(event, clip)}
 						on:mouseup={mouseUpClip}

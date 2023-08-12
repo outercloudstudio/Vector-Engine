@@ -107,10 +107,11 @@ export default function VectorEngine(): Plugin {
 				return `
         import assets from 'virtual:@vector-engine/assets'
         import * as meta from '${posix.resolve('./vector-engine.meta.json')}'
+        import * as project from '${posix.resolve('./project.json')}'
 
         import.meta.hot.accept()
 
-        document.dispatchEvent(new CustomEvent('@vector-engine/project-reload', { detail: { assets, meta } } ))
+        document.dispatchEvent(new CustomEvent('@vector-engine/project-reload', { detail: { assets, meta, project } } ))
         `
 			}
 		},
@@ -214,12 +215,18 @@ export default function VectorEngine(): Plugin {
 				client.send('@vector-engine/video', readFileSync(data.path))
 			})
 
+			server.ws.on('@vector-engine/update-project', (data, client) => {
+				console.log('Updating project')
+
+				writeFileSync(posix.resolve('./project.json'), JSON.stringify(data, null, 2))
+			})
+
 			server.ws.on('@vector-engine/export', (data, client) => {
 				let { frame, dataUrl } = data
 
 				const base64Data = dataUrl.slice(dataUrl.indexOf(',') + 1)
 				writeFileSync(
-					join(posix.resolve('./export/'), 'frame_' + frame.toString().padStart(4, '0') + '.png'),
+					posix.resolve('./export/frame_' + frame.toString().padStart(4, '0') + '.png'),
 					base64Data,
 					{ encoding: 'base64' }
 				)
