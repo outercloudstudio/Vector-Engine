@@ -16,10 +16,6 @@
       "path": "D:\\Vector Engine\\packages\\project\\assets\\pexels-berke-can-5825947-1920x1080-30fps.mp4",
       "name": "pexels-berke-can-5825947-1920x1080-30fps.mp4"
     },
-    "bb3ecb5f3a814e07248612cfaec80a4270f6f62385a8a8069d416dcb3a9b3b8b": {
-      "path": "D:\\Vector Engine\\packages\\project\\assets\\scene2.ts",
-      "name": "scene2.ts"
-    },
     "9a7e1df4b6b3a688f8c1fe47961506e4115627346e569c202858893d9a817196": {
       "path": "D:\\Vector Engine\\packages\\project\\assets\\VoiceFinal.mp3",
       "name": "VoiceFinal.mp3"
@@ -51,6 +47,14 @@
     "78b965502aa04de3e2fe7b945076d509dda8bab4fa0db4d9d9e82175fd6da128": {
       "path": "D:\\Vector Engine\\packages\\project\\assets\\scenes\\scene.ts",
       "name": "scene.ts"
+    },
+    "e32bca323fd00bd7682e9525a30bb632139059c212e14207dff488c98ef57052": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\scenes\\subs.ts",
+      "name": "subs.ts"
+    },
+    "19623b5b8147a33531a12c25ba89229e9a52490578bcff9425457a57aa65376b": {
+      "path": "D:\\Vector Engine\\packages\\project\\assets\\scenes\\subsribers.ts",
+      "name": "subsribers.ts"
     }
   }
 }

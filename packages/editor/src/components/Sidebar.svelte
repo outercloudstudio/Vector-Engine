@@ -17,7 +17,7 @@
 	}
 
 	async function exportAnimation() {
-		for (let frame = 0; frame < 120; frame++) {
+		for (let frame = 0; frame < 900; frame++) {
 			console.log(frame)
 
 			const render = new OffscreenCanvas(1920, 1080)

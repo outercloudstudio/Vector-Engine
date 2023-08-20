@@ -132,7 +132,7 @@ export default function VectorEngine(): Plugin {
         `
 			}
 
-			if (id.endsWith('.mp3')) {
+			if (id.endsWith('.mp3') || id.endsWith('.wav')) {
 				return `
         import { audio } from '@vector-engine/core'
 
