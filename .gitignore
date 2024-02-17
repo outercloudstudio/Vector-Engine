@@ -22,7 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-packages/vite-plugin/build
-packages/project/assets/gameplay.mp4
-packages/project/export/

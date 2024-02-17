@@ -1,7 +1,0 @@
-export * from './src/assets/assets'
-export * from './src/elements/elements'
-export * from './src/vector'
-export * from './src/meta'
-export * from './src/reactive'
-export * from './src/easing'
-export * from './src/project'
