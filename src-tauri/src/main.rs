@@ -236,13 +236,10 @@ impl App {
 
         self.destroy_swapchain();
 
-        self.device.destroy_image_view(self.data.target_image_view, None);
-        self.device.destroy_image(self.data.target_image, None);
-        self.device.free_memory(self.data.target_image_memory, None);
-
         self.device.destroy_image_view(self.data.texture_image_view, None);
         self.device.destroy_image(self.data.texture_image, None);
         self.device.free_memory(self.data.texture_image_memory, None);
+        self.device.destroy_sampler(self.data.texture_sampler, None);
         self.device.destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
         self.device.destroy_buffer(self.data.vertex_buffer, None);
         self.device.free_memory(self.data.vertex_buffer_memory, None);
@@ -331,30 +328,6 @@ struct AppData {
     texture_image_memory: vk::DeviceMemory,
     texture_image_view: vk::ImageView,
     texture_sampler: vk::Sampler,
-    target_image: vk::Image,
-    target_image_memory: vk::DeviceMemory,
-    target_image_view: vk::ImageView,
-}
-
-unsafe fn create_target_image(instance: &Instance, device: &Device, data: &mut AppData) -> Result<()> {
-    let (target_image, target_image_memory) = create_image(
-        instance,
-        device,
-        data,
-        512,
-        512,
-        vk::Format::R8G8B8A8_SRGB,
-        vk::ImageTiling::OPTIMAL,
-        vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC,
-        vk::MemoryPropertyFlags::DEVICE_LOCAL,
-    )?;
-
-    data.target_image = target_image;
-    data.target_image_memory = target_image_memory;
-
-    data.target_image_view = create_image_view(device, data.target_image, vk::Format::R8G8B8A8_SRGB)?;
-
-    Ok(())
 }
 
 unsafe fn create_texture_sampler(device: &Device, data: &mut AppData) -> Result<()> {
