@@ -22,6 +22,7 @@ use log::*;
 use std::collections::HashSet;
 use std::ffi::CStr;
 use std::fs::File;
+use std::io::BufWriter;
 use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::copy_nonoverlapping as memcpy;
@@ -56,13 +57,13 @@ unsafe fn render() -> Result<()> {
 
     create_render_pipeline(&instance, &device, &mut data)?;
 
-    update_uniform(&device, &mut data)?;
+    for frame in 0..60 {
+        update_uniform(frame, &device, &mut data)?;
 
-    let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-    let command_buffers = &[data.command_buffers[0]];
-    let submit_info = vk::SubmitInfo::builder().wait_dst_stage_mask(wait_stages).command_buffers(command_buffers).wait_semaphores(&[]);
+        render_to_target(&device, &mut data)?;
 
-    device.queue_submit(data.graphics_queue, &[submit_info], vk::Fence::null())?;
+        save_render(String::from(format!("render_{}.png", frame)), &instance, &device, &mut data)?;
+    }
 
     destroy_render_pipeline(&instance, &device, &mut data)?;
 
@@ -176,8 +177,8 @@ unsafe fn destroy_render_pipeline(instance: &Instance, device: &Device, data: &m
     Ok(())
 }
 
-unsafe fn update_uniform(device: &Device, data: &mut RenderData) -> Result<()> {
-    let model = Mat4::from_axis_angle(vec3(0.0, 0.0, 1.0), Deg(90.0));
+unsafe fn update_uniform(frame: u32, device: &Device, data: &mut RenderData) -> Result<()> {
+    let model = Mat4::from_axis_angle(vec3(0.0, 0.0, 1.0), Deg(90.0) * (frame as f32) / 60.0);
 
     let view = Mat4::look_at_rh(point3(2.0, 2.0, 2.0), point3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0));
 
@@ -192,6 +193,73 @@ unsafe fn update_uniform(device: &Device, data: &mut RenderData) -> Result<()> {
     memcpy(&ubo, memory.cast(), 1);
 
     device.unmap_memory(data.uniform_buffer_memory);
+
+    Ok(())
+}
+
+unsafe fn render_to_target(device: &Device, data: &mut RenderData) -> Result<()> {
+    let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+    let command_buffers = &[data.command_buffers[0]];
+    let submit_info = vk::SubmitInfo::builder().wait_dst_stage_mask(wait_stages).command_buffers(command_buffers).wait_semaphores(&[]);
+
+    device.queue_submit(data.graphics_queue, &[submit_info], vk::Fence::null())?;
+
+    device.queue_wait_idle(data.graphics_queue)?;
+
+    Ok(())
+}
+
+unsafe fn save_render(name: String, instance: &Instance, device: &Device, data: &mut RenderData) -> Result<()> {
+    let size = 512 * 512 * 4;
+
+    let (buffer, buffer_memory) = create_buffer(
+        instance,
+        device,
+        data,
+        size,
+        vk::BufferUsageFlags::TRANSFER_DST,
+        vk::MemoryPropertyFlags::HOST_COHERENT | vk::MemoryPropertyFlags::HOST_VISIBLE,
+    )?;
+
+    let command_buffer = begin_single_time_commands(device, data)?;
+
+    let subresource = vk::ImageSubresourceLayers::builder()
+        .aspect_mask(vk::ImageAspectFlags::COLOR)
+        .mip_level(0)
+        .base_array_layer(0)
+        .layer_count(1);
+
+    let region = vk::BufferImageCopy::builder()
+        .buffer_offset(0)
+        .buffer_row_length(0)
+        .buffer_image_height(0)
+        .image_subresource(subresource)
+        .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
+        .image_extent(vk::Extent3D { width: 512, height: 512, depth: 1 });
+
+    device.cmd_copy_image_to_buffer(command_buffer, data.target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, buffer, &[region]);
+
+    end_single_time_commands(device, data, command_buffer)?;
+
+    let memory = device.map_memory(buffer_memory, 0, size, vk::MemoryMapFlags::empty())?;
+
+    let mut pixels = vec![0; size as usize];
+
+    memcpy(memory.cast(), pixels.as_mut_ptr(), size as usize);
+
+    device.unmap_memory(buffer_memory);
+
+    device.destroy_buffer(buffer, None);
+    device.free_memory(buffer_memory, None);
+
+    let file = File::create(name)?;
+    let ref mut file_writer = BufWriter::new(file);
+    let mut encoder = png::Encoder::new(file_writer, 512, 512);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&pixels)?;
 
     Ok(())
 }
@@ -997,6 +1065,7 @@ unsafe fn create_image_view(device: &Device, image: vk::Image, format: vk::Forma
 }
 
 unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &mut RenderData) -> Result<()> {
+    // Load the image bytes
     let image = File::open("resources/texture.png")?;
 
     let decoder = png::Decoder::new(image);
@@ -1008,6 +1077,7 @@ unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &mut 
     let size = reader.info().raw_bytes() as u64;
     let (width, height) = reader.info().size();
 
+    // Create a buffer to load image bytes one, we'll use this to move the bytes onto a device local image
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         instance,
         device,
@@ -1023,6 +1093,7 @@ unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &mut 
 
     device.unmap_memory(staging_buffer_memory);
 
+    // Create an image and memory to save locally on the GPU
     let (texture_image, texture_image_memory) = create_image(
         instance,
         device,
@@ -1038,6 +1109,7 @@ unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &mut 
     data.texture_image = texture_image;
     data.texture_image_memory = texture_image_memory;
 
+    // Copy buffer data to image
     transition_image_layout(
         device,
         data,
