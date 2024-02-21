@@ -24,5 +24,8 @@
 		removeFile: path => {
 			return core.ops.op_remove_file(path)
 		},
+		fetch: url => {
+			return core.ops.op_fetch(url)
+		},
 	}
 })(globalThis)
