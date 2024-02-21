@@ -14,4 +14,30 @@
 //         .expect("error while running tauri application");
 // }
 
-fn main() -> Result<()> {}
+mod renderer;
+mod runtime;
+
+use renderer::RenderContext;
+use runtime::Runtime;
+
+struct Timeline {}
+
+struct Clip {}
+
+struct Project {
+    timeline: Timeline,
+    clips: Vector<Clip>,
+    renderer: RenderContext,
+    runtime: Runtime,
+}
+
+fn main() -> Result<()> {
+    let timeline = Timeline {};
+    let clips: Vector<Clip> = vec![];
+    let renderer = RenderContext {};
+    let runtime = Runtime {};
+
+    let mut project = Project { timeline, clips, renderer, runtime };
+
+    Ok(())
+}
