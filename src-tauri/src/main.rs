@@ -1,24 +1,14 @@
-// // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
-// // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-// #[tauri::command]
-// fn greet(name: &str) -> String {
-//     format!("Hello, {}! You've been greeted from Rust!", name)
-// }
-
-// fn main() {
-//     tauri::Builder::default()
-//         .invoke_handler(tauri::generate_handler![greet])
-//         .run(tauri::generate_context!())
-//         .expect("error while running tauri application");
-// }
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod renderer;
 mod runtime;
 
-use renderer::RenderContext;
+use std::sync::Mutex;
+
+use renderer::{render, RenderContext};
 use runtime::Runtime;
+use tauri::{Manager, State};
 
 struct Timeline {}
 
@@ -26,18 +16,46 @@ struct Clip {}
 
 struct Project {
     timeline: Timeline,
-    clips: Vector<Clip>,
-    renderer: RenderContext,
+    clips: Vec<Clip>,
+    render_context: RenderContext,
     runtime: Runtime,
 }
 
-fn main() -> Result<()> {
+#[tauri::command]
+fn preview(project_mutex: State<Mutex<Project>>) {
+    println!("Rendering preview...");
+
+    let project = project_mutex.lock().unwrap();
+
+    render(&project.render_context);
+}
+
+fn main() {
     let timeline = Timeline {};
-    let clips: Vector<Clip> = vec![];
+    let clips: Vec<Clip> = vec![];
     let renderer = RenderContext {};
     let runtime = Runtime {};
 
-    let mut project = Project { timeline, clips, renderer, runtime };
+    let project = Project {
+        timeline,
+        clips,
+        render_context: renderer,
+        runtime,
+    };
+    let project_mutex = Mutex::new(project);
 
-    Ok(())
+    tauri::Builder::default()
+        .manage(project_mutex)
+        .invoke_handler(tauri::generate_handler![preview])
+        .setup(|app| {
+            #[cfg(debug_assertions)] // only include this code on debug builds
+            {
+                let window = app.get_window("main").unwrap();
+                window.open_devtools();
+                window.close_devtools();
+            }
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
