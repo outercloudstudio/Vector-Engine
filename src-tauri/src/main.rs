@@ -4,11 +4,12 @@
 mod renderer;
 mod runtime;
 
+use anyhow::{anyhow, Result};
 use std::sync::Mutex;
 
-use renderer::{render, RenderContext};
+use renderer::{create_renderer, destroy_renderer, render, Renderer};
 use runtime::Runtime;
-use tauri::{Manager, State};
+use tauri::{generate_context, Manager, RunEvent, State};
 
 struct Timeline {}
 
@@ -17,34 +18,29 @@ struct Clip {}
 struct Project {
     timeline: Timeline,
     clips: Vec<Clip>,
-    render_context: RenderContext,
+    renderer: Renderer,
     runtime: Runtime,
 }
 
 #[tauri::command]
-fn preview(project_mutex: State<Mutex<Project>>) {
+fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
     println!("Rendering preview...");
 
-    let project = project_mutex.lock().unwrap();
+    let mut project = project_mutex.lock().unwrap();
 
-    render(&project.render_context);
+    render(&mut project.renderer).unwrap()
 }
 
-fn main() {
+fn main() -> Result<()> {
     let timeline = Timeline {};
     let clips: Vec<Clip> = vec![];
-    let renderer = RenderContext {};
+    let renderer = create_renderer()?;
     let runtime = Runtime {};
 
-    let project = Project {
-        timeline,
-        clips,
-        render_context: renderer,
-        runtime,
-    };
+    let project = Project { timeline, clips, renderer, runtime };
     let project_mutex = Mutex::new(project);
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(project_mutex)
         .invoke_handler(tauri::generate_handler![preview])
         .setup(|app| {
@@ -56,6 +52,18 @@ fn main() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .build(generate_context!())
         .expect("error while running tauri application");
+
+    app.run(|app_handle, event| match event {
+        tauri::RunEvent::ExitRequested { api, .. } => {
+            let project_mutex = app_handle.state::<Mutex<Project>>();
+            let mut project = project_mutex.lock().unwrap();
+
+            destroy_renderer(&mut project.renderer).unwrap();
+        }
+        _ => {}
+    });
+
+    Ok(())
 }
