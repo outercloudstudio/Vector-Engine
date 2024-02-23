@@ -5,10 +5,11 @@ mod renderer;
 mod runtime;
 
 use anyhow::{anyhow, Result};
-use std::sync::Mutex;
+use log::info;
+use std::{env, sync::Mutex};
 use vulkanalia::prelude::v1_0::*;
 
-use renderer::{create_renderer, get_test_stuff, Renderer};
+use renderer::Renderer;
 use runtime::Runtime;
 use tauri::{generate_context, Manager, RunEvent, State};
 
@@ -35,30 +36,19 @@ fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
 }
 
 fn main() -> Result<()> {
-    let timeline = Timeline {};
-    let clips: Vec<Clip> = vec![];
+    env::set_var("RUST_LOG", "info");
+    pretty_env_logger::init();
+
+    let mut renderer = Renderer::create()?;
+    renderer.test()?;
+
+    info!("Done :D");
+
+    // let timeline = Timeline {};
+    // let clips: Vec<Clip> = vec![];
     // let renderer = create_renderer()?;
-    let (instance, physical_device) = get_test_stuff()?;
 
-    unsafe {
-        // println!("[DEBUG] Image test?");
-
-        // renderer.device.get_image_memory_requirements(renderer.context.target_image);
-
-        println!("[DEBUG] Getting properties!");
-
-        instance.get_physical_device_properties(physical_device);
-
-        println!("[DEBUG] Worked!");
-
-        // println!("[DEBUG] Getting memory! {}", physical_device.as_raw());
-
-        // instance.get_physical_device_memory_properties(physical_device);
-
-        // println!("[DEBUG] Got memory! 2");
-    }
-
-    let runtime = Runtime {};
+    // let runtime = Runtime {};
 
     // let project = Project { timeline, clips, renderer, runtime };
     // let project_mutex = Mutex::new(project);

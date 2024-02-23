@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use cgmath::{point3, vec2, vec3, Deg};
@@ -26,7 +27,7 @@ type Vec3 = cgmath::Vector3<f32>;
 type Mat4 = cgmath::Matrix4<f32>;
 
 pub struct Renderer {
-    pub instance: Instance,
+    pub instance: Arc<Instance>,
     pub device: Device,
 
     pub context: RenderContext,
@@ -73,23 +74,42 @@ pub struct RenderContext {
     messenger: vk::DebugUtilsMessengerEXT,
 }
 
-pub fn get_test_stuff() -> Result<(Instance, vk::PhysicalDevice)> {
-    env::set_var("RUST_LOG", "info");
-    pretty_env_logger::init();
+impl Renderer {
+    pub fn create() -> Result<Renderer> {
+        unsafe {
+            let mut render_context = RenderContext::default();
 
-    unsafe {
-        let mut render_context = RenderContext::default();
+            let loader = LibloadingLoader::new(LIBRARY)?;
+            let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
 
-        let loader = LibloadingLoader::new(LIBRARY)?;
-        let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
+            let instance = create_instance(&entry, &mut render_context)?;
 
-        let instance = create_instance(&entry, &mut render_context)?;
+            pick_physical_device(&instance, &mut render_context)?;
 
-        pick_physical_device(&instance, &mut render_context)?;
+            let device = create_logical_device(&entry, &instance, &mut render_context)?;
 
-        instance.get_physical_device_properties(PhysicalDevice::null());
+            let renderer = Renderer {
+                instance,
+                device,
+                context: render_context,
+            };
 
-        return Ok((instance, render_context.physical_device));
+            renderer.test()?;
+
+            return Ok(renderer);
+        }
+    }
+
+    pub fn test(self: &Renderer) -> Result<()> {
+        unsafe {
+            info!("Testing enumerate...");
+
+            let physical_device = self.instance.enumerate_physical_devices()?[0];
+
+            info!("Physical Device: {}", physical_device.as_raw());
+
+            Ok(())
+        }
     }
 }
 
@@ -349,7 +369,7 @@ const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
 
 const VALIDATION_LAYER: vk::ExtensionName = vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
-unsafe fn create_instance(entry: &Entry, context: &mut RenderContext) -> Result<Instance> {
+unsafe fn create_instance(entry: &Entry, context: &mut RenderContext) -> Result<Arc<Instance>> {
     let application_info = vk::ApplicationInfo::builder()
         .application_name(b"Vector Engine\0")
         .application_version(vk::make_version(1, 0, 0))
@@ -396,7 +416,7 @@ unsafe fn create_instance(entry: &Entry, context: &mut RenderContext) -> Result<
         info = info.push_next(&mut debug_info);
     }
 
-    let instance = entry.create_instance(&info, None)?;
+    let instance = Arc::new(entry.create_instance(&info, None)?);
 
     if VALIDATION_ENABLED {
         context.messenger = instance.create_debug_utils_messenger_ext(&debug_info, None)?;
