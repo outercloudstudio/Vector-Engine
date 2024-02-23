@@ -25,18 +25,17 @@ type Vec3 = cgmath::Vector3<f32>;
 type Mat4 = cgmath::Matrix4<f32>;
 
 pub struct Renderer {
-    instance: RenderInstance,
-    context: RenderContext,
+    pub instance: Instance,
+    pub device: Device,
+
+    pub context: RenderContext,
 }
 
-struct RenderInstance {
-    vulkan_instance: Instance,
-    logical_device: Device,
-}
+struct RenderInstance {}
 
 #[derive(Clone, Debug, Default)]
-struct RenderContext {
-    physical_device: vk::PhysicalDevice,
+pub struct RenderContext {
+    pub physical_device: vk::PhysicalDevice,
 
     graphics_queue: vk::Queue,
 
@@ -74,10 +73,9 @@ struct RenderContext {
 }
 
 pub fn create_renderer() -> Result<Renderer> {
-    let mut render_context = RenderContext::default();
-    let mut render_instance = None;
-
     unsafe {
+        let mut render_context = RenderContext::default();
+
         let loader = LibloadingLoader::new(LIBRARY)?;
         let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
 
@@ -107,39 +105,51 @@ pub fn create_renderer() -> Result<Renderer> {
 
         create_command_buffer(&device, &mut render_context)?;
 
-        render_instance = Some(RenderInstance {
-            vulkan_instance: instance,
-            logical_device: device,
-        });
-    }
+        // update_uniform(0, &device, &mut render_context)?;
 
-    Ok(Renderer {
-        instance: render_instance.unwrap(),
-        context: render_context,
-    })
+        // render_to_target(&device, &mut render_context)?;
+
+        let renderer = Renderer {
+            instance,
+            device,
+            context: render_context,
+        };
+
+        {
+            renderer.instance.get_physical_device_memory_properties(renderer.context.physical_device);
+
+            println!("[DEBUG] Got memory!");
+        }
+
+        return Ok(renderer);
+    }
 }
 
-pub fn destroy_renderer(renderer: &mut Renderer) -> Result<()> {
-    unsafe {
-        destroy_render_pipeline(&renderer.instance, &renderer.context)?;
-    }
+// pub fn destroy_renderer(renderer: &mut Renderer) -> Result<()> {
+//     unsafe {
+//         destroy_render_pipeline(&renderer)?;
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-pub fn render(renderer: &mut Renderer) -> Result<Vec<u8>> {
-    let mut bytes = vec![];
+// pub fn render(renderer: &mut Renderer) -> Result<Vec<u8>> {
+//     let mut bytes = vec![];
 
-    unsafe {
-        update_uniform(0, &renderer.instance.logical_device, &mut renderer.context)?;
+//     unsafe {
+//         update_uniform(0, &renderer.instance.logical_device, &mut renderer.context)?;
 
-        render_to_target(&renderer.instance.logical_device, &mut renderer.context)?;
+//         render_to_target(&renderer.instance.logical_device, &mut renderer.context)?;
 
-        bytes = read_target_bytes(&renderer.instance.vulkan_instance, &renderer.instance.logical_device, &mut renderer.context)?;
-    }
+//         println!("Reading bytes");
 
-    Ok(bytes)
-}
+//         bytes = read_target_bytes(&renderer.instance.vulkan_instance, &renderer.instance.logical_device, &mut renderer.context)?;
+
+//         println!("Read bytes");
+//     }
+
+//     Ok(bytes)
+// }
 
 unsafe fn update_uniform(frame: u32, device: &Device, context: &mut RenderContext) -> Result<()> {
     let model = Mat4::from_axis_angle(vec3(0.0, 0.0, 1.0), Deg(90.0) * (frame as f32) / 60.0);
@@ -173,19 +183,19 @@ unsafe fn render_to_target(device: &Device, context: &mut RenderContext) -> Resu
     Ok(())
 }
 
-unsafe fn read_target_bytes(instance: &Instance, device: &Device, context: &mut RenderContext) -> Result<Vec<u8>> {
+unsafe fn read_target_bytes(renderer: &mut Renderer) -> Result<Vec<u8>> {
     let size = 512 * 512 * 4;
 
     let (buffer, buffer_memory) = create_buffer(
-        instance,
-        device,
-        context,
+        &renderer.instance,
+        &renderer.device,
+        &renderer.context,
         size,
         vk::BufferUsageFlags::TRANSFER_DST,
         vk::MemoryPropertyFlags::HOST_COHERENT | vk::MemoryPropertyFlags::HOST_VISIBLE,
     )?;
 
-    let command_buffer = begin_single_time_commands(device, context)?;
+    let command_buffer = begin_single_time_commands(&renderer.device, &renderer.context)?;
 
     let subresource = vk::ImageSubresourceLayers::builder()
         .aspect_mask(vk::ImageAspectFlags::COLOR)
@@ -201,20 +211,22 @@ unsafe fn read_target_bytes(instance: &Instance, device: &Device, context: &mut 
         .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
         .image_extent(vk::Extent3D { width: 512, height: 512, depth: 1 });
 
-    device.cmd_copy_image_to_buffer(command_buffer, context.target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, buffer, &[region]);
+    renderer
+        .device
+        .cmd_copy_image_to_buffer(command_buffer, renderer.context.target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, buffer, &[region]);
 
-    end_single_time_commands(device, context, command_buffer)?;
+    end_single_time_commands(&renderer.device, &renderer.context, command_buffer)?;
 
-    let memory = device.map_memory(buffer_memory, 0, size, vk::MemoryMapFlags::empty())?;
+    let memory = renderer.device.map_memory(buffer_memory, 0, size, vk::MemoryMapFlags::empty())?;
 
     let mut pixels = vec![0; size as usize];
 
     memcpy(memory.cast(), pixels.as_mut_ptr(), size as usize);
 
-    device.unmap_memory(buffer_memory);
+    renderer.device.unmap_memory(buffer_memory);
 
-    device.destroy_buffer(buffer, None);
-    device.free_memory(buffer_memory, None);
+    renderer.device.destroy_buffer(buffer, None);
+    renderer.device.free_memory(buffer_memory, None);
 
     Ok(pixels)
 }
@@ -274,51 +286,51 @@ unsafe fn save_render(name: String, instance: &Instance, device: &Device, contex
     Ok(())
 }
 
-unsafe fn destroy_render_pipeline(instance: &RenderInstance, context: &RenderContext) -> Result<()> {
-    instance.logical_device.device_wait_idle().unwrap();
+// unsafe fn destroy_render_pipeline(instance: &RenderInstance, context: &RenderContext) -> Result<()> {
+//     instance.logical_device.device_wait_idle().unwrap();
 
-    instance.logical_device.destroy_descriptor_pool(context.descriptor_pool, None);
+//     instance.logical_device.destroy_descriptor_pool(context.descriptor_pool, None);
 
-    instance.logical_device.destroy_buffer(context.uniform_buffer, None);
-    instance.logical_device.free_memory(context.uniform_buffer_memory, None);
+//     instance.logical_device.destroy_buffer(context.uniform_buffer, None);
+//     instance.logical_device.free_memory(context.uniform_buffer_memory, None);
 
-    instance.logical_device.destroy_framebuffer(context.framebuffer, None);
+//     instance.logical_device.destroy_framebuffer(context.framebuffer, None);
 
-    instance.logical_device.free_command_buffers(context.command_pool, &[context.command_buffers[0]]);
+//     instance.logical_device.free_command_buffers(context.command_pool, &[context.command_buffers[0]]);
 
-    instance.logical_device.destroy_pipeline(context.pipeline, None);
-    instance.logical_device.destroy_pipeline_layout(context.pipeline_layout, None);
+//     instance.logical_device.destroy_pipeline(context.pipeline, None);
+//     instance.logical_device.destroy_pipeline_layout(context.pipeline_layout, None);
 
-    instance.logical_device.destroy_render_pass(context.render_pass, None);
+//     instance.logical_device.destroy_render_pass(context.render_pass, None);
 
-    instance.logical_device.destroy_image_view(context.target_image_view, None);
-    instance.logical_device.destroy_image(context.target_image, None);
-    instance.logical_device.free_memory(context.target_image_memory, None);
+//     instance.logical_device.destroy_image_view(context.target_image_view, None);
+//     instance.logical_device.destroy_image(context.target_image, None);
+//     instance.logical_device.free_memory(context.target_image_memory, None);
 
-    instance.logical_device.destroy_image_view(context.texture_image_view, None);
-    instance.logical_device.destroy_image(context.texture_image, None);
-    instance.logical_device.free_memory(context.texture_image_memory, None);
+//     instance.logical_device.destroy_image_view(context.texture_image_view, None);
+//     instance.logical_device.destroy_image(context.texture_image, None);
+//     instance.logical_device.free_memory(context.texture_image_memory, None);
 
-    instance.logical_device.destroy_sampler(context.texture_sampler, None);
-    instance.logical_device.destroy_descriptor_set_layout(context.descriptor_set_layout, None);
+//     instance.logical_device.destroy_sampler(context.texture_sampler, None);
+//     instance.logical_device.destroy_descriptor_set_layout(context.descriptor_set_layout, None);
 
-    instance.logical_device.destroy_buffer(context.vertex_buffer, None);
-    instance.logical_device.free_memory(context.vertex_buffer_memory, None);
+//     instance.logical_device.destroy_buffer(context.vertex_buffer, None);
+//     instance.logical_device.free_memory(context.vertex_buffer_memory, None);
 
-    instance.logical_device.destroy_buffer(context.index_buffer, None);
-    instance.logical_device.free_memory(context.index_buffer_memory, None);
+//     instance.logical_device.destroy_buffer(context.index_buffer, None);
+//     instance.logical_device.free_memory(context.index_buffer_memory, None);
 
-    instance.logical_device.destroy_command_pool(context.command_pool, None);
-    instance.logical_device.destroy_device(None);
+//     instance.logical_device.destroy_command_pool(context.command_pool, None);
+//     instance.logical_device.destroy_device(None);
 
-    if VALIDATION_ENABLED {
-        instance.vulkan_instance.destroy_debug_utils_messenger_ext(context.messenger, None);
-    }
+//     if VALIDATION_ENABLED {
+//         instance.vulkan_instance.destroy_debug_utils_messenger_ext(context.messenger, None);
+//     }
 
-    instance.vulkan_instance.destroy_instance(None);
+//     instance.vulkan_instance.destroy_instance(None);
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
 
