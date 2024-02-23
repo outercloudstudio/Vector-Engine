@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use anyhow::{anyhow, Result};
 use cgmath::{point3, vec2, vec3, Deg};
 use log::*;
+use std::env;
 use std::ffi::CStr;
 use std::fs::File;
 use std::io::BufWriter;
@@ -17,7 +18,7 @@ use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
 use vulkanalia::Version;
 
-use vulkanalia::vk::{ExtDebugUtilsExtension, MemoryRequirements};
+use vulkanalia::vk::{ExtDebugUtilsExtension, MemoryRequirements, PhysicalDevice};
 use vulkanalia::vk::{Extent2D, MemoryTypeBuilder};
 
 type Vec2 = cgmath::Vector2<f32>;
@@ -39,7 +40,7 @@ pub struct RenderContext {
 
     graphics_queue: vk::Queue,
 
-    target_image: vk::Image,
+    pub target_image: vk::Image,
     target_image_view: vk::ImageView,
     target_image_memory: vk::DeviceMemory,
 
@@ -72,6 +73,26 @@ pub struct RenderContext {
     messenger: vk::DebugUtilsMessengerEXT,
 }
 
+pub fn get_test_stuff() -> Result<(Instance, vk::PhysicalDevice)> {
+    env::set_var("RUST_LOG", "info");
+    pretty_env_logger::init();
+
+    unsafe {
+        let mut render_context = RenderContext::default();
+
+        let loader = LibloadingLoader::new(LIBRARY)?;
+        let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
+
+        let instance = create_instance(&entry, &mut render_context)?;
+
+        pick_physical_device(&instance, &mut render_context)?;
+
+        instance.get_physical_device_properties(PhysicalDevice::null());
+
+        return Ok((instance, render_context.physical_device));
+    }
+}
+
 pub fn create_renderer() -> Result<Renderer> {
     unsafe {
         let mut render_context = RenderContext::default();
@@ -85,41 +106,31 @@ pub fn create_renderer() -> Result<Renderer> {
 
         let device = create_logical_device(&entry, &instance, &mut render_context)?;
 
-        create_target_image(&instance, &device, &mut render_context)?;
-        create_render_pass(&instance, &device, &mut render_context)?;
-        create_descriptor_set_layout(&device, &mut render_context)?;
-        create_pipeline(&device, &mut render_context)?;
-        create_framebuffer(&device, &mut render_context)?;
-        create_command_pool(&instance, &device, &mut render_context)?;
+        // create_target_image(&instance, &device, &mut render_context)?;
+        // create_render_pass(&instance, &device, &mut render_context)?;
+        // create_descriptor_set_layout(&device, &mut render_context)?;
+        // create_pipeline(&device, &mut render_context)?;
+        // create_framebuffer(&device, &mut render_context)?;
+        // create_command_pool(&instance, &device, &mut render_context)?;
 
-        create_texture_image(&instance, &device, &mut render_context)?;
-        create_texture_image_view(&device, &mut render_context)?;
-        create_texture_sampler(&device, &mut render_context)?;
+        // create_texture_image(&instance, &device, &mut render_context)?;
+        // create_texture_image_view(&device, &mut render_context)?;
+        // create_texture_sampler(&device, &mut render_context)?;
 
-        create_vertex_buffer(&instance, &device, &mut render_context)?;
-        create_index_buffer(&instance, &device, &mut render_context)?;
-        create_uniform_buffers(&instance, &device, &mut render_context)?;
+        // create_vertex_buffer(&instance, &device, &mut render_context)?;
+        // create_index_buffer(&instance, &device, &mut render_context)?;
+        // create_uniform_buffers(&instance, &device, &mut render_context)?;
 
-        create_descriptor_pool(&device, &mut render_context)?;
-        create_descriptor_sets(&device, &mut render_context)?;
+        // create_descriptor_pool(&device, &mut render_context)?;
+        // create_descriptor_sets(&device, &mut render_context)?;
 
-        create_command_buffer(&device, &mut render_context)?;
-
-        // update_uniform(0, &device, &mut render_context)?;
-
-        // render_to_target(&device, &mut render_context)?;
+        // create_command_buffer(&device, &mut render_context)?;
 
         let renderer = Renderer {
             instance,
             device,
             context: render_context,
         };
-
-        {
-            renderer.instance.get_physical_device_memory_properties(renderer.context.physical_device);
-
-            println!("[DEBUG] Got memory!");
-        }
 
         return Ok(renderer);
     }
