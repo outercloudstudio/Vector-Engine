@@ -4,7 +4,6 @@
 mod renderer;
 mod runtime;
 
-use anyhow::{anyhow, Result};
 use log::info;
 use std::{env, sync::Mutex};
 use vulkanalia::prelude::v1_0::*;
@@ -30,17 +29,14 @@ fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
 
     let mut project = project_mutex.lock().unwrap();
 
-    // render(&mut project.renderer).unwrap();
-
     return vec![];
 }
 
-fn main() -> Result<()> {
+fn main() {
     env::set_var("RUST_LOG", "info");
     pretty_env_logger::init();
 
-    let mut renderer = Renderer::create()?;
-    renderer.test()?;
+    let mut renderer = Renderer::create();
 
     info!("Done :D");
 
