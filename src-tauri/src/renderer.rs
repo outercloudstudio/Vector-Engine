@@ -1,11 +1,14 @@
 #![allow(dead_code, unused_variables)]
 
-use ash::vk::Handle;
+use ash::vk::{Framebuffer, Handle, Rect2D};
+use cgmath::{point3, vec2, vec3, Deg};
 use log::*;
 use std::env;
 use std::ffi::{c_char, CStr};
-use std::io::Cursor;
-use std::mem;
+use std::fs::File;
+use std::io::{BufWriter, Cursor, Write};
+use std::mem::{self, size_of};
+use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
 use ash::extensions::{
@@ -14,6 +17,10 @@ use ash::extensions::{
 };
 use ash::util::*;
 use ash::{vk, Device, Entry, Instance};
+
+type Vec2 = cgmath::Vector2<f32>;
+type Vec3 = cgmath::Vector3<f32>;
+type Mat4 = cgmath::Matrix4<f32>;
 
 pub struct Renderer {
     // pub entry: Entry,
@@ -96,6 +103,8 @@ impl Renderer {
 
             let device: Device = instance.create_device(pdevice, &device_create_info, None).unwrap();
 
+            let graphics_queue = device.get_device_queue(queue_family_index, 0);
+
             let pool_create_info = vk::CommandPoolCreateInfo::builder()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
                 .queue_family_index(queue_family_index);
@@ -103,21 +112,20 @@ impl Renderer {
             let pool = device.create_command_pool(&pool_create_info, None).unwrap();
 
             let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
-                .command_buffer_count(2)
+                .command_buffer_count(1)
                 .command_pool(pool)
                 .level(vk::CommandBufferLevel::PRIMARY);
 
             let command_buffers = device.allocate_command_buffers(&command_buffer_allocate_info).unwrap();
 
-            let setup_command_buffer = command_buffers[0];
-            let draw_command_buffer = command_buffers[1];
+            let command_buffer = command_buffers[0];
 
             let device_memory_properties = instance.get_physical_device_memory_properties(pdevice);
 
             let target_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
                 .format(vk::Format::R8G8B8A8_SRGB)
-                .extent(*vk::Extent3D::builder().width(512).height(512))
+                .extent(*vk::Extent3D::builder().width(512).height(512).depth(1))
                 .mip_levels(1)
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
@@ -140,8 +148,6 @@ impl Renderer {
                 .format(vk::Format::R8G8B8A8_SRGB)
                 .subresource_range(*subresource_range);
 
-            let target_image_view = device.create_image_view(&target_image_view_create_info, None).unwrap();
-
             let target_image_requirements = device.get_image_memory_requirements(target_image);
 
             let target_image_memory_info = vk::MemoryAllocateInfo::builder()
@@ -150,6 +156,8 @@ impl Renderer {
 
             let target_image_memory = device.allocate_memory(&target_image_memory_info, None).unwrap();
             device.bind_image_memory(target_image, target_image_memory, 0).unwrap();
+
+            let target_image_view = device.create_image_view(&target_image_view_create_info, None).unwrap();
 
             let color_attachment = *vk::AttachmentDescription::builder()
                 .format(vk::Format::R8G8B8A8_SRGB)
@@ -183,14 +191,18 @@ impl Renderer {
 
             let render_pass = device.create_render_pass(&render_pass_create_info, None).unwrap();
 
+            let frame_buffer_attachments = &[target_image_view];
+
             let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                 .render_pass(render_pass)
-                .attachments(&[target_image_view])
+                .attachments(frame_buffer_attachments)
                 .width(512)
                 .height(512)
                 .layers(1);
 
-            let index_buffer_data = [0u32, 1, 2];
+            let frame_buffer = device.create_framebuffer(&frame_buffer_create_info, None).unwrap();
+
+            let index_buffer_data: [u32; 3] = [0, 1, 2];
 
             let index_buffer_info = vk::BufferCreateInfo::builder()
                 .size(std::mem::size_of_val(&index_buffer_data) as u64)
@@ -220,8 +232,16 @@ impl Renderer {
             device.unmap_memory(index_buffer_memory);
             device.bind_buffer_memory(index_buffer, index_buffer_memory, 0).unwrap();
 
+            const VERTICES: [Vertex; 3] = [
+                Vertex::new(vec2(0.0, -0.5), vec3(1.0, 0.0, 0.0)),
+                Vertex::new(vec2(0.5, 0.5), vec3(0.0, 1.0, 0.0)),
+                Vertex::new(vec2(-0.5, 0.5), vec3(0.0, 0.0, 1.0)),
+            ];
+
+            const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
+
             let vertex_input_buffer_info = *vk::BufferCreateInfo::builder()
-                .size(3 * mem::size_of::<Vertex>() as u64)
+                .size((size_of::<Vertex>() * VERTICES.len()) as u64)
                 .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -241,39 +261,287 @@ impl Renderer {
 
             let vertex_input_buffer_memory = device.allocate_memory(&vertex_buffer_allocate_info, None).unwrap();
 
-            let vertices = [
-                Vertex {
-                    pos: [-1.0, 1.0, 0.0, 1.0],
-                    color: [0.0, 1.0, 0.0, 1.0],
-                },
-                Vertex {
-                    pos: [1.0, 1.0, 0.0, 1.0],
-                    color: [0.0, 0.0, 1.0, 1.0],
-                },
-                Vertex {
-                    pos: [0.0, -1.0, 0.0, 1.0],
-                    color: [1.0, 0.0, 0.0, 1.0],
-                },
-            ];
-
             let vert_ptr = device
                 .map_memory(vertex_input_buffer_memory, 0, vertex_input_buffer_memory_req.size, vk::MemoryMapFlags::empty())
                 .unwrap();
 
-            let mut vert_align = Align::new(vert_ptr, mem::align_of::<Vertex>() as u64, vertex_input_buffer_memory_req.size);
-            vert_align.copy_from_slice(&vertices);
+            copy_nonoverlapping(VERTICES.as_ptr(), vert_ptr.cast(), VERTICES.len());
+
             device.unmap_memory(vertex_input_buffer_memory);
             device.bind_buffer_memory(vertex_input_buffer, vertex_input_buffer_memory, 0).unwrap();
+
+            let mut vertex_spv_file = Cursor::new(&include_bytes!("../shaders/vert.spv"));
+            let mut frag_spv_file = Cursor::new(&include_bytes!("../shaders/frag.spv"));
+
+            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
+            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
+
+            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
+            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
+
+            let vertex_shader_module = device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error");
+            let fragment_shader_module = device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error");
+
+            let layout_create_info = vk::PipelineLayoutCreateInfo::default();
+
+            let pipeline_layout = device.create_pipeline_layout(&layout_create_info, None).unwrap();
+
+            let shader_entry_name = CStr::from_bytes_with_nul_unchecked(b"main\0");
+            let shader_stage_create_infos = [
+                vk::PipelineShaderStageCreateInfo {
+                    module: vertex_shader_module,
+                    p_name: shader_entry_name.as_ptr(),
+                    stage: vk::ShaderStageFlags::VERTEX,
+                    ..Default::default()
+                },
+                vk::PipelineShaderStageCreateInfo {
+                    module: fragment_shader_module,
+                    p_name: shader_entry_name.as_ptr(),
+                    stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+            ];
+
+            let binding_descriptions = &[Vertex::binding_description()];
+            let attribute_descriptions = Vertex::attribute_descriptions();
+            let vertex_input_state = *vk::PipelineVertexInputStateCreateInfo::builder()
+                .vertex_binding_descriptions(binding_descriptions)
+                .vertex_attribute_descriptions(&attribute_descriptions);
+
+            let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
+                .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+                .primitive_restart_enable(false);
+
+            let viewports = [vk::Viewport {
+                x: 0.0,
+                y: 0.0,
+                width: 512.0,
+                height: 512.0,
+                min_depth: 0.0,
+                max_depth: 1.0,
+            }];
+            let scissors = [*Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512))];
+            let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(&scissors).viewports(&viewports);
+
+            let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
+                front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+                line_width: 1.0,
+                polygon_mode: vk::PolygonMode::FILL,
+                ..Default::default()
+            };
+
+            let multisample_state_info = vk::PipelineMultisampleStateCreateInfo {
+                rasterization_samples: vk::SampleCountFlags::TYPE_1,
+                ..Default::default()
+            };
+
+            let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState {
+                blend_enable: 0,
+                src_color_blend_factor: vk::BlendFactor::SRC_COLOR,
+                dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_DST_COLOR,
+                color_blend_op: vk::BlendOp::ADD,
+                src_alpha_blend_factor: vk::BlendFactor::ZERO,
+                dst_alpha_blend_factor: vk::BlendFactor::ZERO,
+                alpha_blend_op: vk::BlendOp::ADD,
+                color_write_mask: vk::ColorComponentFlags::RGBA,
+            }];
+
+            let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
+                .logic_op(vk::LogicOp::CLEAR)
+                .attachments(&color_blend_attachment_states);
+
+            let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
+            let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
+
+            let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+                .stages(&shader_stage_create_infos)
+                .vertex_input_state(&vertex_input_state)
+                .input_assembly_state(&input_assembly_state)
+                .viewport_state(&viewport_state_info)
+                .rasterization_state(&rasterization_info)
+                .multisample_state(&multisample_state_info)
+                .color_blend_state(&color_blend_state)
+                .dynamic_state(&dynamic_state_info)
+                .layout(pipeline_layout)
+                .render_pass(render_pass);
+
+            let graphics_pipelines = device
+                .create_graphics_pipelines(vk::PipelineCache::null(), &[graphic_pipeline_info.build()], None)
+                .expect("Unable to create graphics pipeline");
+
+            let graphic_pipeline = graphics_pipelines[0];
+
+            let clear_values = [vk::ClearValue {
+                color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 1.0] },
+            }];
+
+            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+                .render_pass(render_pass)
+                .framebuffer(frame_buffer)
+                .render_area(*Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512)))
+                .clear_values(&clear_values);
+
+            device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).unwrap();
+
+            let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+            device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Begin commandbuffer");
+
+            device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+            device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphic_pipeline);
+            device.cmd_set_viewport(command_buffer, 0, &viewports);
+            device.cmd_set_scissor(command_buffer, 0, &scissors);
+            device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_input_buffer], &[0]);
+            // device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+            // device.cmd_draw_indexed(command_buffer, index_buffer_data.len() as u32, 1, 0, 0, 1);
+            device.cmd_draw(command_buffer, 3, 1, 0, 0);
+            device.cmd_end_render_pass(command_buffer);
+
+            device.end_command_buffer(command_buffer).expect("End commandbuffer");
+
+            let command_buffers = vec![command_buffer];
+
+            let mut submit_info = vk::SubmitInfo::builder()
+                .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+                .command_buffers(&command_buffers);
+            submit_info.wait_semaphore_count = 0;
+
+            device.queue_submit(graphics_queue, &[submit_info.build()], vk::Fence::null()).expect("queue submit failed.");
+
+            device.queue_wait_idle(graphics_queue).unwrap();
+
+            info!("Rendered :D");
+
+            {
+                let size = 512 * 512 * 4;
+
+                let save_buffer_info = vk::BufferCreateInfo::builder()
+                    .size(size)
+                    .usage(vk::BufferUsageFlags::TRANSFER_DST)
+                    .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+                let save_buffer = device.create_buffer(&save_buffer_info, None).unwrap();
+
+                let save_buffer_memory_req = device.get_buffer_memory_requirements(save_buffer);
+                let save_buffer_memory_index = get_memory_type_index(
+                    &instance,
+                    pdevice,
+                    vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                    save_buffer_memory_req,
+                );
+
+                let index_allocate_info = *vk::MemoryAllocateInfo::builder()
+                    .allocation_size(save_buffer_memory_req.size)
+                    .memory_type_index(save_buffer_memory_index);
+
+                let save_buffer_memory = device.allocate_memory(&index_allocate_info, None).unwrap();
+
+                device.bind_buffer_memory(save_buffer, save_buffer_memory, 0).unwrap();
+
+                let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+                    .level(vk::CommandBufferLevel::PRIMARY)
+                    .command_pool(pool)
+                    .command_buffer_count(1);
+
+                let command_buffer = device.allocate_command_buffers(&command_buffer_allocate_info).unwrap()[0];
+
+                let info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+                device.begin_command_buffer(command_buffer, &info).unwrap();
+
+                let subresource = *vk::ImageSubresourceLayers::builder()
+                    .aspect_mask(vk::ImageAspectFlags::COLOR)
+                    .mip_level(0)
+                    .base_array_layer(0)
+                    .layer_count(1);
+
+                let region = *vk::BufferImageCopy::builder()
+                    .buffer_offset(0)
+                    .buffer_row_length(0)
+                    .buffer_image_height(0)
+                    .image_subresource(subresource)
+                    .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
+                    .image_extent(vk::Extent3D { width: 512, height: 512, depth: 1 });
+
+                device.cmd_copy_image_to_buffer(command_buffer, target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
+
+                device.end_command_buffer(command_buffer).unwrap();
+
+                let command_buffers = &[command_buffer];
+                let info = *vk::SubmitInfo::builder().command_buffers(command_buffers);
+
+                device.queue_submit(graphics_queue, &[info], vk::Fence::null()).unwrap();
+                device.queue_wait_idle(graphics_queue).unwrap();
+
+                device.free_command_buffers(pool, &[command_buffer]);
+
+                let memory = device.map_memory(save_buffer_memory, 0, size, vk::MemoryMapFlags::empty()).unwrap();
+
+                let mut pixels = vec![0; size as usize];
+
+                copy_nonoverlapping(memory.cast(), pixels.as_mut_ptr(), size as usize);
+
+                device.unmap_memory(save_buffer_memory);
+
+                device.destroy_buffer(save_buffer, None);
+                device.free_memory(save_buffer_memory, None);
+
+                let file = File::create("../render.png").unwrap();
+                let ref mut file_writer = BufWriter::new(file);
+                let mut encoder = png::Encoder::new(file_writer, 512, 512);
+                encoder.set_color(png::ColorType::Rgba);
+                encoder.set_depth(png::BitDepth::Eight);
+
+                let mut writer = encoder.write_header().unwrap();
+                writer.write_image_data(&pixels).unwrap();
+
+                let mut file = File::create("../render_raw.bin").unwrap();
+                file.write(&pixels).unwrap();
+            }
+
+            info!("Saved :D");
         }
 
         return Renderer {};
     }
 }
 
-#[derive(Clone, Debug, Copy)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
 struct Vertex {
-    pos: [f32; 4],
-    color: [f32; 4],
+    pos: Vec2,
+    color: Vec3,
+}
+
+impl Vertex {
+    const fn new(pos: Vec2, color: Vec3) -> Self {
+        Self { pos, color }
+    }
+
+    fn binding_description() -> vk::VertexInputBindingDescription {
+        vk::VertexInputBindingDescription::builder()
+            .binding(0)
+            .stride(size_of::<Vertex>() as u32)
+            .input_rate(vk::VertexInputRate::VERTEX)
+            .build()
+    }
+
+    fn attribute_descriptions() -> [vk::VertexInputAttributeDescription; 2] {
+        let pos = vk::VertexInputAttributeDescription::builder()
+            .binding(0)
+            .location(0)
+            .format(vk::Format::R32G32_SFLOAT)
+            .offset(0)
+            .build();
+        let color = vk::VertexInputAttributeDescription::builder()
+            .binding(0)
+            .location(1)
+            .format(vk::Format::R32G32B32_SFLOAT)
+            .offset(size_of::<Vec2>() as u32)
+            .build();
+
+        [pos, color]
+    }
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
