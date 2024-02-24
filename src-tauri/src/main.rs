@@ -6,7 +6,6 @@ mod runtime;
 
 use log::info;
 use std::{env, sync::Mutex};
-use vulkanalia::prelude::v1_0::*;
 
 use renderer::Renderer;
 use runtime::Runtime;
@@ -37,8 +36,6 @@ fn main() {
     pretty_env_logger::init();
 
     let mut renderer = Renderer::create();
-
-    info!("Done :D");
 
     // let timeline = Timeline {};
     // let clips: Vec<Clip> = vec![];
@@ -73,6 +70,4 @@ fn main() {
     //     }
     //     _ => {}
     // });
-
-    Ok(())
 }
