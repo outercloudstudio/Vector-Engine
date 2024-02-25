@@ -19,12 +19,14 @@
 		constructor(public x: number, public y: number) {}
 	}
 
-	class Triangle {
-		constructor(public a: Vector2, public b: Vector2, public c: Vector2) {}
+	class Rect {
+		private readonly type = 'Rect'
+
+		constructor(public position: Vector2, public size: Vector2) {}
 	}
 
 	;(<any>globalThis).Vector2 = Vector2
-	;(<any>globalThis).Triangle = Triangle
+	;(<any>globalThis).Rect = Rect
 	;(<any>globalThis).add = function (element: any) {
 		core.ops.op_add_element(element)
 

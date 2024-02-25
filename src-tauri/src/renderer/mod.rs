@@ -4,7 +4,7 @@ use cgmath::{point3, vec2, vec3, Deg};
 use log::*;
 use std::ffi::{c_char, CStr};
 use std::io::Cursor;
-use std::mem::{self, size_of};
+use std::mem;
 use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
@@ -314,7 +314,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(self: &Renderer, vertex_data: Vec<f32>) -> Vec<u8> {
+    pub fn render(self: &Renderer, vertex_data: Vec<f32>, indices: Vec<u32>) -> Vec<u8> {
         let instance = &self.instance;
         let device = &self.device;
         let command_buffer = self.command_buffer;
@@ -329,10 +329,10 @@ impl Renderer {
         let viewport = self.viewport;
 
         unsafe {
-            let indices: [u32; 6] = [0, 1, 2, 3, 4, 5];
+            info!("Indices: {}", indices.iter().map(|index| index.to_string()).collect::<Vec<String>>().join(" "));
 
             let index_buffer_info = vk::BufferCreateInfo::builder()
-                .size(std::mem::size_of_val(&indices) as u64)
+                .size(4 * indices.len() as u64)
                 .usage(vk::BufferUsageFlags::INDEX_BUFFER)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -352,6 +352,8 @@ impl Renderer {
 
             let index_buffer_memory = device.allocate_memory(&index_allocate_info, None).unwrap();
 
+            info!("Size {}", index_buffer_memory_req.size);
+
             let index_ptr = device.map_memory(index_buffer_memory, 0, index_buffer_memory_req.size, vk::MemoryMapFlags::empty()).unwrap();
             let mut index_slice = Align::new(index_ptr, mem::align_of::<u32>() as u64, index_buffer_memory_req.size);
             index_slice.copy_from_slice(&indices);
@@ -367,8 +369,17 @@ impl Renderer {
                 vertices.push(Vertex::new(vec2(vertex_data[i * 2], vertex_data[i * 2 + 1]), COLORS[i % COLORS.len()]));
             }
 
+            info!(
+                "Vertices: {}",
+                vertices
+                    .iter()
+                    .map(|vertex| format!("{} {}", vertex.pos.x.to_string(), vertex.pos.y.to_string()))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            );
+
             let vertex_input_buffer_info = *vk::BufferCreateInfo::builder()
-                .size((size_of::<Vertex>() * vertices.len()) as u64)
+                .size((20 * vertices.len()) as u64)
                 .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -398,7 +409,7 @@ impl Renderer {
             device.bind_buffer_memory(vertex_input_buffer, vertex_input_buffer_memory, 0).unwrap();
 
             let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 1.0] },
+                color: vk::ClearColorValue { float32: [0.0001, 0.0, 0.01, 1.0] },
             }];
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
@@ -528,11 +539,7 @@ impl Vertex {
     }
 
     fn binding_description() -> vk::VertexInputBindingDescription {
-        vk::VertexInputBindingDescription::builder()
-            .binding(0)
-            .stride(size_of::<Vertex>() as u32)
-            .input_rate(vk::VertexInputRate::VERTEX)
-            .build()
+        vk::VertexInputBindingDescription::builder().binding(0).stride(20).input_rate(vk::VertexInputRate::VERTEX).build()
     }
 
     fn attribute_descriptions() -> [vk::VertexInputAttributeDescription; 2] {
@@ -546,7 +553,7 @@ impl Vertex {
             .binding(0)
             .location(1)
             .format(vk::Format::R32G32B32_SFLOAT)
-            .offset(size_of::<Vec2>() as u32)
+            .offset(8)
             .build();
 
         [pos, color]

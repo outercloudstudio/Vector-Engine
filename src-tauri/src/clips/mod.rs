@@ -19,9 +19,9 @@ impl Clip for ScriptClip {
     fn set_frame(&mut self, _frame: u32) {}
 
     fn render(&self, project: &mut Project) -> Vec<u8> {
-        let vertex_data = project.runtime.execute_clip(&self.script);
+        let state = project.runtime.execute_clip(&self.script);
 
-        let bytes = project.renderer.render(vertex_data);
+        let bytes = project.renderer.render(state.vertices, state.indices);
 
         let mut encoded_bytes: Vec<u8> = vec![];
 

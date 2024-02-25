@@ -31,21 +31,17 @@ fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
 
     let mut clip = ScriptClip::new(String::from(
         r#"
-console.log(':D')
-
-const triangle = add(
-    new Triangle(
-        new Vector2(-0.5, 0.5),
-        new Vector2(0.0, -0.5),
-        new Vector2(0.5, 0.5),
+add(
+    new Rect(
+        new Vector2(0, 0),
+        new Vector2(200, 200),
     )
 )
 
-const triangle2 = add(
-    new Triangle(
-        new Vector2(0.0, -0.5),
-        new Vector2(1, -0.4),
-        new Vector2(1, 0.5),
+add(
+    new Rect(
+        new Vector2(0, 200),
+        new Vector2(100, 100),
     )
 )
 "#,
