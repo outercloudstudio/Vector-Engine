@@ -4,13 +4,17 @@ use deno_ast::SourceTextInfo;
 use deno_core::error::AnyError;
 use deno_core::futures::FutureExt;
 use deno_core::op;
-use deno_core::FastString;
+use deno_core::{FastString, OpState};
 use log::info;
+use std::cell::RefCell;
 use std::env;
+use std::mem;
 use std::path::Path;
 use std::rc::Rc;
 
-// deno_core::extension!(runtime_extension, ops = []);
+pub struct RuntimeState {
+    vertices: Vec<f32>,
+}
 
 pub struct Runtime {
     runtime: tokio::runtime::Runtime,
@@ -23,10 +27,16 @@ impl Runtime {
         Runtime { runtime }
     }
 
-    async fn test_hidden(self: &Runtime) {
+    async fn test_hidden(self: &Runtime) -> Rc<RefCell<RuntimeState>> {
+        deno_core::extension!(runtime_extension, ops = [op_set_vertices], options = { state: Rc<RefCell<RuntimeState>> }, state = |state, options| {
+            state.put::<Rc<RefCell<RuntimeState>>>(options.state);
+        });
+
+        let mut state = Rc::new(RefCell::new(RuntimeState { vertices: vec![] }));
+
         let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
             module_loader: Some(Rc::new(TsModuleLoader)),
-            // extensions: vec![runtime_extension::init_ops()],
+            extensions: vec![runtime_extension::init_ops_and_esm(state.clone())],
             ..Default::default()
         });
 
@@ -43,11 +53,24 @@ impl Runtime {
         js_runtime.run_event_loop(false).await.unwrap();
 
         result.await.unwrap().unwrap();
+
+        return state;
     }
 
-    pub fn test(self: &Runtime) {
-        self.runtime.block_on(self.test_hidden());
+    pub fn test(self: &mut Runtime) {
+        let mut future = self.test_hidden();
+        let result = self.runtime.block_on(future);
+
+        info!("YOOO {}", result.borrow().vertices.len());
     }
+}
+
+#[op]
+fn op_set_vertices(state: &mut OpState, vertices: Vec<f32>) -> Result<(), AnyError> {
+    let mut runtime_state = state.borrow_mut::<Rc<RefCell<RuntimeState>>>().borrow_mut();
+    runtime_state.vertices = vertices;
+
+    Ok(())
 }
 
 struct TsModuleLoader;
