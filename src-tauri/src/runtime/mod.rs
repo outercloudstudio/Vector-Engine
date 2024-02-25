@@ -32,7 +32,7 @@ impl Runtime {
     }
 
     async fn execute_clip_script(self: &Runtime, script: &String) -> Rc<RefCell<ClipRuntimeState>> {
-        deno_core::extension!(runtime_extension, ops = [op_set_vertices, op_callback_test], options = { state: Rc<RefCell<ClipRuntimeState>> }, state = |state, options| {
+        deno_core::extension!(runtime_extension, ops = [op_set_vertices, op_callback_test, op_add_element], options = { state: Rc<RefCell<ClipRuntimeState>> }, state = |state, options| {
             state.put::<Rc<RefCell<ClipRuntimeState>>>(options.state);
         });
 
@@ -45,10 +45,10 @@ impl Runtime {
         });
 
         js_runtime
-            .execute_script("vector-engine/runtime.js", deno_core::FastString::from_static(include_str!("./runtime.js")))
+            .execute_script("vector-engine/runtime.ts", deno_core::FastString::from(transpile_ts(String::from(include_str!("./runtime.ts")))))
             .unwrap();
 
-        let result = js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(script.clone())).unwrap();
+        js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpile_ts(script.clone()))).unwrap();
 
         // info!("Path: {}", deno_core::resolve_path("../example.ts", Path::new(env::current_dir().unwrap().as_path())).unwrap());
 
@@ -67,6 +67,8 @@ impl Runtime {
         let mut future = self.execute_clip_script(script);
         let result_cell = self.runtime.block_on(future);
         let result = result_cell.borrow();
+
+        info!("Got Vertex Data:\n{}", result.vertices.iter().map(|value| value.to_string()).collect::<Vec<String>>().join(" "));
 
         return result.vertices.clone();
     }
@@ -96,6 +98,44 @@ fn op_callback_test<'a>(scope: &mut v8::HandleScope<'a>, callback_value: v8::Loc
 fn op_set_vertices(state: &mut OpState, vertices: Vec<f32>) -> Result<(), AnyError> {
     let mut runtime_state = state.borrow_mut::<Rc<RefCell<ClipRuntimeState>>>().borrow_mut();
     runtime_state.vertices = vertices;
+
+    Ok(())
+}
+
+#[op2]
+fn op_add_element<'a>(state: &mut OpState, scope: &mut v8::HandleScope<'a>, element: v8::Local<'a, v8::Value>) -> Result<(), AnyError> {
+    let mut runtime_state = state.borrow_mut::<Rc<RefCell<ClipRuntimeState>>>().borrow_mut();
+
+    let x_key = v8::String::new(scope, "x").unwrap();
+    let y_key = v8::String::new(scope, "y").unwrap();
+
+    let object = v8::Local::<v8::Object>::try_from(element).unwrap();
+    let a_key = v8::String::new(scope, "a").unwrap();
+    let a = v8::Local::<v8::Object>::try_from(object.get(scope, a_key.into()).unwrap()).unwrap();
+
+    let x = v8::Local::<v8::Number>::try_from(a.get(scope, x_key.into()).unwrap()).unwrap();
+    runtime_state.vertices.push(x.value() as f32);
+
+    let y = v8::Local::<v8::Number>::try_from(a.get(scope, y_key.into()).unwrap()).unwrap();
+    runtime_state.vertices.push(y.value() as f32);
+
+    let b_key = v8::String::new(scope, "b").unwrap();
+    let b = v8::Local::<v8::Object>::try_from(object.get(scope, b_key.into()).unwrap()).unwrap();
+
+    let x = v8::Local::<v8::Number>::try_from(b.get(scope, x_key.into()).unwrap()).unwrap();
+    runtime_state.vertices.push(x.value() as f32);
+
+    let y = v8::Local::<v8::Number>::try_from(b.get(scope, y_key.into()).unwrap()).unwrap();
+    runtime_state.vertices.push(y.value() as f32);
+
+    let c_key = v8::String::new(scope, "c").unwrap();
+    let c = v8::Local::<v8::Object>::try_from(object.get(scope, c_key.into()).unwrap()).unwrap();
+
+    let x = v8::Local::<v8::Number>::try_from(c.get(scope, x_key.into()).unwrap()).unwrap();
+    runtime_state.vertices.push(x.value() as f32);
+
+    let y = v8::Local::<v8::Number>::try_from(c.get(scope, y_key.into()).unwrap()).unwrap();
+    runtime_state.vertices.push(y.value() as f32);
 
     Ok(())
 }
@@ -142,4 +182,18 @@ impl deno_core::ModuleLoader for TsModuleLoader {
         }
         .boxed_local()
     }
+}
+
+fn transpile_ts(code: String) -> String {
+    let parsed = deno_ast::parse_module(ParseParams {
+        specifier: String::from(""),
+        text_info: SourceTextInfo::from_string(code),
+        media_type: MediaType::TypeScript,
+        capture_tokens: false,
+        scope_analysis: false,
+        maybe_syntax: None,
+    })
+    .unwrap();
+
+    parsed.transpile(&Default::default()).unwrap().text
 }

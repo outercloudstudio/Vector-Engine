@@ -33,10 +33,21 @@ fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
         r#"
 console.log(':D')
 
-Deno.core.ops.op_set_vertices([-1, 0.5, 0.0, -0.5, 0.5, 0.5])
-Deno.core.ops.op_callback_test(function* () {
-	console.log('No way...')
-})
+const triangle = add(
+    new Triangle(
+        new Vector2(-0.5, 0.5),
+        new Vector2(0.0, -0.5),
+        new Vector2(0.5, 0.5),
+    )
+)
+
+const triangle2 = add(
+    new Triangle(
+        new Vector2(0.0, -0.5),
+        new Vector2(1, -0.4),
+        new Vector2(1, 0.5),
+    )
+)
 "#,
     ));
 

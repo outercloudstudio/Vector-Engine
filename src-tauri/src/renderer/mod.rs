@@ -329,12 +329,10 @@ impl Renderer {
         let viewport = self.viewport;
 
         unsafe {
-            let indices: &[u16] = &[0, 1, 2, 2, 3, 0];
-
-            let index_buffer_data: [u32; 3] = [0, 1, 2];
+            let indices: [u32; 6] = [0, 1, 2, 3, 4, 5];
 
             let index_buffer_info = vk::BufferCreateInfo::builder()
-                .size(std::mem::size_of_val(&index_buffer_data) as u64)
+                .size(std::mem::size_of_val(&indices) as u64)
                 .usage(vk::BufferUsageFlags::INDEX_BUFFER)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -356,7 +354,7 @@ impl Renderer {
 
             let index_ptr = device.map_memory(index_buffer_memory, 0, index_buffer_memory_req.size, vk::MemoryMapFlags::empty()).unwrap();
             let mut index_slice = Align::new(index_ptr, mem::align_of::<u32>() as u64, index_buffer_memory_req.size);
-            index_slice.copy_from_slice(&index_buffer_data);
+            index_slice.copy_from_slice(&indices);
 
             device.unmap_memory(index_buffer_memory);
             device.bind_buffer_memory(index_buffer, index_buffer_memory, 0).unwrap();
@@ -421,7 +419,7 @@ impl Renderer {
             device.cmd_set_scissor(command_buffer, 0, &[scissor]);
             device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_input_buffer], &[0]);
             device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
-            device.cmd_draw_indexed(command_buffer, index_buffer_data.len() as u32, 1, 0, 0, 1);
+            device.cmd_draw_indexed(command_buffer, indices.len() as u32, 1, 0, 0, 1);
             device.cmd_end_render_pass(command_buffer);
 
             device.end_command_buffer(command_buffer).expect("End commandbuffer");
