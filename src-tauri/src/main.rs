@@ -41,10 +41,15 @@ fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
 }
 
 fn main() {
+    env::set_var("RUST_LOG", "info");
+    pretty_env_logger::init();
+
     let timeline = Timeline {};
     let clips = vec![];
     let renderer = Renderer::create();
-    let runtime = Runtime {};
+    let runtime = Runtime::create();
+
+    runtime.test();
 
     let project = Project { timeline, clips, renderer, runtime };
     let project_mutex = Mutex::new(project);

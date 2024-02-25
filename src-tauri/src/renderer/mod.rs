@@ -192,8 +192,8 @@ impl Renderer {
 
             let frame_buffer = device.create_framebuffer(&frame_buffer_create_info, None).unwrap();
 
-            let mut vertex_spv_file = Cursor::new(&include_bytes!("../shaders/vert.spv"));
-            let mut frag_spv_file = Cursor::new(&include_bytes!("../shaders/frag.spv"));
+            let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/vert.spv"));
+            let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/frag.spv"));
 
             let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
             let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
@@ -297,7 +297,7 @@ impl Renderer {
 
             let graphic_pipeline = graphics_pipelines[0];
 
-            return Renderer {
+            Renderer {
                 instance,
                 device,
                 command_buffer,
@@ -310,7 +310,7 @@ impl Renderer {
                 target_image,
                 scissor,
                 viewport,
-            };
+            }
         }
     }
 
@@ -574,7 +574,7 @@ unsafe extern "system" fn vulkan_debug_callback(
         CStr::from_ptr(callback_data.p_message).to_string_lossy()
     };
 
-    println!("{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : {message}\n",);
+    // println!("{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : {message}\n",);
 
     vk::FALSE
 }
