@@ -16,7 +16,7 @@ use std::path::Path;
 use std::ptr::null;
 use std::rc::Rc;
 
-pub struct RuntimeState {
+pub struct ClipRuntimeState {
     vertices: Vec<f32>,
 }
 
@@ -31,12 +31,12 @@ impl Runtime {
         Runtime { runtime }
     }
 
-    async fn test_hidden(self: &Runtime) -> Rc<RefCell<RuntimeState>> {
-        deno_core::extension!(runtime_extension, ops = [op_set_vertices, op_callback_test], options = { state: Rc<RefCell<RuntimeState>> }, state = |state, options| {
-            state.put::<Rc<RefCell<RuntimeState>>>(options.state);
+    async fn execute_clip_script(self: &Runtime, script: &String) -> Rc<RefCell<ClipRuntimeState>> {
+        deno_core::extension!(runtime_extension, ops = [op_set_vertices, op_callback_test], options = { state: Rc<RefCell<ClipRuntimeState>> }, state = |state, options| {
+            state.put::<Rc<RefCell<ClipRuntimeState>>>(options.state);
         });
 
-        let mut state = Rc::new(RefCell::new(RuntimeState { vertices: vec![] }));
+        let mut state = Rc::new(RefCell::new(ClipRuntimeState { vertices: vec![] }));
 
         let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
             module_loader: Some(Rc::new(TsModuleLoader)),
@@ -48,29 +48,27 @@ impl Runtime {
             .execute_script("vector-engine/runtime.js", deno_core::FastString::from_static(include_str!("./runtime.js")))
             .unwrap();
 
-        info!("Path: {}", deno_core::resolve_path("../example.ts", Path::new(env::current_dir().unwrap().as_path())).unwrap());
+        let result = js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(script.clone())).unwrap();
 
-        let main_module = deno_core::resolve_path("../example.ts", Path::new(env::current_dir().unwrap().as_path())).unwrap();
-        let mod_id = js_runtime.load_main_module(&main_module, None).await.unwrap();
-        let result = js_runtime.mod_evaluate(mod_id);
+        // info!("Path: {}", deno_core::resolve_path("../example.ts", Path::new(env::current_dir().unwrap().as_path())).unwrap());
+
+        // let main_module = deno_core::resolve_path("../example.ts", Path::new(env::current_dir().unwrap().as_path())).unwrap();
+        // let mod_id = js_runtime.load_main_module(&main_module, None).await.unwrap();
+        // let result = js_runtime.mod_evaluate(mod_id);
 
         js_runtime.run_event_loop(false).await.unwrap();
 
-        result.await.unwrap().unwrap();
+        // result.await.unwrap().unwrap();
 
         return state;
     }
 
-    pub fn test(self: &mut Runtime) -> Vec<f32> {
-        let mut future = self.test_hidden();
-        let result = self.runtime.block_on(future);
-        let result_borrow = result.borrow();
-
-        return result_borrow.vertices.clone();
-    }
-
     pub fn execute_clip(&mut self, script: &String) -> Vec<f32> {
-        vec![-0.5, 0.5, 0.0, -0.5, 0.5, 0.5]
+        let mut future = self.execute_clip_script(script);
+        let result_cell = self.runtime.block_on(future);
+        let result = result_cell.borrow();
+
+        return result.vertices.clone();
     }
 }
 
@@ -96,7 +94,7 @@ fn op_callback_test<'a>(scope: &mut v8::HandleScope<'a>, callback_value: v8::Loc
 
 #[op]
 fn op_set_vertices(state: &mut OpState, vertices: Vec<f32>) -> Result<(), AnyError> {
-    let mut runtime_state = state.borrow_mut::<Rc<RefCell<RuntimeState>>>().borrow_mut();
+    let mut runtime_state = state.borrow_mut::<Rc<RefCell<ClipRuntimeState>>>().borrow_mut();
     runtime_state.vertices = vertices;
 
     Ok(())
