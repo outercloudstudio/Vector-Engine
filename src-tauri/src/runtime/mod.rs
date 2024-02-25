@@ -57,11 +57,12 @@ impl Runtime {
         return state;
     }
 
-    pub fn test(self: &mut Runtime) {
+    pub fn test(self: &mut Runtime) -> Vec<f32> {
         let mut future = self.test_hidden();
         let result = self.runtime.block_on(future);
+        let result_borrow = result.borrow();
 
-        info!("YOOO {}", result.borrow().vertices.len());
+        return result_borrow.vertices.clone();
     }
 }
 

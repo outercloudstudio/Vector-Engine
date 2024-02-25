@@ -28,9 +28,9 @@ fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
 
     let mut project = project_mutex.lock().unwrap();
 
-    project.runtime.test();
+    let vertex_data = project.runtime.test();
 
-    let bytes = project.renderer.render();
+    let bytes = project.renderer.render(vertex_data);
 
     let mut encoded_bytes: Vec<u8> = vec![];
 

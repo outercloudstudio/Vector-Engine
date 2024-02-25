@@ -314,7 +314,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(self: &Renderer) -> Vec<u8> {
+    pub fn render(self: &Renderer, vertex_data: Vec<f32>) -> Vec<u8> {
         let instance = &self.instance;
         let device = &self.device;
         let command_buffer = self.command_buffer;
@@ -329,6 +329,8 @@ impl Renderer {
         let viewport = self.viewport;
 
         unsafe {
+            let indices: &[u16] = &[0, 1, 2, 2, 3, 0];
+
             let index_buffer_data: [u32; 3] = [0, 1, 2];
 
             let index_buffer_info = vk::BufferCreateInfo::builder()
@@ -359,16 +361,16 @@ impl Renderer {
             device.unmap_memory(index_buffer_memory);
             device.bind_buffer_memory(index_buffer, index_buffer_memory, 0).unwrap();
 
-            const VERTICES: [Vertex; 3] = [
-                Vertex::new(vec2(0.0, 0.0), vec3(1.0, 0.0, 0.0)),
-                Vertex::new(vec2(0.0, -0.5), vec3(0.0, 1.0, 0.0)),
-                Vertex::new(vec2(0.5, 0.0), vec3(0.0, 0.0, 1.0)),
-            ];
+            const COLORS: [Vec3; 3] = [vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)];
 
-            const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
+            let mut vertices: Vec<Vertex> = Vec::new();
+
+            for i in 0..(vertex_data.len() / 2) {
+                vertices.push(Vertex::new(vec2(vertex_data[i * 2], vertex_data[i * 2 + 1]), COLORS[i % COLORS.len()]));
+            }
 
             let vertex_input_buffer_info = *vk::BufferCreateInfo::builder()
-                .size((size_of::<Vertex>() * VERTICES.len()) as u64)
+                .size((size_of::<Vertex>() * vertices.len()) as u64)
                 .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -392,7 +394,7 @@ impl Renderer {
                 .map_memory(vertex_input_buffer_memory, 0, vertex_input_buffer_memory_req.size, vk::MemoryMapFlags::empty())
                 .unwrap();
 
-            copy_nonoverlapping(VERTICES.as_ptr(), vert_ptr.cast(), VERTICES.len());
+            copy_nonoverlapping(vertices.as_ptr(), vert_ptr.cast(), vertices.len());
 
             device.unmap_memory(vertex_input_buffer_memory);
             device.bind_buffer_memory(vertex_input_buffer, vertex_input_buffer_memory, 0).unwrap();
