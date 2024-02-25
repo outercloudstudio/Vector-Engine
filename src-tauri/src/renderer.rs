@@ -1,20 +1,14 @@
 #![allow(dead_code, unused_variables)]
 
-use ash::vk::{Framebuffer, Handle, Rect2D};
 use cgmath::{point3, vec2, vec3, Deg};
 use log::*;
-use std::env;
 use std::ffi::{c_char, CStr};
-use std::fs::File;
-use std::io::{BufWriter, Cursor, Write};
+use std::io::Cursor;
 use std::mem::{self, size_of};
 use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
-use ash::extensions::{
-    ext::DebugUtils,
-    khr::{Surface, Swapchain},
-};
+use ash::extensions::ext::DebugUtils;
 use ash::util::*;
 use ash::{vk, Device, Entry, Instance};
 
@@ -23,22 +17,18 @@ type Vec3 = cgmath::Vector3<f32>;
 type Mat4 = cgmath::Matrix4<f32>;
 
 pub struct Renderer {
-    // pub entry: Entry,
-    // pub instance: Instance,
-    // pub device: Device,
-    // pub debug_utils_loader: DebugUtils,
-    // pub debug_call_back: vk::DebugUtilsMessengerEXT,
-
-    // pub pdevice: vk::PhysicalDevice,
-    // pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    // pub queue_family_index: u32,
-
-    // pub target_image: vk::Image,
-    // pub target_image_view: vk::ImageView,
-
-    // pub pool: vk::CommandPool,
-    // pub draw_command_buffer: vk::CommandBuffer,
-    // pub setup_command_buffer: vk::CommandBuffer,
+    instance: Instance,
+    device: Device,
+    command_buffer: vk::CommandBuffer,
+    graphics_queue: vk::Queue,
+    render_pass: vk::RenderPass,
+    frame_buffer: vk::Framebuffer,
+    physical_device: vk::PhysicalDevice,
+    command_pool: vk::CommandPool,
+    graphics_pipeline: vk::Pipeline,
+    target_image: vk::Image,
+    scissor: vk::Rect2D,
+    viewport: vk::Viewport,
 }
 
 impl Renderer {
@@ -202,6 +192,143 @@ impl Renderer {
 
             let frame_buffer = device.create_framebuffer(&frame_buffer_create_info, None).unwrap();
 
+            let mut vertex_spv_file = Cursor::new(&include_bytes!("../shaders/vert.spv"));
+            let mut frag_spv_file = Cursor::new(&include_bytes!("../shaders/frag.spv"));
+
+            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
+            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
+
+            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
+            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
+
+            let vertex_shader_module = device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error");
+            let fragment_shader_module = device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error");
+
+            let layout_create_info = vk::PipelineLayoutCreateInfo::default();
+
+            let pipeline_layout = device.create_pipeline_layout(&layout_create_info, None).unwrap();
+
+            let shader_entry_name = CStr::from_bytes_with_nul_unchecked(b"main\0");
+            let shader_stage_create_infos = [
+                vk::PipelineShaderStageCreateInfo {
+                    module: vertex_shader_module,
+                    p_name: shader_entry_name.as_ptr(),
+                    stage: vk::ShaderStageFlags::VERTEX,
+                    ..Default::default()
+                },
+                vk::PipelineShaderStageCreateInfo {
+                    module: fragment_shader_module,
+                    p_name: shader_entry_name.as_ptr(),
+                    stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+            ];
+
+            let binding_descriptions = &[Vertex::binding_description()];
+            let attribute_descriptions = Vertex::attribute_descriptions();
+            let vertex_input_state = *vk::PipelineVertexInputStateCreateInfo::builder()
+                .vertex_binding_descriptions(binding_descriptions)
+                .vertex_attribute_descriptions(&attribute_descriptions);
+
+            let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
+                .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+                .primitive_restart_enable(false);
+
+            let viewport = vk::Viewport {
+                x: 0.0,
+                y: 0.0,
+                width: 512.0,
+                height: 512.0,
+                min_depth: 0.0,
+                max_depth: 1.0,
+            };
+            let viewports = &[viewport];
+
+            let scissor = *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512));
+            let scissors = &[scissor];
+
+            let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(scissors).viewports(viewports);
+
+            let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
+                front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+                line_width: 1.0,
+                polygon_mode: vk::PolygonMode::FILL,
+                ..Default::default()
+            };
+
+            let multisample_state_info = vk::PipelineMultisampleStateCreateInfo {
+                rasterization_samples: vk::SampleCountFlags::TYPE_1,
+                ..Default::default()
+            };
+
+            let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState {
+                blend_enable: 0,
+                src_color_blend_factor: vk::BlendFactor::SRC_COLOR,
+                dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_DST_COLOR,
+                color_blend_op: vk::BlendOp::ADD,
+                src_alpha_blend_factor: vk::BlendFactor::ZERO,
+                dst_alpha_blend_factor: vk::BlendFactor::ZERO,
+                alpha_blend_op: vk::BlendOp::ADD,
+                color_write_mask: vk::ColorComponentFlags::RGBA,
+            }];
+
+            let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
+                .logic_op(vk::LogicOp::CLEAR)
+                .attachments(&color_blend_attachment_states);
+
+            let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
+            let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
+
+            let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+                .stages(&shader_stage_create_infos)
+                .vertex_input_state(&vertex_input_state)
+                .input_assembly_state(&input_assembly_state)
+                .viewport_state(&viewport_state_info)
+                .rasterization_state(&rasterization_info)
+                .multisample_state(&multisample_state_info)
+                .color_blend_state(&color_blend_state)
+                .dynamic_state(&dynamic_state_info)
+                .layout(pipeline_layout)
+                .render_pass(render_pass);
+
+            let graphics_pipelines = device
+                .create_graphics_pipelines(vk::PipelineCache::null(), &[graphic_pipeline_info.build()], None)
+                .expect("Unable to create graphics pipeline");
+
+            let graphic_pipeline = graphics_pipelines[0];
+
+            return Renderer {
+                instance,
+                device,
+                command_buffer,
+                graphics_queue,
+                render_pass,
+                frame_buffer,
+                physical_device: pdevice,
+                command_pool: pool,
+                graphics_pipeline: graphic_pipeline,
+                target_image,
+                scissor,
+                viewport,
+            };
+        }
+    }
+
+    pub fn render(self: &Renderer) -> Vec<u8> {
+        let instance = &self.instance;
+        let device = &self.device;
+        let command_buffer = self.command_buffer;
+        let graphics_queue = self.graphics_queue;
+        let render_pass = self.render_pass;
+        let frame_buffer = self.frame_buffer;
+        let graphic_pipeline = self.graphics_pipeline;
+        let pdevice = self.physical_device;
+        let pool = self.command_pool;
+        let target_image = self.target_image;
+        let scissor = self.scissor;
+        let viewport = self.viewport;
+
+        unsafe {
             let index_buffer_data: [u32; 3] = [0, 1, 2];
 
             let index_buffer_info = vk::BufferCreateInfo::builder()
@@ -270,107 +397,6 @@ impl Renderer {
             device.unmap_memory(vertex_input_buffer_memory);
             device.bind_buffer_memory(vertex_input_buffer, vertex_input_buffer_memory, 0).unwrap();
 
-            let mut vertex_spv_file = Cursor::new(&include_bytes!("../shaders/vert.spv"));
-            let mut frag_spv_file = Cursor::new(&include_bytes!("../shaders/frag.spv"));
-
-            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
-            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
-
-            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
-            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
-
-            let vertex_shader_module = device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error");
-            let fragment_shader_module = device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error");
-
-            let layout_create_info = vk::PipelineLayoutCreateInfo::default();
-
-            let pipeline_layout = device.create_pipeline_layout(&layout_create_info, None).unwrap();
-
-            let shader_entry_name = CStr::from_bytes_with_nul_unchecked(b"main\0");
-            let shader_stage_create_infos = [
-                vk::PipelineShaderStageCreateInfo {
-                    module: vertex_shader_module,
-                    p_name: shader_entry_name.as_ptr(),
-                    stage: vk::ShaderStageFlags::VERTEX,
-                    ..Default::default()
-                },
-                vk::PipelineShaderStageCreateInfo {
-                    module: fragment_shader_module,
-                    p_name: shader_entry_name.as_ptr(),
-                    stage: vk::ShaderStageFlags::FRAGMENT,
-                    ..Default::default()
-                },
-            ];
-
-            let binding_descriptions = &[Vertex::binding_description()];
-            let attribute_descriptions = Vertex::attribute_descriptions();
-            let vertex_input_state = *vk::PipelineVertexInputStateCreateInfo::builder()
-                .vertex_binding_descriptions(binding_descriptions)
-                .vertex_attribute_descriptions(&attribute_descriptions);
-
-            let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
-                .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
-                .primitive_restart_enable(false);
-
-            let viewports = [vk::Viewport {
-                x: 0.0,
-                y: 0.0,
-                width: 512.0,
-                height: 512.0,
-                min_depth: 0.0,
-                max_depth: 1.0,
-            }];
-            let scissors = [*Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512))];
-            let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(&scissors).viewports(&viewports);
-
-            let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
-                front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-                line_width: 1.0,
-                polygon_mode: vk::PolygonMode::FILL,
-                ..Default::default()
-            };
-
-            let multisample_state_info = vk::PipelineMultisampleStateCreateInfo {
-                rasterization_samples: vk::SampleCountFlags::TYPE_1,
-                ..Default::default()
-            };
-
-            let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState {
-                blend_enable: 0,
-                src_color_blend_factor: vk::BlendFactor::SRC_COLOR,
-                dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_DST_COLOR,
-                color_blend_op: vk::BlendOp::ADD,
-                src_alpha_blend_factor: vk::BlendFactor::ZERO,
-                dst_alpha_blend_factor: vk::BlendFactor::ZERO,
-                alpha_blend_op: vk::BlendOp::ADD,
-                color_write_mask: vk::ColorComponentFlags::RGBA,
-            }];
-
-            let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
-                .logic_op(vk::LogicOp::CLEAR)
-                .attachments(&color_blend_attachment_states);
-
-            let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
-            let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
-
-            let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
-                .stages(&shader_stage_create_infos)
-                .vertex_input_state(&vertex_input_state)
-                .input_assembly_state(&input_assembly_state)
-                .viewport_state(&viewport_state_info)
-                .rasterization_state(&rasterization_info)
-                .multisample_state(&multisample_state_info)
-                .color_blend_state(&color_blend_state)
-                .dynamic_state(&dynamic_state_info)
-                .layout(pipeline_layout)
-                .render_pass(render_pass);
-
-            let graphics_pipelines = device
-                .create_graphics_pipelines(vk::PipelineCache::null(), &[graphic_pipeline_info.build()], None)
-                .expect("Unable to create graphics pipeline");
-
-            let graphic_pipeline = graphics_pipelines[0];
-
             let clear_values = [vk::ClearValue {
                 color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 1.0] },
             }];
@@ -378,7 +404,7 @@ impl Renderer {
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
                 .render_pass(render_pass)
                 .framebuffer(frame_buffer)
-                .render_area(*Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512)))
+                .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512)))
                 .clear_values(&clear_values);
 
             device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).unwrap();
@@ -389,12 +415,11 @@ impl Renderer {
 
             device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
             device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphic_pipeline);
-            device.cmd_set_viewport(command_buffer, 0, &viewports);
-            device.cmd_set_scissor(command_buffer, 0, &scissors);
+            device.cmd_set_viewport(command_buffer, 0, &[viewport]);
+            device.cmd_set_scissor(command_buffer, 0, &[scissor]);
             device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_input_buffer], &[0]);
-            // device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
-            // device.cmd_draw_indexed(command_buffer, index_buffer_data.len() as u32, 1, 0, 0, 1);
-            device.cmd_draw(command_buffer, 3, 1, 0, 0);
+            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+            device.cmd_draw_indexed(command_buffer, index_buffer_data.len() as u32, 1, 0, 0, 1);
             device.cmd_end_render_pass(command_buffer);
 
             device.end_command_buffer(command_buffer).expect("End commandbuffer");
@@ -409,8 +434,6 @@ impl Renderer {
             device.queue_submit(graphics_queue, &[submit_info.build()], vk::Fence::null()).expect("queue submit failed.");
 
             device.queue_wait_idle(graphics_queue).unwrap();
-
-            info!("Rendered :D");
 
             {
                 let size = 512 * 512 * 4;
@@ -486,23 +509,9 @@ impl Renderer {
                 device.destroy_buffer(save_buffer, None);
                 device.free_memory(save_buffer_memory, None);
 
-                let file = File::create("../render.png").unwrap();
-                let ref mut file_writer = BufWriter::new(file);
-                let mut encoder = png::Encoder::new(file_writer, 512, 512);
-                encoder.set_color(png::ColorType::Rgba);
-                encoder.set_depth(png::BitDepth::Eight);
-
-                let mut writer = encoder.write_header().unwrap();
-                writer.write_image_data(&pixels).unwrap();
-
-                let mut file = File::create("../render_raw.bin").unwrap();
-                file.write(&pixels).unwrap();
+                return pixels;
             }
-
-            info!("Saved :D");
         }
-
-        return Renderer {};
     }
 }
 

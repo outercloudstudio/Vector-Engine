@@ -5,7 +5,7 @@ mod renderer;
 mod runtime;
 
 use log::info;
-use std::{env, sync::Mutex};
+use std::{env, fs::File, io::BufWriter, sync::Mutex};
 
 use renderer::Renderer;
 use runtime::Runtime;
@@ -36,6 +36,16 @@ fn main() {
     pretty_env_logger::init();
 
     let mut renderer = Renderer::create();
+    let bytes = renderer.render();
+
+    let file = File::create("../render.png").unwrap();
+    let ref mut file_writer = BufWriter::new(file);
+    let mut encoder = png::Encoder::new(file_writer, 512, 512);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+
+    let mut writer = encoder.write_header().unwrap();
+    writer.write_image_data(&bytes).unwrap();
 
     // let timeline = Timeline {};
     // let clips: Vec<Clip> = vec![];
