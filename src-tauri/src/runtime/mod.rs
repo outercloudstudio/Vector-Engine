@@ -1,15 +1,19 @@
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
+use deno_core::error::type_error;
 use deno_core::error::AnyError;
 use deno_core::futures::FutureExt;
 use deno_core::op;
+use deno_core::op2;
+use deno_core::v8;
 use deno_core::{FastString, OpState};
 use log::info;
 use std::cell::RefCell;
 use std::env;
 use std::mem;
 use std::path::Path;
+use std::ptr::null;
 use std::rc::Rc;
 
 pub struct RuntimeState {
@@ -28,7 +32,7 @@ impl Runtime {
     }
 
     async fn test_hidden(self: &Runtime) -> Rc<RefCell<RuntimeState>> {
-        deno_core::extension!(runtime_extension, ops = [op_set_vertices], options = { state: Rc<RefCell<RuntimeState>> }, state = |state, options| {
+        deno_core::extension!(runtime_extension, ops = [op_set_vertices, op_callback_test], options = { state: Rc<RefCell<RuntimeState>> }, state = |state, options| {
             state.put::<Rc<RefCell<RuntimeState>>>(options.state);
         });
 
@@ -64,6 +68,30 @@ impl Runtime {
 
         return result_borrow.vertices.clone();
     }
+
+    pub fn execute_clip(&mut self, script: &String) -> Vec<f32> {
+        vec![-0.5, 0.5, 0.0, -0.5, 0.5, 0.5]
+    }
+}
+
+#[op2]
+fn op_callback_test<'a>(scope: &mut v8::HandleScope<'a>, callback_value: v8::Local<'a, v8::Value>) -> Result<(), AnyError> {
+    info!("{}", callback_value.to_rust_string_lossy(scope));
+
+    let callback = v8::Local::<v8::Function>::try_from(callback_value).map_err(|_| type_error("Invalid argument"))?;
+
+    let this = v8::undefined(scope).into();
+    let result = callback.call(scope, this, &[]).unwrap();
+    let generator = v8::Local::<v8::Object>::try_from(result).unwrap();
+    let next_key = v8::String::new(scope, "next").unwrap().into();
+    let next_value = generator.get(scope, next_key).unwrap();
+    let next = v8::Local::<v8::Function>::try_from(next_value).unwrap();
+
+    info!("{}", next.to_rust_string_lossy(scope));
+
+    next.call(scope, generator.into(), &[]);
+
+    Ok(())
 }
 
 #[op]

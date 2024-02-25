@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod clips;
 mod renderer;
 mod runtime;
 
@@ -11,13 +12,13 @@ use tauri::{Manager, State};
 use renderer::Renderer;
 use runtime::Runtime;
 
-struct Timeline {}
+use crate::clips::{Clip, ScriptClip};
 
-struct Clip {}
+struct Timeline {}
 
 struct Project {
     timeline: Timeline,
-    clips: Vec<Clip>,
+    clips: Vec<Box<dyn Clip>>,
     renderer: Renderer,
     runtime: Runtime,
 }
@@ -28,21 +29,20 @@ fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
 
     let mut project = project_mutex.lock().unwrap();
 
-    let vertex_data = project.runtime.test();
+    let mut clip = ScriptClip::new(String::from(
+        r#"
+console.log(':D')
 
-    let bytes = project.renderer.render(vertex_data);
+Deno.core.ops.op_set_vertices([-1, 0.5, 0.0, -0.5, 0.5, 0.5])
+Deno.core.ops.op_callback_test(function* () {
+	console.log('No way...')
+})
+"#,
+    ));
 
-    let mut encoded_bytes: Vec<u8> = vec![];
+    clip.set_frame(0);
 
-    let mut encoder = png::Encoder::new(&mut encoded_bytes, 512, 512);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-
-    let mut writer = encoder.write_header().unwrap();
-    writer.write_image_data(&bytes).unwrap();
-    writer.finish().unwrap();
-
-    return encoded_bytes;
+    return clip.render(&mut project);
 }
 
 fn main() {
