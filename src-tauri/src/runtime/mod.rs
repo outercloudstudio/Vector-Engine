@@ -91,11 +91,13 @@ impl ScriptClipRuntime {
     }
 
     pub fn advance(&mut self) {
-        let mut state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap();
 
         let mut scope = self.js_runtime.handle_scope();
 
         let generator = state.generator.clone();
+
+        drop(state);
 
         let generator: v8::Local<v8::Object> = v8::Local::new(&mut scope, generator.unwrap());
 

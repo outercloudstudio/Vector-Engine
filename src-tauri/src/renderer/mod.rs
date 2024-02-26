@@ -348,8 +348,6 @@ impl Renderer {
                 .allocation_size(index_buffer_memory_req.size)
                 .memory_type_index(index_buffer_memory_index);
 
-            info!("Allocating {}", index_allocate_info.allocation_size);
-
             let index_buffer_memory = device.allocate_memory(&index_allocate_info, None).unwrap();
 
             let index_ptr = device.map_memory(index_buffer_memory, 0, index_buffer_memory_req.size, vk::MemoryMapFlags::empty()).unwrap();

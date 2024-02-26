@@ -25,13 +25,15 @@ struct Project {
 
 #[tauri::command]
 fn preview(sender: State<Sender<Command>>) -> Vec<u8> {
-    sender.send(Command::Preview).unwrap();
+    let (response_sender, response_receiver) = channel();
 
-    Vec::new()
+    sender.send(Command::Preview(response_sender)).unwrap();
+
+    response_receiver.recv().unwrap()
 }
 
 pub enum Command {
-    Preview,
+    Preview(Sender<Vec<u8>>),
 }
 
 fn main() {
@@ -51,11 +53,7 @@ fn main() {
         let command = receiver.recv().unwrap();
 
         match command {
-            Command::Preview => info!("Preview!"),
-        }
-
-        match command {
-            Command::Preview => {
+            Command::Preview(response_sender) => {
                 let mut clip = ScriptClip::new(String::from(
                     r#"
                     clip(function* (){
@@ -78,9 +76,7 @@ fn main() {
 
                 clip.set_frame(0);
 
-                clip.render(&project);
-
-                info!("Previewed!");
+                response_sender.send(clip.render(&project)).unwrap();
             }
         }
     });
