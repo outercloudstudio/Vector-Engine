@@ -24,12 +24,12 @@ struct Project {
 }
 
 #[tauri::command]
-fn preview(sender: State<Sender<Command>>) -> Vec<u8> {
+fn preview(sender: State<Sender<Command>>) -> Vec<Vec<u8>> {
     let (response_sender, response_receiver) = channel();
 
     sender.send(Command::Preview(response_sender)).unwrap();
 
-    response_receiver.recv().unwrap()
+    vec![response_receiver.recv().unwrap(), response_receiver.recv().unwrap()]
 }
 
 pub enum Command {
@@ -63,18 +63,22 @@ fn main() {
                             new Vector2(0, 0),
                             new Vector2(200, 200),
                         ))
-                        
+                    
+                        yield null;
+
                         add(new Rect(
                             new Vector2(0, 200),
                             new Vector2(100, 100),
                         ))
-                    
-                        yield null;
                     })
                     "#,
                 ));
 
                 clip.set_frame(0);
+
+                response_sender.send(clip.render(&project)).unwrap();
+
+                clip.set_frame(1);
 
                 response_sender.send(clip.render(&project)).unwrap();
             }
