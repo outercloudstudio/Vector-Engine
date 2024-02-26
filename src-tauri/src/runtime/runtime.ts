@@ -32,4 +32,7 @@
 
 		return element
 	}
+	;(<any>globalThis).clip = function (context: Generator) {
+		core.ops.op_clip(context)
+	}
 })(globalThis)

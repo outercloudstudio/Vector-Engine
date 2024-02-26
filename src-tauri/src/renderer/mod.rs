@@ -329,8 +329,6 @@ impl Renderer {
         let viewport = self.viewport;
 
         unsafe {
-            info!("Indices: {}", indices.iter().map(|index| index.to_string()).collect::<Vec<String>>().join(" "));
-
             let index_buffer_info = vk::BufferCreateInfo::builder()
                 .size(4 * indices.len() as u64)
                 .usage(vk::BufferUsageFlags::INDEX_BUFFER)
@@ -350,9 +348,9 @@ impl Renderer {
                 .allocation_size(index_buffer_memory_req.size)
                 .memory_type_index(index_buffer_memory_index);
 
-            let index_buffer_memory = device.allocate_memory(&index_allocate_info, None).unwrap();
+            info!("Allocating {}", index_allocate_info.allocation_size);
 
-            info!("Size {}", index_buffer_memory_req.size);
+            let index_buffer_memory = device.allocate_memory(&index_allocate_info, None).unwrap();
 
             let index_ptr = device.map_memory(index_buffer_memory, 0, index_buffer_memory_req.size, vk::MemoryMapFlags::empty()).unwrap();
             let mut index_slice = Align::new(index_ptr, mem::align_of::<u32>() as u64, index_buffer_memory_req.size);
@@ -368,15 +366,6 @@ impl Renderer {
             for i in 0..(vertex_data.len() / 2) {
                 vertices.push(Vertex::new(vec2(vertex_data[i * 2], vertex_data[i * 2 + 1]), COLORS[i % COLORS.len()]));
             }
-
-            info!(
-                "Vertices: {}",
-                vertices
-                    .iter()
-                    .map(|vertex| format!("{} {}", vertex.pos.x.to_string(), vertex.pos.y.to_string()))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            );
 
             let vertex_input_buffer_info = *vk::BufferCreateInfo::builder()
                 .size((20 * vertices.len()) as u64)
@@ -409,7 +398,7 @@ impl Renderer {
             device.bind_buffer_memory(vertex_input_buffer, vertex_input_buffer_memory, 0).unwrap();
 
             let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue { float32: [0.0001, 0.0, 0.01, 1.0] },
+                color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 1.0] },
             }];
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()

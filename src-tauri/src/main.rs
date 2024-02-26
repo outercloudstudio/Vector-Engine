@@ -6,13 +6,14 @@ mod renderer;
 mod runtime;
 
 use log::info;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread;
 use std::{env, fs::File, io::BufWriter, sync::Mutex};
 use tauri::{Manager, State};
 
+use clips::{Clip, ScriptClip};
 use renderer::Renderer;
-use runtime::Runtime;
-
-use crate::clips::{Clip, ScriptClip};
+use runtime::ScriptClipRuntime;
 
 struct Timeline {}
 
@@ -20,52 +21,72 @@ struct Project {
     timeline: Timeline,
     clips: Vec<Box<dyn Clip>>,
     renderer: Renderer,
-    runtime: Runtime,
 }
 
 #[tauri::command]
-fn preview(project_mutex: State<Mutex<Project>>) -> Vec<u8> {
-    println!("Rendering preview...");
+fn preview(sender: State<Sender<Command>>) -> Vec<u8> {
+    sender.send(Command::Preview).unwrap();
 
-    let mut project = project_mutex.lock().unwrap();
+    Vec::new()
+}
 
-    let mut clip = ScriptClip::new(String::from(
-        r#"
-add(
-    new Rect(
-        new Vector2(0, 0),
-        new Vector2(200, 200),
-    )
-)
-
-add(
-    new Rect(
-        new Vector2(0, 200),
-        new Vector2(100, 100),
-    )
-)
-"#,
-    ));
-
-    clip.set_frame(0);
-
-    return clip.render(&mut project);
+pub enum Command {
+    Preview,
 }
 
 fn main() {
     env::set_var("RUST_LOG", "info");
+    env::set_var("RUST_BACKTRACE", "1");
     pretty_env_logger::init();
 
-    let timeline = Timeline {};
-    let clips = vec![];
-    let renderer = Renderer::create();
-    let runtime = Runtime::create();
+    let (sender, receiver) = channel::<Command>();
 
-    let project = Project { timeline, clips, renderer, runtime };
-    let project_mutex = Mutex::new(project);
+    thread::spawn(move || {
+        let timeline = Timeline {};
+        let clips = vec![];
+        let renderer = Renderer::create();
+
+        let mut project = Project { timeline, clips, renderer };
+
+        let command = receiver.recv().unwrap();
+
+        match command {
+            Command::Preview => info!("Preview!"),
+        }
+
+        match command {
+            Command::Preview => {
+                let mut clip = ScriptClip::new(String::from(
+                    r#"
+                    clip(function* (){
+                        console.log(':D')
+                    
+                        add(new Rect(
+                            new Vector2(0, 0),
+                            new Vector2(200, 200),
+                        ))
+                        
+                        add(new Rect(
+                            new Vector2(0, 200),
+                            new Vector2(100, 100),
+                        ))
+                    
+                        yield null;
+                    })
+                    "#,
+                ));
+
+                clip.set_frame(0);
+
+                clip.render(&project);
+
+                info!("Previewed!");
+            }
+        }
+    });
 
     tauri::Builder::default()
-        .manage(project_mutex)
+        .manage(sender)
         .invoke_handler(tauri::generate_handler![preview])
         .setup(|app| {
             #[cfg(debug_assertions)] // only include this code on debug builds

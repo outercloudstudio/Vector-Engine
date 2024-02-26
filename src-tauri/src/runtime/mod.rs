@@ -7,79 +7,113 @@ use deno_core::futures::FutureExt;
 use deno_core::op;
 use deno_core::op2;
 use deno_core::v8;
+use deno_core::v8::Global;
+use deno_core::Extension;
+use deno_core::Op;
 use deno_core::{FastString, OpState};
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-pub struct ClipRuntimeState {
-    pub vertices: Vec<f32>,
-    pub indices: Vec<u32>,
-    pub last_index: u32,
+struct ClipRuntimeState {
+    vertices: Vec<f32>,
+    indices: Vec<u32>,
+    last_index: u32,
+    generator_function: Option<Global<v8::Function>>,
+    generator: Option<Global<v8::Object>>,
 }
 
-impl Clone for ClipRuntimeState {
-    fn clone(&self) -> Self {
-        Self {
-            vertices: self.vertices.clone(),
-            indices: self.indices.clone(),
-            last_index: self.last_index.clone(),
-        }
-    }
+pub struct ScriptClipRuntime {
+    js_runtime: deno_core::JsRuntime,
+    state: Arc<Mutex<ClipRuntimeState>>,
 }
 
-pub struct Runtime {
-    runtime: tokio::runtime::Runtime,
-}
-
-impl Runtime {
-    pub fn create() -> Runtime {
-        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-
-        Runtime { runtime }
-    }
-
-    async fn execute_clip_script(self: &Runtime, script: &String) -> ClipRuntimeState {
-        deno_core::extension!(runtime_extension, ops = [op_set_vertices, op_callback_test, op_add_element], options = { state: Rc<RefCell<ClipRuntimeState>> }, state = |state, options| {
-            state.put::<Rc<RefCell<ClipRuntimeState>>>(options.state);
-        });
-
-        let mut state = Rc::new(RefCell::new(ClipRuntimeState {
+impl ScriptClipRuntime {
+    pub fn new() -> ScriptClipRuntime {
+        let state = Arc::new(Mutex::new(ClipRuntimeState {
             vertices: Vec::new(),
             indices: Vec::new(),
             last_index: 0,
+            generator_function: None,
+            generator: None,
         }));
+
+        let state_arc = state.clone();
+
+        let runtime_extension = Extension::builder("runtime_extension")
+            .ops(vec![op_clip::DECL, op_add_element::DECL])
+            .state(|extension_state| {
+                extension_state.put::<Arc<Mutex<ClipRuntimeState>>>(state_arc);
+            })
+            .build();
 
         let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
             module_loader: Some(Rc::new(TsModuleLoader)),
-            extensions: vec![runtime_extension::init_ops_and_esm(state.clone())],
+            extensions: vec![runtime_extension],
             ..Default::default()
         });
 
-        js_runtime
+        ScriptClipRuntime { js_runtime, state }
+    }
+
+    async fn initialize_clip_script(&mut self, script: &String) {
+        self.js_runtime
             .execute_script("vector-engine/runtime.ts", deno_core::FastString::from(transpile_ts(String::from(include_str!("./runtime.ts")))))
             .unwrap();
 
-        js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpile_ts(script.clone()))).unwrap();
+        self.js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpile_ts(script.clone()))).unwrap();
+        self.js_runtime.run_event_loop(false).await.unwrap();
 
-        // info!("Path: {}", deno_core::resolve_path("../example.ts", Path::new(env::current_dir().unwrap().as_path())).unwrap());
+        let mut state = self.state.lock().unwrap();
 
-        // let main_module = deno_core::resolve_path("../example.ts", Path::new(env::current_dir().unwrap().as_path())).unwrap();
-        // let mod_id = js_runtime.load_main_module(&main_module, None).await.unwrap();
-        // let result = js_runtime.mod_evaluate(mod_id);
+        let mut scope = self.js_runtime.handle_scope();
 
-        js_runtime.run_event_loop(false).await.unwrap();
+        let generator_function = state.generator_function.clone().unwrap();
+        let generator_function: v8::Local<v8::Function> = v8::Local::new(&mut scope, generator_function);
 
-        // result.await.unwrap().unwrap();
+        let this = v8::undefined(&mut scope).into();
 
-        return state.borrow().clone();
+        let generator = generator_function.call(&mut scope, this, &[]);
+        let generator = v8::Local::<v8::Object>::try_from(generator.unwrap()).unwrap();
+        let generator = v8::Global::new(&mut scope, generator);
+
+        state.generator = Some(generator);
     }
 
-    pub fn execute_clip(&mut self, script: &String) -> ClipRuntimeState {
-        let mut future = self.execute_clip_script(script);
-        let result = self.runtime.block_on(future);
+    pub fn initialize_clip(&mut self, script: &String) {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
 
-        return result;
+        let future = self.initialize_clip_script(script);
+
+        runtime.block_on(future);
+    }
+
+    pub fn advance(&mut self) {
+        let mut state = self.state.lock().unwrap();
+
+        let mut scope = self.js_runtime.handle_scope();
+
+        let generator = state.generator.clone();
+
+        let generator: v8::Local<v8::Object> = v8::Local::new(&mut scope, generator.unwrap());
+
+        let next_key = v8::String::new(&mut scope, "next").unwrap().into();
+
+        let next_value = generator.get(&mut scope, next_key).unwrap();
+
+        let next = v8::Local::<v8::Function>::try_from(next_value).unwrap();
+
+        let this = v8::Local::<v8::Value>::try_from(generator).unwrap();
+
+        next.call(&mut scope, this, &[]);
+    }
+
+    pub fn get_render_data(&self) -> (Vec<u32>, Vec<f32>) {
+        let state = self.state.lock().unwrap();
+
+        return (state.indices.clone(), state.vertices.clone());
     }
 }
 
@@ -146,36 +180,19 @@ impl Rect {
 }
 
 #[op2]
-fn op_callback_test<'a>(scope: &mut v8::HandleScope<'a>, callback_value: v8::Local<'a, v8::Value>) -> Result<(), AnyError> {
-    info!("{}", callback_value.to_rust_string_lossy(scope));
+fn op_clip(state: &mut OpState, #[global] value: v8::Global<v8::Function>) -> Result<(), AnyError> {
+    let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
+    let mut clip_state = clip_state_mutex.lock().unwrap();
 
-    let callback = v8::Local::<v8::Function>::try_from(callback_value).map_err(|_| type_error("Invalid argument"))?;
-
-    let this = v8::undefined(scope).into();
-    let result = callback.call(scope, this, &[]).unwrap();
-    let generator = v8::Local::<v8::Object>::try_from(result).unwrap();
-    let next_key = v8::String::new(scope, "next").unwrap().into();
-    let next_value = generator.get(scope, next_key).unwrap();
-    let next = v8::Local::<v8::Function>::try_from(next_value).unwrap();
-
-    info!("{}", next.to_rust_string_lossy(scope));
-
-    next.call(scope, generator.into(), &[]);
-
-    Ok(())
-}
-
-#[op]
-fn op_set_vertices(state: &mut OpState, vertices: Vec<f32>) -> Result<(), AnyError> {
-    let mut runtime_state = state.borrow_mut::<Rc<RefCell<ClipRuntimeState>>>().borrow_mut();
-    runtime_state.vertices = vertices;
+    clip_state.generator_function = Some(value);
 
     Ok(())
 }
 
 #[op2]
-fn op_add_element<'a>(state: &mut OpState, scope: &mut v8::HandleScope<'a>, value: v8::Local<'a, v8::Value>) -> Result<(), AnyError> {
-    let mut clip_state = state.borrow_mut::<Rc<RefCell<ClipRuntimeState>>>().borrow_mut();
+fn op_add_element(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Result<(), AnyError> {
+    let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
+    let mut clip_state = clip_state_mutex.lock().unwrap();
 
     let object = v8::Local::<v8::Object>::try_from(value).unwrap();
 
