@@ -6,6 +6,7 @@ mod renderer;
 mod runtime;
 
 use log::info;
+use std::io::Write;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::{env, fs::File, io::BufWriter, sync::Mutex};
@@ -29,11 +30,22 @@ fn preview(sender: State<Sender<Command>>) -> Vec<Vec<u8>> {
 
     sender.send(Command::Preview(response_sender)).unwrap();
 
-    vec![response_receiver.recv().unwrap(), response_receiver.recv().unwrap()]
+    let bytes = response_receiver.recv().unwrap();
+
+    let mut file = File::create("../renders/render.png").unwrap();
+    file.write_all(&bytes).unwrap();
+
+    vec![bytes]
+}
+
+#[tauri::command]
+fn render(sender: State<Sender<Command>>) {
+    sender.send(Command::Render).unwrap();
 }
 
 pub enum Command {
     Preview(Sender<Vec<u8>>),
+    Render,
 }
 
 fn main() {
@@ -56,38 +68,62 @@ fn main() {
             Command::Preview(response_sender) => {
                 let mut clip = ScriptClip::new(String::from(
                     r#"
-                    clip(function* (){
-                        console.log(':D')
-                    
-                        add(new Rect(
-                            new Vector2(0, 0),
-                            new Vector2(200, 200),
-                        ))
-                    
-                        yield null;
+clip(function* (){
+    console.log(':D')
 
-                        add(new Rect(
-                            new Vector2(0, 200),
-                            new Vector2(100, 100),
-                        ))
-                    })
+    const rect = add(new Rect(
+        new Vector2(0, 0),
+        new Vector2(200, 200),
+    ))
+
+    while(true) {
+        yield null;
+
+        rec.position.x += 1
+    }
+})
                     "#,
                 ));
 
                 clip.set_frame(0);
 
                 response_sender.send(clip.render(&project)).unwrap();
+            }
+            Command::Render => {
+                let mut clip = ScriptClip::new(String::from(
+                    r#"
+clip(function* (){
+    console.log(':D')
 
-                clip.set_frame(1);
+    const rect = add(new Rect(
+        new Vector2(0, 0),
+        new Vector2(200, 200),
+    ))
 
-                response_sender.send(clip.render(&project)).unwrap();
+    while(true) {
+        yield null;
+
+        rec.position.x += 1
+    }
+})
+                    "#,
+                ));
+
+                for frame in 0..60 {
+                    clip.set_frame(frame);
+
+                    let render = clip.render(&project);
+
+                    let mut file = File::create(format!("../renders/render_{:0>2}.png", frame)).unwrap();
+                    file.write_all(&render).unwrap();
+                }
             }
         }
     });
 
     tauri::Builder::default()
         .manage(sender)
-        .invoke_handler(tauri::generate_handler![preview])
+        .invoke_handler(tauri::generate_handler![preview, render])
         .setup(|app| {
             #[cfg(debug_assertions)] // only include this code on debug builds
             {

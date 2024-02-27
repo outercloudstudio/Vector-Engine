@@ -6,19 +6,21 @@ let imageSrc = ref('')
 let imageSrc2 = ref('')
 
 onMounted(async () => {
-	const [data, data2] = (await invoke('preview')) as number[][]
+	invoke('render')
 
-	const arrayBuffer = new Uint8Array(data)
-	const blob = new Blob([arrayBuffer], { type: 'image/png' })
-	const src = window.URL.createObjectURL(blob)
+	// const [data, data2] = (await invoke('preview')) as number[][]
 
-	imageSrc.value = src
+	// const arrayBuffer = new Uint8Array(data)
+	// const blob = new Blob([arrayBuffer], { type: 'image/png' })
+	// const src = window.URL.createObjectURL(blob)
 
-	const arrayBuffer2 = new Uint8Array(data2)
-	const blob2 = new Blob([arrayBuffer2], { type: 'image/png' })
-	const src2 = window.URL.createObjectURL(blob2)
+	// imageSrc.value = src
 
-	imageSrc2.value = src2
+	// const arrayBuffer2 = new Uint8Array(data2)
+	// const blob2 = new Blob([arrayBuffer2], { type: 'image/png' })
+	// const src2 = window.URL.createObjectURL(blob2)
+
+	// imageSrc2.value = src2
 })
 </script>
 
