@@ -6,36 +6,28 @@ mod renderer;
 mod runtime;
 
 use log::info;
+use std::fs::read_to_string;
 use std::io::Write;
+use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::{env, fs::File, io::BufWriter, sync::Mutex};
 use tauri::{Manager, State};
 
 use clips::{Clip, ScriptClip};
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use renderer::Renderer;
 use runtime::ScriptClipRuntime;
 
 struct Timeline {}
 
-struct Project {
-    timeline: Timeline,
-    clips: Vec<Box<dyn Clip>>,
-    renderer: Renderer,
-}
-
 #[tauri::command]
-fn preview(sender: State<Sender<Command>>) -> Vec<Vec<u8>> {
+fn preview(frame: u32, sender: State<Sender<Command>>) -> Vec<u8> {
     let (response_sender, response_receiver) = channel();
 
-    sender.send(Command::Preview(response_sender)).unwrap();
+    sender.send(Command::Preview(frame, response_sender)).unwrap();
 
-    let bytes = response_receiver.recv().unwrap();
-
-    let mut file = File::create("../renders/render.png").unwrap();
-    file.write_all(&bytes).unwrap();
-
-    vec![bytes]
+    response_receiver.recv().unwrap()
 }
 
 #[tauri::command]
@@ -44,8 +36,9 @@ fn render(sender: State<Sender<Command>>) {
 }
 
 pub enum Command {
-    Preview(Sender<Vec<u8>>),
+    Preview(u32, Sender<Vec<u8>>),
     Render,
+    PlaygroundUpdate,
 }
 
 fn main() {
@@ -55,33 +48,57 @@ fn main() {
 
     let (sender, receiver) = channel::<Command>();
 
+    let thread_sender = sender.clone();
     thread::spawn(move || {
         let timeline = Timeline {};
-        let clips = vec![];
+        let mut clips: Vec<Box<dyn Clip>> = vec![];
         let renderer = Renderer::create();
 
-        let mut project = Project { timeline, clips, renderer };
+        let test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+        clips.push(Box::new(test_clip));
 
-        let command = receiver.recv().unwrap();
+        let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
+            Ok(event) => match event.kind {
+                EventKind::Modify(_) => {
+                    thread_sender.send(Command::PlaygroundUpdate).unwrap();
+                }
+                _ => {}
+            },
+            _ => {}
+        })
+        .unwrap();
 
-        match command {
-            Command::Preview(response_sender) => {
-                let mut clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+        watcher.watch(Path::new(r#"D:\Vector Engine\playground"#), RecursiveMode::Recursive).unwrap();
 
-                clip.set_frame(0);
+        loop {
+            let command = receiver.recv().unwrap();
 
-                response_sender.send(clip.render(&project)).unwrap();
-            }
-            Command::Render => {
-                let mut clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+            match command {
+                Command::Preview(frame, response_sender) => {
+                    let clip = &mut clips[0];
 
-                for frame in 0..60 {
                     clip.set_frame(frame);
 
-                    let render = clip.render(&project);
+                    response_sender.send(clip.render(&renderer)).unwrap();
+                }
+                Command::PlaygroundUpdate => {
+                    info!("Updating clip!");
 
-                    let mut file = File::create(format!("../renders/render_{:0>2}.png", frame)).unwrap();
-                    file.write_all(&render).unwrap();
+                    let clip = ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground"#)).unwrap());
+
+                    clips[0] = Box::new(clip);
+                }
+                Command::Render => {
+                    let mut clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+
+                    for frame in 0..60 {
+                        clip.set_frame(frame);
+
+                        let render = clip.render(&renderer);
+
+                        let mut file = File::create(format!("../renders/render_{:0>2}.png", frame)).unwrap();
+                        file.write_all(&render).unwrap();
+                    }
                 }
             }
         }

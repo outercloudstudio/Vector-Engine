@@ -3,30 +3,32 @@ import { onMounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api'
 
 let imageSrc = ref('')
-let imageSrc2 = ref('')
 
-onMounted(async () => {
-	invoke('render')
+let frame = 0
 
-	// const [data, data2] = (await invoke('preview')) as number[][]
+async function preview() {
+	const data = (await invoke('preview', { frame })) as number[]
 
-	// const arrayBuffer = new Uint8Array(data)
-	// const blob = new Blob([arrayBuffer], { type: 'image/png' })
-	// const src = window.URL.createObjectURL(blob)
+	const arrayBuffer = new Uint8Array(data)
+	const blob = new Blob([arrayBuffer], { type: 'image/png' })
+	const src = window.URL.createObjectURL(blob)
 
-	// imageSrc.value = src
+	imageSrc.value = src
 
-	// const arrayBuffer2 = new Uint8Array(data2)
-	// const blob2 = new Blob([arrayBuffer2], { type: 'image/png' })
-	// const src2 = window.URL.createObjectURL(blob2)
+	frame++
 
-	// imageSrc2.value = src2
+	if (frame === 60) frame = 0
+
+	setTimeout(preview, 1000 / 60)
+}
+
+onMounted(() => {
+	preview()
 })
 </script>
 
 <template>
 	<img class="preview" :src="imageSrc" />
-	<img class="preview" :src="imageSrc2" />
 </template>
 
 <style scoped>

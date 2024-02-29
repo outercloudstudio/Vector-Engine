@@ -80,7 +80,13 @@ impl ScriptClipRuntime {
 
         let mut scope = self.js_runtime.handle_scope();
 
-        let advance = state.advance_function.clone().unwrap();
+        let advance = state.advance_function.clone();
+
+        if advance.is_none() {
+            return;
+        }
+
+        let advance = advance.unwrap();
 
         drop(state);
 

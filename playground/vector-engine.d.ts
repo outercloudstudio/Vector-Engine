@@ -1,17 +1,17 @@
-export function clip(context: () => Generator<null, never, unknown>)
+declare function clip(context: () => Generator<null, never, unknown>)
 
-interface Element {}
+declare interface VectorElement {}
 
-export function add(element: Element)
+declare function add(element: VectorElement)
 
-export class Rect implements Element {
+declare class Rect implements VectorElement {
 	position: Vector2
 	size: Vector2
 
 	constructor(position: Vector2, size: Vector2)
 }
 
-export class Vector2 implements Element {
+declare class Vector2 implements VectorElement {
 	x: number
 	y: number
 

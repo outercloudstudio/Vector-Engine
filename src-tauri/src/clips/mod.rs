@@ -1,8 +1,8 @@
-use crate::{runtime::ScriptClipRuntime, Project};
+use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
 
 pub trait Clip {
     fn set_frame(&mut self, frame: u32);
-    fn render(&self, project: &Project) -> Vec<u8>;
+    fn render(&self, project: &Renderer) -> Vec<u8>;
 }
 
 pub struct ScriptClip {
@@ -24,14 +24,14 @@ impl Clip for ScriptClip {
         self.runtime.advance();
     }
 
-    fn render(&self, project: &Project) -> Vec<u8> {
+    fn render(&self, renderer: &Renderer) -> Vec<u8> {
         let (indices, vertices) = self.runtime.get_render_data();
 
         if indices.len() == 0 {
             return Vec::new();
         }
 
-        let bytes = project.renderer.render(vertices, indices);
+        let bytes = renderer.render(vertices, indices);
 
         let mut encoded_bytes: Vec<u8> = vec![];
 
