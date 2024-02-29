@@ -66,48 +66,14 @@ fn main() {
 
         match command {
             Command::Preview(response_sender) => {
-                let mut clip = ScriptClip::new(String::from(
-                    r#"
-clip(function* (){
-    console.log(':D')
-
-    const rect = add(new Rect(
-        new Vector2(0, 0),
-        new Vector2(200, 200),
-    ))
-
-    while(true) {
-        yield null;
-
-        rect.position.x += 1
-    }
-})
-                    "#,
-                ));
+                let mut clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
 
                 clip.set_frame(0);
 
                 response_sender.send(clip.render(&project)).unwrap();
             }
             Command::Render => {
-                let mut clip = ScriptClip::new(String::from(
-                    r#"
-clip(function* (){
-    console.log(':D')
-
-    const rect = add(new Rect(
-        new Vector2(0, 0),
-        new Vector2(200, 200),
-    ))
-
-    while(true) {
-        yield null;
-
-        rect.position.x += 4
-    }
-})
-                    "#,
-                ));
+                let mut clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
 
                 for frame in 0..60 {
                     clip.set_frame(frame);
