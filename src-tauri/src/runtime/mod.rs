@@ -49,7 +49,7 @@ impl ScriptClipRuntime {
             })
             .build();
 
-        let mut js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
+        let js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
             module_loader: Some(Rc::new(TsModuleLoader)),
             extensions: vec![runtime_extension],
             ..Default::default()

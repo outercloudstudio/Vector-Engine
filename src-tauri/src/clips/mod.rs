@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
 
 pub trait Clip {

@@ -5,19 +5,19 @@ mod clips;
 mod renderer;
 mod runtime;
 
-use log::info;
+use log::{info, warn};
 use std::fs::read_to_string;
 use std::io::Write;
 use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
+use std::time;
 use std::{env, fs::File, io::BufWriter, sync::Mutex};
 use tauri::{Manager, State};
 
 use clips::{Clip, ScriptClip};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use renderer::Renderer;
-use runtime::ScriptClipRuntime;
 
 struct Timeline {}
 
@@ -43,27 +43,27 @@ pub enum Command {
 
 fn main() {
     env::set_var("RUST_LOG", "info");
-    env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("RUST_BACKTRACE", "1");
     pretty_env_logger::init();
 
     let (sender, receiver) = channel::<Command>();
 
     let thread_sender = sender.clone();
     thread::spawn(move || {
-        let timeline = Timeline {};
+        let _timeline = Timeline {};
         let mut clips: Vec<Box<dyn Clip>> = vec![];
         let renderer = Renderer::create();
 
         let test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
         clips.push(Box::new(test_clip));
 
+        let mut last_update_time = time::Instant::now();
+        let mut need_update = false;
+
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
-            Ok(event) => match event.kind {
-                EventKind::Modify(_) => {
-                    thread_sender.send(Command::PlaygroundUpdate).unwrap();
-                }
-                _ => {}
-            },
+            Ok(_event) => {
+                thread_sender.send(Command::PlaygroundUpdate).unwrap();
+            }
             _ => {}
         })
         .unwrap();
@@ -71,6 +71,14 @@ fn main() {
         watcher.watch(Path::new(r#"D:\Vector Engine\playground"#), RecursiveMode::Recursive).unwrap();
 
         loop {
+            if need_update && time::Instant::now() - last_update_time > time::Duration::from_millis(200) {
+                let clip = ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground\project.ts"#)).unwrap());
+
+                clips[0] = Box::new(clip);
+
+                need_update = false;
+            }
+
             let command = receiver.recv().unwrap();
 
             match command {
@@ -82,11 +90,9 @@ fn main() {
                     response_sender.send(clip.render(&renderer)).unwrap();
                 }
                 Command::PlaygroundUpdate => {
-                    info!("Updating clip!");
+                    last_update_time = time::Instant::now();
 
-                    let clip = ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground"#)).unwrap());
-
-                    clips[0] = Box::new(clip);
+                    need_update = true;
                 }
                 Command::Render => {
                     let mut clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
