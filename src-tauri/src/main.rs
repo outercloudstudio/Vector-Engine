@@ -79,7 +79,7 @@ clip(function* (){
     while(true) {
         yield null;
 
-        rec.position.x += 1
+        rect.position.x += 1
     }
 })
                     "#,
@@ -103,7 +103,7 @@ clip(function* (){
     while(true) {
         yield null;
 
-        rec.position.x += 1
+        rect.position.x += 4
     }
 })
                     "#,

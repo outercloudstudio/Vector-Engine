@@ -21,7 +21,7 @@ struct ClipRuntimeState {
     vertices: Vec<f32>,
     indices: Vec<u32>,
     last_index: u32,
-    generator_function: Option<Global<v8::Function>>,
+    advance_function: Option<Global<v8::Function>>,
     generator: Option<Global<v8::Object>>,
 }
 
@@ -36,14 +36,14 @@ impl ScriptClipRuntime {
             vertices: Vec::new(),
             indices: Vec::new(),
             last_index: 0,
-            generator_function: None,
+            advance_function: None,
             generator: None,
         }));
 
         let state_arc = state.clone();
 
         let runtime_extension = Extension::builder("runtime_extension")
-            .ops(vec![op_clip::DECL, op_add_element::DECL])
+            .ops(vec![op_register_advance::DECL, op_reset_frame::DECL, op_add_frame_element::DECL])
             .state(|extension_state| {
                 extension_state.put::<Arc<Mutex<ClipRuntimeState>>>(state_arc);
             })
@@ -65,21 +65,6 @@ impl ScriptClipRuntime {
 
         self.js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpile_ts(script.clone()))).unwrap();
         self.js_runtime.run_event_loop(false).await.unwrap();
-
-        let mut state = self.state.lock().unwrap();
-
-        let mut scope = self.js_runtime.handle_scope();
-
-        let generator_function = state.generator_function.clone().unwrap();
-        let generator_function: v8::Local<v8::Function> = v8::Local::new(&mut scope, generator_function);
-
-        let this = v8::undefined(&mut scope).into();
-
-        let generator = generator_function.call(&mut scope, this, &[]);
-        let generator = v8::Local::<v8::Object>::try_from(generator.unwrap()).unwrap();
-        let generator = v8::Global::new(&mut scope, generator);
-
-        state.generator = Some(generator);
     }
 
     pub fn initialize_clip(&mut self, script: &String) {
@@ -95,21 +80,15 @@ impl ScriptClipRuntime {
 
         let mut scope = self.js_runtime.handle_scope();
 
-        let generator = state.generator.clone();
+        let advance = state.advance_function.clone().unwrap();
 
         drop(state);
 
-        let generator: v8::Local<v8::Object> = v8::Local::new(&mut scope, generator.unwrap());
+        let advance: v8::Local<v8::Function> = v8::Local::new(&mut scope, advance);
 
-        let next_key = v8::String::new(&mut scope, "next").unwrap().into();
+        let this = v8::undefined(&mut scope).into();
 
-        let next_value = generator.get(&mut scope, next_key).unwrap();
-
-        let next = v8::Local::<v8::Function>::try_from(next_value).unwrap();
-
-        let this = v8::Local::<v8::Value>::try_from(generator).unwrap();
-
-        next.call(&mut scope, this, &[]);
+        advance.call(&mut scope, this, &[]);
     }
 
     pub fn get_render_data(&self) -> (Vec<u32>, Vec<f32>) {
@@ -182,17 +161,29 @@ impl Rect {
 }
 
 #[op2]
-fn op_clip(state: &mut OpState, #[global] value: v8::Global<v8::Function>) -> Result<(), AnyError> {
+fn op_register_advance(state: &mut OpState, #[global] value: v8::Global<v8::Function>) -> Result<(), AnyError> {
     let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
     let mut clip_state = clip_state_mutex.lock().unwrap();
 
-    clip_state.generator_function = Some(value);
+    clip_state.advance_function = Some(value);
+
+    Ok(())
+}
+
+#[op]
+fn op_reset_frame(state: &mut OpState) -> Result<(), AnyError> {
+    let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
+    let mut clip_state = clip_state_mutex.lock().unwrap();
+
+    clip_state.vertices = Vec::new();
+    clip_state.indices = Vec::new();
+    clip_state.last_index = 0;
 
     Ok(())
 }
 
 #[op2]
-fn op_add_element(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Result<(), AnyError> {
+fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Result<(), AnyError> {
     let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
     let mut clip_state = clip_state_mutex.lock().unwrap();
 

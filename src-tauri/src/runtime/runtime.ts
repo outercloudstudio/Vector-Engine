@@ -1,17 +1,14 @@
 ;(globalThis => {
-	//@ts-ignore
-	const core = Deno.core
-
 	function argsToMessage(...args) {
 		return args.map(arg => JSON.stringify(arg)).join(' ')
 	}
 
 	;(<any>globalThis).console = {
 		log: (...args) => {
-			core.print(`[out]: ${argsToMessage(...args)}\n`, false)
+			Deno.core.print(`[out]: ${argsToMessage(...args)}\n`, false)
 		},
 		error: (...args) => {
-			core.print(`[err]: ${argsToMessage(...args)}\n`, true)
+			Deno.core.print(`[err]: ${argsToMessage(...args)}\n`, true)
 		},
 	}
 
@@ -27,12 +24,27 @@
 
 	;(<any>globalThis).Vector2 = Vector2
 	;(<any>globalThis).Rect = Rect
-	;(<any>globalThis).add = function (element: any) {
-		core.ops.op_add_element(element)
+})(globalThis)
+;(globalThis => {
+	const elements: any[] = []
+
+	globalThis.add = function (element: any) {
+		elements.push(element)
 
 		return element
 	}
-	;(<any>globalThis).clip = function (context: Generator) {
-		core.ops.op_clip(context)
+
+	globalThis.clip = function (context: GeneratorFunction) {
+		const generator = context()
+
+		Deno.core.ops.op_register_advance(function () {
+			generator.next()
+
+			Deno.core.ops.op_reset_frame()
+
+			for (const element of elements) {
+				Deno.core.ops.op_add_frame_element(element)
+			}
+		})
 	}
 })(globalThis)
