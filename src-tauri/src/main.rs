@@ -48,6 +48,7 @@ fn main() {
 
     let (sender, receiver) = channel::<Command>();
 
+    let thread_sender = sender.clone();
     tauri::Builder::default()
         .manage(sender)
         .invoke_handler(tauri::generate_handler![preview, render])
@@ -60,34 +61,47 @@ fn main() {
                 window.close_devtools();
             }
 
-            let handle = app.app_handle();
-
             thread::spawn(move || {
                 let renderer = Renderer::create();
 
-                let mut clips = Vec::new();
+                let mut clips: Vec<Clips> = Vec::new();
 
-                let mut test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+                clips.push(Clips::ScriptClip(ScriptClip::new(include_str!("../../playground/project.ts").to_string())));
 
-                clips.push(test_clip);
+                let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
+                    Ok(_event) => {
+                        thread_sender.send(Command::PlaygroundUpdate).unwrap();
+                    }
+                    _ => {}
+                })
+                .unwrap();
 
-                let mut frame = 0;
+                watcher.watch(Path::new(r#"D:\Vector Engine\playground"#), RecursiveMode::Recursive).unwrap();
 
                 loop {
-                    clips[0].set_frame(frame);
+                    let command = receiver.recv().unwrap();
 
-                    handle.emit_all("render", clips[0].render(&renderer)).unwrap();
+                    match command {
+                        Command::Preview(frame, response_sender) => {
+                            let clip = &mut clips[0];
 
-                    frame += 1;
+                            match clip {
+                                Clips::ScriptClip(clip) => {
+                                    clip.set_frame(frame);
 
-                    if frame == 60 {
-                        let old_clip = clips.remove(0);
+                                    let render = clip.render(&renderer);
 
-                        drop(old_clip);
+                                    response_sender.send(render).unwrap();
+                                }
+                            }
+                        }
+                        Command::PlaygroundUpdate => {
+                            let old_clip = clips.remove(0);
+                            drop(old_clip);
 
-                        clips.push(ScriptClip::new(include_str!("../../playground/project.ts").to_string()));
-
-                        frame = 0;
+                            clips.push(Clips::ScriptClip(ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground\project.ts"#)).unwrap())));
+                        }
+                        _ => {}
                     }
                 }
             });

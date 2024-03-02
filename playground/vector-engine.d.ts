@@ -2,7 +2,7 @@ declare function clip(context: () => Generator<null, never, unknown>)
 
 declare interface VectorElement {}
 
-declare function add(element: VectorElement)
+declare function add<T extends VectorElement>(element: T): T
 
 declare class Rect implements VectorElement {
 	position: Vector2
