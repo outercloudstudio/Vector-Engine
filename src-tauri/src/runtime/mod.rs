@@ -67,29 +67,23 @@ impl ScriptClipRuntime {
     }
 
     pub fn advance(&mut self) {
-        {
-            let heap = (*self.js_runtime.v8_isolate()).get_cpp_heap();
-        }
+        let binding = self.js_runtime.main_context();
 
-        {
-            let binding = self.js_runtime.main_context();
+        let context = binding.open(&mut self.js_runtime.v8_isolate());
 
-            let context = binding.open(&mut self.js_runtime.v8_isolate());
+        let mut scope = self.js_runtime.handle_scope();
 
-            let mut scope = self.js_runtime.handle_scope();
+        let global = context.global(&mut scope);
 
-            let global = context.global(&mut scope);
+        let key = v8::String::new(&mut scope, "advance").unwrap();
 
-            let key = v8::String::new(&mut scope, "advance").unwrap();
+        let advance = global.get(&mut scope, key.into()).unwrap();
 
-            let advance = global.get(&mut scope, key.into()).unwrap();
+        let advance = v8::Local::<v8::Function>::try_from(advance).unwrap();
 
-            let advance = v8::Local::<v8::Function>::try_from(advance).unwrap();
+        let this = v8::undefined(&mut scope);
 
-            let this = v8::undefined(&mut scope);
-
-            advance.call(&mut scope, this.into(), &[]);
-        }
+        advance.call(&mut scope, this.into(), &[]);
     }
 
     pub fn get_render_data(&self) -> (Vec<u32>, Vec<f32>) {

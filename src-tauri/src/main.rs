@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
-use std::time;
+use std::time::Duration;
 use std::{env, fs::File, io::BufWriter, sync::Mutex};
 use tauri::{Manager, State};
 
@@ -46,82 +46,7 @@ fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
     pretty_env_logger::init();
 
-    info!("Test {}", env::var("V8_FORCE_DEBUG").unwrap());
-
     let (sender, receiver) = channel::<Command>();
-
-    let thread_sender = sender.clone();
-    thread::spawn(move || {
-        let _timeline = Timeline {};
-        let mut clips: Vec<Clips> = vec![];
-        let renderer = Renderer::create();
-
-        let mut test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
-        test_clip.set_frame(0);
-
-        clips.push(Clips::ScriptClip(test_clip));
-
-        let mut last_update_time = time::Instant::now();
-        let mut need_update = false;
-
-        let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
-            Ok(_event) => {
-                thread_sender.send(Command::PlaygroundUpdate).unwrap();
-            }
-            _ => {}
-        })
-        .unwrap();
-
-        watcher.watch(Path::new(r#"D:\Vector Engine\playground"#), RecursiveMode::Recursive).unwrap();
-
-        loop {
-            if need_update && time::Instant::now() - last_update_time > time::Duration::from_millis(200) {
-                info!("Creating new clip!");
-
-                let clip = ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground\project.ts"#)).unwrap());
-
-                clips[0] = Clips::ScriptClip(clip);
-
-                need_update = false;
-            }
-
-            let command = receiver.recv().unwrap();
-
-            match command {
-                Command::Preview(frame, response_sender) => {
-                    let clip = &mut clips[0];
-
-                    match clip {
-                        Clips::ScriptClip(clip) => {
-                            clip.set_frame(frame);
-
-                            let render = clip.render(&renderer);
-
-                            response_sender.send(render).unwrap();
-                        }
-                    }
-                }
-                Command::PlaygroundUpdate => {
-                    last_update_time = time::Instant::now();
-
-                    need_update = true;
-                }
-                Command::Render => {
-                    let mut clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
-
-                    for frame in 0..60 {
-                        clip.set_frame(frame);
-
-                        // let render = clip.render(&renderer);
-                        let render = Vec::new();
-
-                        let mut file = File::create(format!("../renders/render_{:0>2}.png", frame)).unwrap();
-                        file.write_all(&render).unwrap();
-                    }
-                }
-            }
-        }
-    });
 
     tauri::Builder::default()
         .manage(sender)
@@ -134,6 +59,34 @@ fn main() {
                 window.open_devtools();
                 window.close_devtools();
             }
+
+            let handle = app.app_handle();
+
+            thread::spawn(move || {
+                let renderer = Renderer::create();
+
+                let mut test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+
+                let mut frame = 0;
+
+                loop {
+                    test_clip.set_frame(frame);
+
+                    handle.emit_all("render", test_clip.render(&renderer)).unwrap();
+
+                    frame += 1;
+
+                    if frame == 60 {
+                        drop(test_clip);
+
+                        test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+
+                        frame = 0;
+                    }
+
+                    thread::sleep(Duration::from_millis(100))
+                }
+            });
 
             Ok(())
         })

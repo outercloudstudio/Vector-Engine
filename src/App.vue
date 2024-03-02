@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api'
+import { listen } from '@tauri-apps/api/event'
 
 let imageSrc = ref('')
 
@@ -22,8 +23,16 @@ async function preview() {
 	setTimeout(preview, 1000 / 60)
 }
 
+listen('render', event => {
+	const arrayBuffer = new Uint8Array(event.payload as number[])
+	const blob = new Blob([arrayBuffer], { type: 'image/png' })
+	const src = window.URL.createObjectURL(blob)
+
+	imageSrc.value = src
+})
+
 onMounted(() => {
-	preview()
+	// preview()
 })
 </script>
 
