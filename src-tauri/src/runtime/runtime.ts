@@ -37,7 +37,7 @@
 	globalThis.clip = function (context: GeneratorFunction) {
 		const generator = context()
 
-		Deno.core.ops.op_register_advance(function () {
+		globalThis.advance = function () {
 			generator.next()
 
 			Deno.core.ops.op_reset_frame()
@@ -45,6 +45,6 @@
 			for (const element of elements) {
 				Deno.core.ops.op_add_frame_element(element)
 			}
-		})
+		}
 	}
 })(globalThis)

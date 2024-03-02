@@ -5,10 +5,8 @@ use deno_core::error::type_error;
 use deno_core::error::AnyError;
 use deno_core::futures::FutureExt;
 use deno_core::op2;
+use deno_core::serde_v8::Global;
 use deno_core::v8;
-use deno_core::v8::GCType;
-use deno_core::v8::Global;
-use deno_core::v8::Handle;
 use deno_core::Extension;
 use deno_core::Op;
 use deno_core::{FastString, OpState};
@@ -23,7 +21,6 @@ struct ClipRuntimeState {
     vertices: Vec<f32>,
     indices: Vec<u32>,
     last_index: u32,
-    advance_function: Option<Global<v8::Function>>,
 }
 
 pub struct ScriptClipRuntime {
@@ -37,13 +34,12 @@ impl ScriptClipRuntime {
             vertices: Vec::new(),
             indices: Vec::new(),
             last_index: 0,
-            advance_function: None,
         }));
 
         let state_arc = state.clone();
 
         let runtime_extension = Extension::builder("runtime_extension")
-            .ops(vec![op_register_advance::DECL, op_reset_frame::DECL, op_add_frame_element::DECL])
+            .ops(vec![op_reset_frame::DECL, op_add_frame_element::DECL])
             .state(|extension_state| {
                 extension_state.put::<Arc<Mutex<ClipRuntimeState>>>(state_arc);
             })
@@ -71,21 +67,29 @@ impl ScriptClipRuntime {
     }
 
     pub fn advance(&mut self) {
-        let state = self.state.lock().unwrap();
-
-        let advance = state.advance_function.clone();
-
-        if advance.is_none() {
-            return;
+        {
+            let heap = (*self.js_runtime.v8_isolate()).get_cpp_heap();
         }
 
-        let advance = advance.unwrap();
+        {
+            let binding = self.js_runtime.main_context();
 
-        drop(state);
+            let context = binding.open(&mut self.js_runtime.v8_isolate());
 
-        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let mut scope = self.js_runtime.handle_scope();
 
-        runtime.block_on(self.js_runtime.call_and_await(&advance)).unwrap();
+            let global = context.global(&mut scope);
+
+            let key = v8::String::new(&mut scope, "advance").unwrap();
+
+            let advance = global.get(&mut scope, key.into()).unwrap();
+
+            let advance = v8::Local::<v8::Function>::try_from(advance).unwrap();
+
+            let this = v8::undefined(&mut scope);
+
+            advance.call(&mut scope, this.into(), &[]);
+        }
     }
 
     pub fn get_render_data(&self) -> (Vec<u32>, Vec<f32>) {
@@ -155,16 +159,6 @@ impl Rect {
             size: Vector2::deserialize(scope, size_value),
         }
     }
-}
-
-#[op2]
-fn op_register_advance(state: &mut OpState, scope: &mut v8::HandleScope, #[global] value: v8::Global<v8::Function>) -> Result<(), AnyError> {
-    let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
-    let mut clip_state = clip_state_mutex.lock().unwrap();
-
-    clip_state.advance_function = Some(value);
-
-    Ok(())
 }
 
 #[op2]

@@ -2,6 +2,10 @@ use log::info;
 
 use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
 
+pub enum Clips {
+    ScriptClip(ScriptClip),
+}
+
 pub trait Clip {
     fn set_frame(&mut self, frame: u32);
     fn render(&self, project: &Renderer) -> Vec<u8>;

@@ -15,7 +15,7 @@ use std::time;
 use std::{env, fs::File, io::BufWriter, sync::Mutex};
 use tauri::{Manager, State};
 
-use clips::{Clip, ScriptClip};
+use clips::{Clip, Clips, ScriptClip};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use renderer::Renderer;
 
@@ -46,16 +46,20 @@ fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
     pretty_env_logger::init();
 
+    info!("Test {}", env::var("V8_FORCE_DEBUG").unwrap());
+
     let (sender, receiver) = channel::<Command>();
 
     let thread_sender = sender.clone();
     thread::spawn(move || {
         let _timeline = Timeline {};
-        let mut clips: Vec<Box<dyn Clip>> = vec![];
+        let mut clips: Vec<Clips> = vec![];
         let renderer = Renderer::create();
 
-        let test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
-        clips.push(Box::new(test_clip));
+        let mut test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+        test_clip.set_frame(0);
+
+        clips.push(Clips::ScriptClip(test_clip));
 
         let mut last_update_time = time::Instant::now();
         let mut need_update = false;
@@ -76,7 +80,7 @@ fn main() {
 
                 let clip = ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground\project.ts"#)).unwrap());
 
-                clips[0] = Box::new(clip);
+                clips[0] = Clips::ScriptClip(clip);
 
                 need_update = false;
             }
@@ -87,9 +91,15 @@ fn main() {
                 Command::Preview(frame, response_sender) => {
                     let clip = &mut clips[0];
 
-                    clip.set_frame(frame);
+                    match clip {
+                        Clips::ScriptClip(clip) => {
+                            clip.set_frame(frame);
 
-                    response_sender.send(clip.render(&renderer)).unwrap();
+                            let render = clip.render(&renderer);
+
+                            response_sender.send(render).unwrap();
+                        }
+                    }
                 }
                 Command::PlaygroundUpdate => {
                     last_update_time = time::Instant::now();
@@ -102,7 +112,8 @@ fn main() {
                     for frame in 0..60 {
                         clip.set_frame(frame);
 
-                        let render = clip.render(&renderer);
+                        // let render = clip.render(&renderer);
+                        let render = Vec::new();
 
                         let mut file = File::create(format!("../renders/render_{:0>2}.png", frame)).unwrap();
                         file.write_all(&render).unwrap();
