@@ -65,26 +65,30 @@ fn main() {
             thread::spawn(move || {
                 let renderer = Renderer::create();
 
+                let mut clips = Vec::new();
+
                 let mut test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+
+                clips.push(test_clip);
 
                 let mut frame = 0;
 
                 loop {
-                    test_clip.set_frame(frame);
+                    clips[0].set_frame(frame);
 
-                    handle.emit_all("render", test_clip.render(&renderer)).unwrap();
+                    handle.emit_all("render", clips[0].render(&renderer)).unwrap();
 
                     frame += 1;
 
                     if frame == 60 {
-                        drop(test_clip);
+                        let old_clip = clips.remove(0);
 
-                        test_clip = ScriptClip::new(include_str!("../../playground/project.ts").to_string());
+                        drop(old_clip);
+
+                        clips.push(ScriptClip::new(include_str!("../../playground/project.ts").to_string()));
 
                         frame = 0;
                     }
-
-                    thread::sleep(Duration::from_millis(100))
                 }
             });
 
