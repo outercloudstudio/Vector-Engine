@@ -29,6 +29,8 @@ onMounted(() => {
 
 <template>
 	<img class="preview" :src="imageSrc" />
+
+	<button @click="preview">Preview</button>
 </template>
 
 <style scoped>

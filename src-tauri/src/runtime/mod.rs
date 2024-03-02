@@ -4,14 +4,16 @@ use deno_ast::SourceTextInfo;
 use deno_core::error::type_error;
 use deno_core::error::AnyError;
 use deno_core::futures::FutureExt;
-use deno_core::op;
 use deno_core::op2;
 use deno_core::v8;
+use deno_core::v8::GCType;
 use deno_core::v8::Global;
+use deno_core::v8::Handle;
 use deno_core::Extension;
 use deno_core::Op;
 use deno_core::{FastString, OpState};
 use log::info;
+use log::warn;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -22,7 +24,6 @@ struct ClipRuntimeState {
     indices: Vec<u32>,
     last_index: u32,
     advance_function: Option<Global<v8::Function>>,
-    generator: Option<Global<v8::Object>>,
 }
 
 pub struct ScriptClipRuntime {
@@ -37,7 +38,6 @@ impl ScriptClipRuntime {
             indices: Vec::new(),
             last_index: 0,
             advance_function: None,
-            generator: None,
         }));
 
         let state_arc = state.clone();
@@ -58,27 +58,20 @@ impl ScriptClipRuntime {
         ScriptClipRuntime { js_runtime, state }
     }
 
-    async fn initialize_clip_script(&mut self, script: &String) {
+    pub fn initialize_clip(&mut self, script: &String) {
         self.js_runtime
             .execute_script("vector-engine/runtime.ts", deno_core::FastString::from(transpile_ts(String::from(include_str!("./runtime.ts")))))
             .unwrap();
 
         self.js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpile_ts(script.clone()))).unwrap();
-        self.js_runtime.run_event_loop(false).await.unwrap();
-    }
 
-    pub fn initialize_clip(&mut self, script: &String) {
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
 
-        let future = self.initialize_clip_script(script);
-
-        runtime.block_on(future);
+        runtime.block_on(self.js_runtime.run_event_loop(false)).unwrap();
     }
 
     pub fn advance(&mut self) {
         let state = self.state.lock().unwrap();
-
-        let mut scope = self.js_runtime.handle_scope();
 
         let advance = state.advance_function.clone();
 
@@ -90,11 +83,9 @@ impl ScriptClipRuntime {
 
         drop(state);
 
-        let advance: v8::Local<v8::Function> = v8::Local::new(&mut scope, advance);
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
 
-        let this = v8::undefined(&mut scope).into();
-
-        advance.call(&mut scope, this, &[]);
+        runtime.block_on(self.js_runtime.call_and_await(&advance)).unwrap();
     }
 
     pub fn get_render_data(&self) -> (Vec<u32>, Vec<f32>) {
@@ -167,7 +158,7 @@ impl Rect {
 }
 
 #[op2]
-fn op_register_advance(state: &mut OpState, #[global] value: v8::Global<v8::Function>) -> Result<(), AnyError> {
+fn op_register_advance(state: &mut OpState, scope: &mut v8::HandleScope, #[global] value: v8::Global<v8::Function>) -> Result<(), AnyError> {
     let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
     let mut clip_state = clip_state_mutex.lock().unwrap();
 
@@ -176,8 +167,8 @@ fn op_register_advance(state: &mut OpState, #[global] value: v8::Global<v8::Func
     Ok(())
 }
 
-#[op]
-fn op_reset_frame(state: &mut OpState) -> Result<(), AnyError> {
+#[op2]
+fn op_reset_frame(state: &mut OpState, scope: &mut v8::HandleScope) -> Result<(), AnyError> {
     let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
     let mut clip_state = clip_state_mutex.lock().unwrap();
 

@@ -72,6 +72,8 @@ fn main() {
 
         loop {
             if need_update && time::Instant::now() - last_update_time > time::Duration::from_millis(200) {
+                info!("Creating new clip!");
+
                 let clip = ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground\project.ts"#)).unwrap());
 
                 clips[0] = Box::new(clip);
