@@ -39,9 +39,9 @@ impl Clip for ScriptClip {
     }
 
     fn render(&self, renderer: &mut Renderer) -> Vec<u8> {
-        let (indices, vertices) = self.runtime.get_render_data();
+        let elements = self.runtime.get_elements();
 
-        if indices.len() == 0 {
+        if elements.len() == 0 {
             return Vec::new();
         }
 
@@ -56,7 +56,7 @@ impl Clip for ScriptClip {
 
         let before_render = Instant::now();
 
-        let bytes = renderer.render(vec![Elements::Rect(rect), Elements::Rect(rect2)]);
+        let bytes = renderer.render(elements);
 
         info!("Rendered in {}ms", before_render.elapsed().as_millis());
 

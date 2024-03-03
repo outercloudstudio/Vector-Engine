@@ -6,6 +6,7 @@ use std::ffi::CStr;
 use std::io::Cursor;
 use std::{mem, ptr::copy_nonoverlapping};
 
+#[derive(Clone)]
 pub enum Elements {
     Rect(Rect),
 }
@@ -24,6 +25,7 @@ pub trait Element {
     );
 }
 
+#[derive(Clone)]
 pub struct Rect {
     pub position: Vector2<f32>,
     pub size: Vector2<f32>,

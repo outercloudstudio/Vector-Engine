@@ -1,3 +1,4 @@
+use cgmath::vec2;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
@@ -17,10 +18,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use crate::renderer::elements;
+use crate::renderer::elements::Elements;
+
 struct ClipRuntimeState {
-    vertices: Vec<f32>,
-    indices: Vec<u32>,
-    last_index: u32,
+    elements: Vec<Elements>,
 }
 
 pub struct ScriptClipRuntime {
@@ -30,11 +32,7 @@ pub struct ScriptClipRuntime {
 
 impl ScriptClipRuntime {
     pub fn new() -> ScriptClipRuntime {
-        let state = Arc::new(Mutex::new(ClipRuntimeState {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            last_index: 0,
-        }));
+        let state = Arc::new(Mutex::new(ClipRuntimeState { elements: Vec::new() }));
 
         let state_arc = state.clone();
 
@@ -86,10 +84,10 @@ impl ScriptClipRuntime {
         advance.call(&mut scope, this.into(), &[]);
     }
 
-    pub fn get_render_data(&self) -> (Vec<u32>, Vec<f32>) {
+    pub fn get_elements(&self) -> Vec<Elements> {
         let state = self.state.lock().unwrap();
 
-        return (state.indices.clone(), state.vertices.clone());
+        return state.elements.clone();
     }
 }
 
@@ -160,9 +158,7 @@ fn op_reset_frame(state: &mut OpState, scope: &mut v8::HandleScope) -> Result<()
     let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
     let mut clip_state = clip_state_mutex.lock().unwrap();
 
-    clip_state.vertices = Vec::new();
-    clip_state.indices = Vec::new();
-    clip_state.last_index = 0;
+    clip_state.elements = Vec::new();
 
     Ok(())
 }
@@ -181,30 +177,10 @@ fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value:
     if type_string == "Rect" {
         let rect = Rect::deserialize(scope, value);
 
-        clip_state.vertices.push((rect.position.x) / 512.0);
-        clip_state.vertices.push(-(rect.position.y) / 512.0);
-
-        clip_state.vertices.push((rect.position.x) / 512.0);
-        clip_state.vertices.push(-(rect.position.y + rect.size.y) / 512.0);
-
-        clip_state.vertices.push((rect.position.x + rect.size.y) / 512.0);
-        clip_state.vertices.push(-(rect.position.y + rect.size.y) / 512.0);
-
-        clip_state.vertices.push((rect.position.x + rect.size.y) / 512.0);
-        clip_state.vertices.push(-(rect.position.y) / 512.0);
-
-        let mut indices = vec![
-            clip_state.last_index + 0,
-            clip_state.last_index + 1,
-            clip_state.last_index + 2,
-            clip_state.last_index + 2,
-            clip_state.last_index + 3,
-            clip_state.last_index + 0,
-        ];
-
-        clip_state.indices.append(&mut indices);
-
-        clip_state.last_index += 4;
+        clip_state.elements.push(Elements::Rect(elements::Rect {
+            position: vec2(rect.position.x, rect.position.y),
+            size: vec2(rect.size.x, rect.size.y),
+        }));
     }
 
     Ok(())
