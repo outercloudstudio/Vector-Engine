@@ -25,16 +25,11 @@ pub mod elements;
 pub struct Renderer {
     instance: Instance,
     device: Device,
-    command_buffer: vk::CommandBuffer,
-    graphics_queue: vk::Queue,
-    render_pass: vk::RenderPass,
-    frame_buffer: vk::Framebuffer,
     physical_device: vk::PhysicalDevice,
+    graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
-    graphics_pipeline: vk::Pipeline,
     target_image: vk::Image,
-    scissor: vk::Rect2D,
-    viewport: vk::Viewport,
+    target_image_view: vk::ImageView,
 }
 
 impl Renderer {
@@ -70,9 +65,9 @@ impl Renderer {
 
             let debug_call_back = debug_utils_loader.create_debug_utils_messenger(&debug_info, None).unwrap();
 
-            let pdevices = instance.enumerate_physical_devices().expect("Physical device error");
+            let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
 
-            let (pdevice, queue_family_index) = pdevices
+            let (physical_device, queue_family_index) = physical_devices
                 .iter()
                 .find_map(|pdevice| {
                     instance.get_physical_device_queue_family_properties(*pdevice).iter().enumerate().find_map(|(index, info)| {
@@ -97,26 +92,9 @@ impl Renderer {
 
             let device_create_info = vk::DeviceCreateInfo::builder().queue_create_infos(std::slice::from_ref(&queue_info)).enabled_features(&features);
 
-            let device: Device = instance.create_device(pdevice, &device_create_info, None).unwrap();
+            let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
 
-            let graphics_queue = device.get_device_queue(queue_family_index, 0);
-
-            let pool_create_info = vk::CommandPoolCreateInfo::builder()
-                .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-                .queue_family_index(queue_family_index);
-
-            let pool = device.create_command_pool(&pool_create_info, None).unwrap();
-
-            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
-                .command_buffer_count(1)
-                .command_pool(pool)
-                .level(vk::CommandBufferLevel::PRIMARY);
-
-            let command_buffers = device.allocate_command_buffers(&command_buffer_allocate_info).unwrap();
-
-            let command_buffer = command_buffers[0];
-
-            let device_memory_properties = instance.get_physical_device_memory_properties(pdevice);
+            let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
 
             let target_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
@@ -148,313 +126,152 @@ impl Renderer {
 
             let target_image_memory_info = vk::MemoryAllocateInfo::builder()
                 .allocation_size(target_image_requirements.size)
-                .memory_type_index(get_memory_type_index(&instance, pdevice, vk::MemoryPropertyFlags::DEVICE_LOCAL, target_image_requirements));
+                .memory_type_index(get_memory_type_index(&instance, physical_device, vk::MemoryPropertyFlags::DEVICE_LOCAL, target_image_requirements));
 
             let target_image_memory = device.allocate_memory(&target_image_memory_info, None).unwrap();
             device.bind_image_memory(target_image, target_image_memory, 0).unwrap();
 
             let target_image_view = device.create_image_view(&target_image_view_create_info, None).unwrap();
 
-            let color_attachment = *vk::AttachmentDescription::builder()
-                .format(vk::Format::R8G8B8A8_SRGB)
-                .samples(vk::SampleCountFlags::TYPE_1)
-                .load_op(vk::AttachmentLoadOp::CLEAR)
-                .store_op(vk::AttachmentStoreOp::STORE)
-                .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-                .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-                .initial_layout(vk::ImageLayout::UNDEFINED)
-                .final_layout(vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
+            let graphics_queue = create_graphics_queue(&device, queue_family_index);
 
-            let color_attachment_ref = *vk::AttachmentReference::builder().attachment(0).layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
-
-            let subpass = *vk::SubpassDescription::builder()
-                .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-                .color_attachments(&[color_attachment_ref]);
-
-            let dependency = *vk::SubpassDependency::builder()
-                .src_subpass(vk::SUBPASS_EXTERNAL)
-                .dst_subpass(0)
-                .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-                .src_access_mask(vk::AccessFlags::empty())
-                .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-                .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE);
-
-            let render_pass_attachments = &[color_attachment];
-            let subpasses = &[subpass];
-            let dependencies = &[dependency];
-
-            let render_pass_create_info = vk::RenderPassCreateInfo::builder().attachments(render_pass_attachments).subpasses(subpasses).dependencies(dependencies);
-
-            let render_pass = device.create_render_pass(&render_pass_create_info, None).unwrap();
-
-            let frame_buffer_attachments = &[target_image_view];
-
-            let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
-                .render_pass(render_pass)
-                .attachments(frame_buffer_attachments)
-                .width(1920)
-                .height(1080)
-                .layers(1);
-
-            let frame_buffer = device.create_framebuffer(&frame_buffer_create_info, None).unwrap();
-
-            let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/vert.spv"));
-            let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/frag.spv"));
-
-            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
-            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
-
-            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
-            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
-
-            let vertex_shader_module = device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error");
-            let fragment_shader_module = device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error");
-
-            let layout_create_info = vk::PipelineLayoutCreateInfo::default();
-
-            let pipeline_layout = device.create_pipeline_layout(&layout_create_info, None).unwrap();
-
-            let shader_entry_name = CStr::from_bytes_with_nul_unchecked(b"main\0");
-            let shader_stage_create_infos = [
-                vk::PipelineShaderStageCreateInfo {
-                    module: vertex_shader_module,
-                    p_name: shader_entry_name.as_ptr(),
-                    stage: vk::ShaderStageFlags::VERTEX,
-                    ..Default::default()
-                },
-                vk::PipelineShaderStageCreateInfo {
-                    module: fragment_shader_module,
-                    p_name: shader_entry_name.as_ptr(),
-                    stage: vk::ShaderStageFlags::FRAGMENT,
-                    ..Default::default()
-                },
-            ];
-
-            let binding_descriptions = &[Vertex::binding_description()];
-            let attribute_descriptions = Vertex::attribute_descriptions();
-            let vertex_input_state = *vk::PipelineVertexInputStateCreateInfo::builder()
-                .vertex_binding_descriptions(binding_descriptions)
-                .vertex_attribute_descriptions(&attribute_descriptions);
-
-            let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
-                .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
-                .primitive_restart_enable(false);
-
-            let viewport = vk::Viewport {
-                x: 0.0,
-                y: 0.0,
-                width: 1920.0,
-                height: 1080.0,
-                min_depth: 0.0,
-                max_depth: 1.0,
-            };
-            let viewports = &[viewport];
-
-            let scissor = *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(1920).height(1080));
-            let scissors = &[scissor];
-
-            let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(scissors).viewports(viewports);
-
-            let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
-                front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-                line_width: 1.0,
-                polygon_mode: vk::PolygonMode::FILL,
-                ..Default::default()
-            };
-
-            let multisample_state_info = vk::PipelineMultisampleStateCreateInfo {
-                rasterization_samples: vk::SampleCountFlags::TYPE_1,
-                ..Default::default()
-            };
-
-            let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState {
-                blend_enable: 0,
-                src_color_blend_factor: vk::BlendFactor::SRC_COLOR,
-                dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_DST_COLOR,
-                color_blend_op: vk::BlendOp::ADD,
-                src_alpha_blend_factor: vk::BlendFactor::ZERO,
-                dst_alpha_blend_factor: vk::BlendFactor::ZERO,
-                alpha_blend_op: vk::BlendOp::ADD,
-                color_write_mask: vk::ColorComponentFlags::RGBA,
-            }];
-
-            let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
-                .logic_op(vk::LogicOp::CLEAR)
-                .attachments(&color_blend_attachment_states);
-
-            let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
-            let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
-
-            let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
-                .stages(&shader_stage_create_infos)
-                .vertex_input_state(&vertex_input_state)
-                .input_assembly_state(&input_assembly_state)
-                .viewport_state(&viewport_state_info)
-                .rasterization_state(&rasterization_info)
-                .multisample_state(&multisample_state_info)
-                .color_blend_state(&color_blend_state)
-                .dynamic_state(&dynamic_state_info)
-                .layout(pipeline_layout)
-                .render_pass(render_pass);
-
-            let graphics_pipelines = device
-                .create_graphics_pipelines(vk::PipelineCache::null(), &[graphic_pipeline_info.build()], None)
-                .expect("Unable to create graphics pipeline");
-
-            let graphic_pipeline = graphics_pipelines[0];
+            let command_pool = create_command_pool(&device, queue_family_index);
 
             Renderer {
                 instance,
                 device,
-                command_buffer,
+                physical_device,
                 graphics_queue,
-                render_pass,
-                frame_buffer,
-                physical_device: pdevice,
-                command_pool: pool,
-                graphics_pipeline: graphic_pipeline,
+                command_pool,
                 target_image,
-                scissor,
-                viewport,
+                target_image_view,
             }
         }
     }
 
     pub fn render(&mut self, elements: Vec<Elements>) -> Vec<u8> {
-        let instance = &self.instance;
-        let device = &self.device;
-        let command_buffer = self.command_buffer;
-        let graphics_queue = self.graphics_queue;
-        let render_pass = self.render_pass;
-        let frame_buffer = self.frame_buffer;
-        let graphic_pipeline = self.graphics_pipeline;
-        let pdevice = self.physical_device;
-        let pool = self.command_pool;
-        let target_image = self.target_image;
-        let scissor = self.scissor;
-        let viewport = self.viewport;
+        for element_index in 0..elements.len() {
+            let element = &elements[element_index];
 
-        unsafe {
-            let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 1.0] },
-            }];
-
-            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-                .render_pass(render_pass)
-                .framebuffer(frame_buffer)
-                .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(1920).height(1080)))
-                .clear_values(&clear_values);
-
-            device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).unwrap();
-
-            let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
-            device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Begin commandbuffer");
-
-            device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
-            device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphic_pipeline);
-            device.cmd_set_viewport(command_buffer, 0, &[viewport]);
-            device.cmd_set_scissor(command_buffer, 0, &[scissor]);
-
-            for element in elements {
-                match element {
-                    Elements::Rect(rect) => rect.render(command_buffer, instance, device, pdevice),
-                }
-            }
-
-            device.cmd_end_render_pass(command_buffer);
-
-            device.end_command_buffer(command_buffer).expect("End commandbuffer");
-
-            let command_buffers = vec![command_buffer];
-
-            let mut submit_info = vk::SubmitInfo::builder()
-                .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-                .command_buffers(&command_buffers);
-            submit_info.wait_semaphore_count = 0;
-
-            device.queue_submit(graphics_queue, &[submit_info.build()], vk::Fence::null()).expect("queue submit failed.");
-
-            device.queue_wait_idle(graphics_queue).unwrap();
-
-            {
-                let size = 1920 * 1080 * 4;
-
-                let save_buffer_info = vk::BufferCreateInfo::builder()
-                    .size(size)
-                    .usage(vk::BufferUsageFlags::TRANSFER_DST)
-                    .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-                let save_buffer = device.create_buffer(&save_buffer_info, None).unwrap();
-
-                let save_buffer_memory_req = device.get_buffer_memory_requirements(save_buffer);
-                let save_buffer_memory_index = get_memory_type_index(
-                    &instance,
-                    pdevice,
-                    vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-                    save_buffer_memory_req,
-                );
-
-                let index_allocate_info = *vk::MemoryAllocateInfo::builder()
-                    .allocation_size(save_buffer_memory_req.size)
-                    .memory_type_index(save_buffer_memory_index);
-
-                let save_buffer_memory = device.allocate_memory(&index_allocate_info, None).unwrap();
-
-                device.bind_buffer_memory(save_buffer, save_buffer_memory, 0).unwrap();
-
-                let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
-                    .level(vk::CommandBufferLevel::PRIMARY)
-                    .command_pool(pool)
-                    .command_buffer_count(1);
-
-                let command_buffer = device.allocate_command_buffers(&command_buffer_allocate_info).unwrap()[0];
-
-                let info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
-                device.begin_command_buffer(command_buffer, &info).unwrap();
-
-                let subresource = *vk::ImageSubresourceLayers::builder()
-                    .aspect_mask(vk::ImageAspectFlags::COLOR)
-                    .mip_level(0)
-                    .base_array_layer(0)
-                    .layer_count(1);
-
-                let region = *vk::BufferImageCopy::builder()
-                    .buffer_offset(0)
-                    .buffer_row_length(0)
-                    .buffer_image_height(0)
-                    .image_subresource(subresource)
-                    .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
-                    .image_extent(vk::Extent3D { width: 1920, height: 1080, depth: 1 });
-
-                device.cmd_copy_image_to_buffer(command_buffer, target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
-
-                device.end_command_buffer(command_buffer).unwrap();
-
-                let command_buffers = &[command_buffer];
-                let info = *vk::SubmitInfo::builder().command_buffers(command_buffers);
-
-                device.queue_submit(graphics_queue, &[info], vk::Fence::null()).unwrap();
-                device.queue_wait_idle(graphics_queue).unwrap();
-
-                device.free_command_buffers(pool, &[command_buffer]);
-
-                let memory = device.map_memory(save_buffer_memory, 0, size, vk::MemoryMapFlags::empty()).unwrap();
-
-                let mut pixels = vec![0; size as usize];
-
-                copy_nonoverlapping(memory.cast(), pixels.as_mut_ptr(), size as usize);
-
-                device.unmap_memory(save_buffer_memory);
-
-                device.destroy_buffer(save_buffer, None);
-                device.free_memory(save_buffer_memory, None);
-
-                return pixels;
+            match element {
+                Elements::Rect(rect) => rect.render(
+                    &self.instance,
+                    &self.device,
+                    self.physical_device,
+                    self.target_image_view,
+                    self.command_pool,
+                    self.graphics_queue,
+                    element_index == 0,
+                    element_index == elements.len() - 1,
+                ),
             }
         }
+
+        unsafe {
+            let size = 1920 * 1080 * 4;
+
+            let save_buffer_info = vk::BufferCreateInfo::builder()
+                .size(size)
+                .usage(vk::BufferUsageFlags::TRANSFER_DST)
+                .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+            let save_buffer = self.device.create_buffer(&save_buffer_info, None).unwrap();
+
+            let save_buffer_memory_req = self.device.get_buffer_memory_requirements(save_buffer);
+            let save_buffer_memory_index = get_memory_type_index(
+                &self.instance,
+                self.physical_device,
+                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                save_buffer_memory_req,
+            );
+
+            let index_allocate_info = *vk::MemoryAllocateInfo::builder()
+                .allocation_size(save_buffer_memory_req.size)
+                .memory_type_index(save_buffer_memory_index);
+
+            let save_buffer_memory = self.device.allocate_memory(&index_allocate_info, None).unwrap();
+
+            self.device.bind_buffer_memory(save_buffer, save_buffer_memory, 0).unwrap();
+
+            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+                .level(vk::CommandBufferLevel::PRIMARY)
+                .command_pool(self.command_pool)
+                .command_buffer_count(1);
+
+            let command_buffer = self.device.allocate_command_buffers(&command_buffer_allocate_info).unwrap()[0];
+
+            let info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+            self.device.begin_command_buffer(command_buffer, &info).unwrap();
+
+            let subresource = *vk::ImageSubresourceLayers::builder()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .mip_level(0)
+                .base_array_layer(0)
+                .layer_count(1);
+
+            let region = *vk::BufferImageCopy::builder()
+                .buffer_offset(0)
+                .buffer_row_length(0)
+                .buffer_image_height(0)
+                .image_subresource(subresource)
+                .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
+                .image_extent(vk::Extent3D { width: 1920, height: 1080, depth: 1 });
+
+            self.device
+                .cmd_copy_image_to_buffer(command_buffer, self.target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
+
+            self.device.end_command_buffer(command_buffer).unwrap();
+
+            let command_buffers = &[command_buffer];
+            let info = *vk::SubmitInfo::builder().command_buffers(command_buffers);
+
+            self.device.queue_submit(self.graphics_queue, &[info], vk::Fence::null()).unwrap();
+            self.device.queue_wait_idle(self.graphics_queue).unwrap();
+
+            self.device.free_command_buffers(self.command_pool, &[command_buffer]);
+
+            let memory = self.device.map_memory(save_buffer_memory, 0, size, vk::MemoryMapFlags::empty()).unwrap();
+
+            let mut pixels = vec![0; size as usize];
+
+            copy_nonoverlapping(memory.cast(), pixels.as_mut_ptr(), size as usize);
+
+            self.device.unmap_memory(save_buffer_memory);
+
+            self.device.destroy_buffer(save_buffer, None);
+            self.device.free_memory(save_buffer_memory, None);
+
+            return pixels;
+        }
     }
+}
+
+fn create_graphics_queue(device: &Device, queue_family_index: u32) -> vk::Queue {
+    unsafe { device.get_device_queue(queue_family_index, 0) }
+}
+
+fn create_command_pool(device: &Device, queue_family_index: u32) -> vk::CommandPool {
+    unsafe {
+        let pool_create_info = vk::CommandPoolCreateInfo::builder()
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+            .queue_family_index(queue_family_index);
+
+        device.create_command_pool(&pool_create_info, None).unwrap()
+    }
+}
+
+unsafe fn get_memory_type_index(instance: &Instance, physical_device: vk::PhysicalDevice, properties: vk::MemoryPropertyFlags, requirements: vk::MemoryRequirements) -> u32 {
+    let memory = instance.get_physical_device_memory_properties(physical_device);
+
+    (0..memory.memory_type_count)
+        .find(|i| {
+            let suitable = (requirements.memory_type_bits & (1 << i)) != 0;
+            let memory_type = memory.memory_types[*i as usize];
+
+            suitable && memory_type.property_flags.contains(properties)
+        })
+        .unwrap()
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
@@ -478,20 +295,7 @@ unsafe extern "system" fn vulkan_debug_callback(
         CStr::from_ptr(callback_data.p_message).to_string_lossy()
     };
 
-    // println!("{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : {message}\n",);
+    println!("{message_severity:?}:\n{message_type:?} [{message_id_name} ({message_id_number})] : {message}\n",);
 
     vk::FALSE
-}
-
-unsafe fn get_memory_type_index(instance: &Instance, physical_device: vk::PhysicalDevice, properties: vk::MemoryPropertyFlags, requirements: vk::MemoryRequirements) -> u32 {
-    let memory = instance.get_physical_device_memory_properties(physical_device);
-
-    (0..memory.memory_type_count)
-        .find(|i| {
-            let suitable = (requirements.memory_type_bits & (1 << i)) != 0;
-            let memory_type = memory.memory_types[*i as usize];
-
-            suitable && memory_type.property_flags.contains(properties)
-        })
-        .unwrap()
 }

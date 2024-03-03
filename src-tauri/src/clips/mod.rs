@@ -49,10 +49,14 @@ impl Clip for ScriptClip {
             position: cgmath::vec2(0.0, 0.0),
             size: cgmath::vec2(200.0, 200.0),
         };
+        let rect2 = Rect {
+            position: cgmath::vec2(0.0, 400.0),
+            size: cgmath::vec2(200.0, 200.0),
+        };
 
         let before_render = Instant::now();
 
-        let bytes = renderer.render(vec![Elements::Rect(rect)]);
+        let bytes = renderer.render(vec![Elements::Rect(rect), Elements::Rect(rect2)]);
 
         info!("Rendered in {}ms", before_render.elapsed().as_millis());
 
