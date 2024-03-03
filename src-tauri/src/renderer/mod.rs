@@ -1,11 +1,13 @@
 #![allow(dead_code, unused_variables)]
 
+use ash::vk::Buffer;
 use cgmath::{point3, vec2, vec3, Deg};
 use log::*;
 use std::ffi::{c_char, CStr};
 use std::io::Cursor;
 use std::mem;
 use std::ptr::copy_nonoverlapping;
+use std::time::Instant;
 use std::{borrow::Cow, default::Default};
 
 use ash::extensions::ext::DebugUtils;
@@ -29,7 +31,17 @@ pub struct Renderer {
     target_image: vk::Image,
     scissor: vk::Rect2D,
     viewport: vk::Viewport,
+
+    index_buffer: Option<Buffer>,
+    index_buffer_memory_requirements: Option<vk::MemoryRequirements>,
+    index_buffer_memory_index: Option<u32>,
+
+    vertex_buffer: Option<Buffer>,
+    vertex_buffer_memory_requirements: Option<vk::MemoryRequirements>,
+    vertex_buffer_memory_index: Option<u32>,
 }
+
+const COLORS: [Vec3; 3] = [vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)];
 
 impl Renderer {
     pub fn create() -> Renderer {
@@ -115,7 +127,7 @@ impl Renderer {
             let target_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
                 .format(vk::Format::R8G8B8A8_SRGB)
-                .extent(*vk::Extent3D::builder().width(512).height(512).depth(1))
+                .extent(*vk::Extent3D::builder().width(1920).height(1080).depth(1))
                 .mip_levels(1)
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
@@ -186,8 +198,8 @@ impl Renderer {
             let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                 .render_pass(render_pass)
                 .attachments(frame_buffer_attachments)
-                .width(512)
-                .height(512)
+                .width(1920)
+                .height(1080)
                 .layers(1);
 
             let frame_buffer = device.create_framebuffer(&frame_buffer_create_info, None).unwrap();
@@ -237,14 +249,14 @@ impl Renderer {
             let viewport = vk::Viewport {
                 x: 0.0,
                 y: 0.0,
-                width: 512.0,
-                height: 512.0,
+                width: 1920.0,
+                height: 1080.0,
                 min_depth: 0.0,
                 max_depth: 1.0,
             };
             let viewports = &[viewport];
 
-            let scissor = *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512));
+            let scissor = *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(1920).height(1080));
             let scissors = &[scissor];
 
             let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(scissors).viewports(viewports);
@@ -310,11 +322,22 @@ impl Renderer {
                 target_image,
                 scissor,
                 viewport,
+
+                index_buffer: None,
+                index_buffer_memory_requirements: None,
+                index_buffer_memory_index: None,
+
+                vertex_buffer: None,
+                vertex_buffer_memory_requirements: None,
+                vertex_buffer_memory_index: None,
             }
         }
     }
 
-    pub fn render(self: &Renderer, vertex_data: Vec<f32>, indices: Vec<u32>) -> Vec<u8> {
+    pub fn render(&mut self, vertex_data: Vec<f32>, indices: Vec<u32>) -> Vec<u8> {
+        self.create_index_buffer(&indices);
+        self.create_vertex_buffer(&vertex_data);
+
         let instance = &self.instance;
         let device = &self.device;
         let command_buffer = self.command_buffer;
@@ -329,72 +352,6 @@ impl Renderer {
         let viewport = self.viewport;
 
         unsafe {
-            let index_buffer_info = vk::BufferCreateInfo::builder()
-                .size(4 * indices.len() as u64)
-                .usage(vk::BufferUsageFlags::INDEX_BUFFER)
-                .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-            let index_buffer = device.create_buffer(&index_buffer_info, None).unwrap();
-
-            let index_buffer_memory_req = device.get_buffer_memory_requirements(index_buffer);
-            let index_buffer_memory_index = get_memory_type_index(
-                &instance,
-                pdevice,
-                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-                index_buffer_memory_req,
-            );
-
-            let index_allocate_info = *vk::MemoryAllocateInfo::builder()
-                .allocation_size(index_buffer_memory_req.size)
-                .memory_type_index(index_buffer_memory_index);
-
-            let index_buffer_memory = device.allocate_memory(&index_allocate_info, None).unwrap();
-
-            let index_ptr = device.map_memory(index_buffer_memory, 0, index_buffer_memory_req.size, vk::MemoryMapFlags::empty()).unwrap();
-            let mut index_slice = Align::new(index_ptr, mem::align_of::<u32>() as u64, index_buffer_memory_req.size);
-            index_slice.copy_from_slice(&indices);
-
-            device.unmap_memory(index_buffer_memory);
-            device.bind_buffer_memory(index_buffer, index_buffer_memory, 0).unwrap();
-
-            const COLORS: [Vec3; 3] = [vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)];
-
-            let mut vertices: Vec<Vertex> = Vec::new();
-
-            for i in 0..(vertex_data.len() / 2) {
-                vertices.push(Vertex::new(vec2(vertex_data[i * 2], vertex_data[i * 2 + 1]), COLORS[i % COLORS.len()]));
-            }
-
-            let vertex_input_buffer_info = *vk::BufferCreateInfo::builder()
-                .size((20 * vertices.len()) as u64)
-                .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-                .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-            let vertex_input_buffer = device.create_buffer(&vertex_input_buffer_info, None).unwrap();
-
-            let vertex_input_buffer_memory_req = device.get_buffer_memory_requirements(vertex_input_buffer);
-            let vertex_input_buffer_memory_index = get_memory_type_index(
-                &instance,
-                pdevice,
-                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-                vertex_input_buffer_memory_req,
-            );
-
-            let vertex_buffer_allocate_info = *vk::MemoryAllocateInfo::builder()
-                .allocation_size(vertex_input_buffer_memory_req.size)
-                .memory_type_index(vertex_input_buffer_memory_index);
-
-            let vertex_input_buffer_memory = device.allocate_memory(&vertex_buffer_allocate_info, None).unwrap();
-
-            let vert_ptr = device
-                .map_memory(vertex_input_buffer_memory, 0, vertex_input_buffer_memory_req.size, vk::MemoryMapFlags::empty())
-                .unwrap();
-
-            copy_nonoverlapping(vertices.as_ptr(), vert_ptr.cast(), vertices.len());
-
-            device.unmap_memory(vertex_input_buffer_memory);
-            device.bind_buffer_memory(vertex_input_buffer, vertex_input_buffer_memory, 0).unwrap();
-
             let clear_values = [vk::ClearValue {
                 color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 1.0] },
             }];
@@ -402,7 +359,7 @@ impl Renderer {
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
                 .render_pass(render_pass)
                 .framebuffer(frame_buffer)
-                .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(512).height(512)))
+                .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(1920).height(1080)))
                 .clear_values(&clear_values);
 
             device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).unwrap();
@@ -415,8 +372,8 @@ impl Renderer {
             device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphic_pipeline);
             device.cmd_set_viewport(command_buffer, 0, &[viewport]);
             device.cmd_set_scissor(command_buffer, 0, &[scissor]);
-            device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_input_buffer], &[0]);
-            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+            device.cmd_bind_vertex_buffers(command_buffer, 0, &[self.vertex_buffer.unwrap()], &[0]);
+            device.cmd_bind_index_buffer(command_buffer, self.index_buffer.unwrap(), 0, vk::IndexType::UINT32);
             device.cmd_draw_indexed(command_buffer, indices.len() as u32, 1, 0, 0, 1);
             device.cmd_end_render_pass(command_buffer);
 
@@ -434,7 +391,7 @@ impl Renderer {
             device.queue_wait_idle(graphics_queue).unwrap();
 
             {
-                let size = 512 * 512 * 4;
+                let size = 1920 * 1080 * 4;
 
                 let save_buffer_info = vk::BufferCreateInfo::builder()
                     .size(size)
@@ -482,7 +439,7 @@ impl Renderer {
                     .buffer_image_height(0)
                     .image_subresource(subresource)
                     .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
-                    .image_extent(vk::Extent3D { width: 512, height: 512, depth: 1 });
+                    .image_extent(vk::Extent3D { width: 1920, height: 1080, depth: 1 });
 
                 device.cmd_copy_image_to_buffer(command_buffer, target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
 
@@ -509,6 +466,110 @@ impl Renderer {
 
                 return pixels;
             }
+        }
+    }
+
+    fn create_index_buffer(&mut self, indices: &Vec<u32>) {
+        unsafe {
+            let index_buffer_size = 4 * indices.len() as u64;
+
+            if self.index_buffer_memory_requirements.is_none() || index_buffer_size > self.index_buffer_memory_requirements.unwrap().size {
+                warn!("Creating index buffer");
+
+                let index_buffer_info = vk::BufferCreateInfo::builder()
+                    .size(index_buffer_size)
+                    .usage(vk::BufferUsageFlags::INDEX_BUFFER)
+                    .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+                let index_buffer = self.device.create_buffer(&index_buffer_info, None).unwrap();
+
+                let index_buffer_memory_req = self.device.get_buffer_memory_requirements(index_buffer);
+                let index_buffer_memory_index = get_memory_type_index(
+                    &self.instance,
+                    self.physical_device,
+                    vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                    index_buffer_memory_req,
+                );
+
+                self.index_buffer = Some(index_buffer);
+                self.index_buffer_memory_requirements = Some(index_buffer_memory_req);
+                self.index_buffer_memory_index = Some(index_buffer_memory_index);
+            }
+
+            let index_buffer = self.index_buffer.unwrap();
+            let index_buffer_memory_requirements = self.index_buffer_memory_requirements.unwrap();
+            let index_buffer_memory_index = self.index_buffer_memory_index.unwrap();
+
+            let index_allocate_info = *vk::MemoryAllocateInfo::builder()
+                .allocation_size(index_buffer_memory_requirements.size)
+                .memory_type_index(index_buffer_memory_index);
+
+            let index_buffer_memory = self.device.allocate_memory(&index_allocate_info, None).unwrap();
+
+            let index_ptr = self
+                .device
+                .map_memory(index_buffer_memory, 0, index_buffer_memory_requirements.size, vk::MemoryMapFlags::empty())
+                .unwrap();
+            let mut index_slice = Align::new(index_ptr, mem::align_of::<u32>() as u64, index_buffer_memory_requirements.size);
+            index_slice.copy_from_slice(&indices);
+
+            self.device.unmap_memory(index_buffer_memory);
+            self.device.bind_buffer_memory(index_buffer, index_buffer_memory, 0).unwrap();
+        }
+    }
+
+    fn create_vertex_buffer(&mut self, vertex_data: &Vec<f32>) {
+        unsafe {
+            let mut vertices: Vec<Vertex> = Vec::new();
+
+            for i in 0..(vertex_data.len() / 2) {
+                vertices.push(Vertex::new(vec2(vertex_data[i * 2], vertex_data[i * 2 + 1]), COLORS[i % COLORS.len()]));
+            }
+
+            let vertex_buffer_size = 20 * vertices.len() as u64;
+
+            if self.vertex_buffer_memory_requirements.is_none() || vertex_buffer_size > self.vertex_buffer_memory_requirements.unwrap().size {
+                warn!("Creating vertex buffer");
+
+                let vertex_input_buffer_info = *vk::BufferCreateInfo::builder()
+                    .size((20 * vertices.len()) as u64)
+                    .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+                    .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+                let vertex_input_buffer = self.device.create_buffer(&vertex_input_buffer_info, None).unwrap();
+
+                let vertex_input_buffer_memory_req = self.device.get_buffer_memory_requirements(vertex_input_buffer);
+                let vertex_input_buffer_memory_index = get_memory_type_index(
+                    &self.instance,
+                    self.physical_device,
+                    vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                    vertex_input_buffer_memory_req,
+                );
+
+                self.vertex_buffer = Some(vertex_input_buffer);
+                self.vertex_buffer_memory_requirements = Some(vertex_input_buffer_memory_req);
+                self.vertex_buffer_memory_index = Some(vertex_input_buffer_memory_index);
+            }
+
+            let vertex_buffer = self.vertex_buffer.unwrap();
+            let vertex_buffer_memory_requirements = self.vertex_buffer_memory_requirements.unwrap();
+            let vertex_buffer_memory_index = self.vertex_buffer_memory_index.unwrap();
+
+            let vertex_buffer_allocate_info = *vk::MemoryAllocateInfo::builder()
+                .allocation_size(vertex_buffer_memory_requirements.size)
+                .memory_type_index(vertex_buffer_memory_index);
+
+            let vertex_input_buffer_memory = self.device.allocate_memory(&vertex_buffer_allocate_info, None).unwrap();
+
+            let vert_ptr = self
+                .device
+                .map_memory(vertex_input_buffer_memory, 0, vertex_buffer_memory_requirements.size, vk::MemoryMapFlags::empty())
+                .unwrap();
+
+            copy_nonoverlapping(vertices.as_ptr(), vert_ptr.cast(), vertices.len());
+
+            self.device.unmap_memory(vertex_input_buffer_memory);
+            self.device.bind_buffer_memory(vertex_buffer, vertex_input_buffer_memory, 0).unwrap();
         }
     }
 }

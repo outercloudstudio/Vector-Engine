@@ -4,10 +4,16 @@ import { invoke } from '@tauri-apps/api'
 import { listen } from '@tauri-apps/api/event'
 
 let imageSrc = ref('')
+let frameRate = ref(0)
 
 let frame = 0
+let lastFrameTime = Date.now()
 
 async function preview() {
+	let currentFrameTime = Date.now()
+	frameRate.value = (1 / (currentFrameTime - lastFrameTime)) * 1000
+	lastFrameTime = currentFrameTime
+
 	const data = (await invoke('preview', { frame })) as number[]
 
 	const arrayBuffer = new Uint8Array(data)
@@ -20,7 +26,7 @@ async function preview() {
 
 	if (frame === 60) frame = 0
 
-	setTimeout(preview, 1000 / 60)
+	requestAnimationFrame(preview)
 }
 
 listen('render', event => {
@@ -32,11 +38,12 @@ listen('render', event => {
 })
 
 onMounted(() => {
-	// preview()
+	preview()
 })
 </script>
 
 <template>
+	<p>{{ frameRate }}</p>
 	<img class="preview" :src="imageSrc" />
 
 	<button @click="preview">Preview</button>
@@ -44,8 +51,8 @@ onMounted(() => {
 
 <style scoped>
 .preview {
-	width: 248px;
-	height: 248px;
+	width: calc(1920px / 3);
+	height: calc(1080px / 3);
 	margin-right: 1rem;
 }
 </style>

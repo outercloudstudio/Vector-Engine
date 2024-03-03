@@ -44,6 +44,7 @@ pub enum Command {
 fn main() {
     env::set_var("RUST_LOG", "info");
     // env::set_var("RUST_BACKTRACE", "1");
+
     pretty_env_logger::init();
 
     let (sender, receiver) = channel::<Command>();
@@ -53,7 +54,7 @@ fn main() {
         .manage(sender)
         .invoke_handler(tauri::generate_handler![preview, render])
         .setup(|app| {
-            #[cfg(debug_assertions)] // only include this code on debug builds
+            #[cfg(debug_assertions)]
             {
                 let window = app.handle().get_window("main").unwrap();
 
@@ -62,7 +63,7 @@ fn main() {
             }
 
             thread::spawn(move || {
-                let renderer = Renderer::create();
+                let mut renderer = Renderer::create();
 
                 let mut clips: Vec<Clips> = Vec::new();
 
@@ -89,7 +90,7 @@ fn main() {
                                 Clips::ScriptClip(clip) => {
                                     clip.set_frame(frame);
 
-                                    let render = clip.render(&renderer);
+                                    let render = clip.render(&mut renderer);
 
                                     response_sender.send(render).unwrap();
                                 }

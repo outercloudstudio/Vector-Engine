@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use log::info;
 
 use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
@@ -8,7 +10,7 @@ pub enum Clips {
 
 pub trait Clip {
     fn set_frame(&mut self, frame: u32);
-    fn render(&self, project: &Renderer) -> Vec<u8>;
+    fn render(&self, project: &mut Renderer) -> Vec<u8>;
 }
 
 pub struct ScriptClip {
@@ -30,18 +32,22 @@ impl Clip for ScriptClip {
         self.runtime.advance();
     }
 
-    fn render(&self, renderer: &Renderer) -> Vec<u8> {
+    fn render(&self, renderer: &mut Renderer) -> Vec<u8> {
         let (indices, vertices) = self.runtime.get_render_data();
 
         if indices.len() == 0 {
             return Vec::new();
         }
 
+        let before_render = Instant::now();
+
         let bytes = renderer.render(vertices, indices);
+
+        info!("Rendered in {}ms", before_render.elapsed().as_millis());
 
         let mut encoded_bytes: Vec<u8> = vec![];
 
-        let mut encoder = png::Encoder::new(&mut encoded_bytes, 512, 512);
+        let mut encoder = png::Encoder::new(&mut encoded_bytes, 1920, 1080);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
 
