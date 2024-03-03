@@ -6,29 +6,20 @@ mod renderer;
 mod runtime;
 
 use log::{info, warn};
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fs::read_to_string;
-use std::io::Write;
+use std::io::{Cursor, Write};
 use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::{env, fs::File, io::BufWriter, sync::Mutex};
-use tauri::{Manager, State};
+use tauri::{Manager, State, Url};
 
 use clips::{Clip, Clips, ScriptClip};
-use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use renderer::Renderer;
 
 struct Timeline {}
-
-#[tauri::command]
-fn preview(frame: u32, sender: State<Sender<Command>>) -> Vec<u8> {
-    let (response_sender, response_receiver) = channel();
-
-    sender.send(Command::Preview(frame, response_sender)).unwrap();
-
-    response_receiver.recv().unwrap()
-}
 
 #[tauri::command]
 fn render(sender: State<Sender<Command>>) {
@@ -49,10 +40,42 @@ fn main() {
 
     let (sender, receiver) = channel::<Command>();
 
-    let thread_sender = sender.clone();
+    let watch_thread_sender = sender.clone();
+    let preview_thread_sender = sender.clone();
     tauri::Builder::default()
         .manage(sender)
-        .invoke_handler(tauri::generate_handler![preview, render])
+        .invoke_handler(tauri::generate_handler![render])
+        .register_uri_scheme_protocol("preview", move |_app, req| {
+            // let url: Url = req.uri().parse().unwrap();
+
+            let before_preview = Instant::now();
+
+            let (response_sender, response_receiver) = channel();
+
+            preview_thread_sender.send(Command::Preview(0, response_sender)).unwrap();
+
+            let bytes = response_receiver.recv().unwrap();
+
+            let mut encoded_bytes: Vec<u8> = vec![];
+
+            let mut encoder = png::Encoder::new(&mut encoded_bytes, 1920, 1080);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&bytes).unwrap();
+            writer.finish().unwrap();
+
+            info!("Preview took {}ms", before_preview.elapsed().as_millis());
+
+            tauri::http::ResponseBuilder::new()
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Origin", "*")
+                .mimetype("image/png")
+                .header("Content-Length", encoded_bytes.len())
+                .status(200)
+                .body(encoded_bytes)
+        })
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
@@ -71,7 +94,7 @@ fn main() {
 
                 let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
                     Ok(_event) => {
-                        thread_sender.send(Command::PlaygroundUpdate).unwrap();
+                        watch_thread_sender.send(Command::PlaygroundUpdate).unwrap();
                     }
                     _ => {}
                 })

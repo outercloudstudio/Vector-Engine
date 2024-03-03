@@ -35,7 +35,11 @@ impl ScriptClip {
 
 impl Clip for ScriptClip {
     fn set_frame(&mut self, _frame: u32) {
+        let before_advance = Instant::now();
+
         self.runtime.advance();
+
+        info!("Advanced in {}ms", before_advance.elapsed().as_millis());
     }
 
     fn render(&self, renderer: &mut Renderer) -> Vec<u8> {
@@ -45,31 +49,28 @@ impl Clip for ScriptClip {
             return Vec::new();
         }
 
-        let rect = Rect {
-            position: cgmath::vec2(0.0, 0.0),
-            size: cgmath::vec2(200.0, 200.0),
-        };
-        let rect2 = Rect {
-            position: cgmath::vec2(0.0, 400.0),
-            size: cgmath::vec2(200.0, 200.0),
-        };
-
         let before_render = Instant::now();
 
         let bytes = renderer.render(elements);
 
         info!("Rendered in {}ms", before_render.elapsed().as_millis());
 
-        let mut encoded_bytes: Vec<u8> = vec![];
+        return bytes;
 
-        let mut encoder = png::Encoder::new(&mut encoded_bytes, 1920, 1080);
-        encoder.set_color(png::ColorType::Rgba);
-        encoder.set_depth(png::BitDepth::Eight);
+        // let before_encode = Instant::now();
 
-        let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(&bytes).unwrap();
-        writer.finish().unwrap();
+        // let mut encoded_bytes: Vec<u8> = vec![];
 
-        return encoded_bytes;
+        // let mut encoder = png::Encoder::new(&mut encoded_bytes, 1920, 1080);
+        // encoder.set_color(png::ColorType::Rgba);
+        // encoder.set_depth(png::BitDepth::Eight);
+
+        // let mut writer = encoder.write_header().unwrap();
+        // writer.write_image_data(&bytes).unwrap();
+        // writer.finish().unwrap();
+
+        // info!("Encoded in {}ms", before_encode.elapsed().as_millis());
+
+        // return encoded_bytes;
     }
 }

@@ -11,7 +11,7 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = ["shell-open"] }
+tauri = { version = "1.5", features = [ "shell-open"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1"
@@ -24,6 +24,8 @@ deno_core = "0.231.0"
 deno_ast = { version = "1.0.1", features = ["transpiling"] }
 tokio = { version = "1.36.0", features = ["full"] }
 notify = "6.1.1"
+image = "0.24.9"
+gif = "=0.13.1"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
