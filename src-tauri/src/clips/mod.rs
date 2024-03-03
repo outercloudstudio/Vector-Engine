@@ -2,7 +2,13 @@ use std::time::Instant;
 
 use log::info;
 
-use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
+use crate::{
+    renderer::{
+        elements::{Elements, Rect},
+        Renderer,
+    },
+    runtime::ScriptClipRuntime,
+};
 
 pub enum Clips {
     ScriptClip(ScriptClip),
@@ -39,9 +45,14 @@ impl Clip for ScriptClip {
             return Vec::new();
         }
 
+        let rect = Rect {
+            position: cgmath::vec2(0.0, 0.0),
+            size: cgmath::vec2(200.0, 200.0),
+        };
+
         let before_render = Instant::now();
 
-        let bytes = renderer.render(vertices, indices);
+        let bytes = renderer.render(vec![Elements::Rect(rect)]);
 
         info!("Rendered in {}ms", before_render.elapsed().as_millis());
 
