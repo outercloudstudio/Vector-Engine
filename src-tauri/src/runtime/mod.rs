@@ -1,4 +1,5 @@
 use cgmath::vec2;
+use cgmath::vec4;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
@@ -180,6 +181,7 @@ fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value:
         clip_state.elements.push(Elements::Rect(elements::Rect {
             position: vec2(rect.position.x, rect.position.y),
             size: vec2(rect.size.x, rect.size.y),
+            color: vec4(1.0, 0.0, 0.0, 1.0),
         }));
     }
 

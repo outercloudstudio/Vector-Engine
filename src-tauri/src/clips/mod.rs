@@ -49,7 +49,7 @@ impl Clip for ScriptClip {
             self.runtime.advance();
         }
 
-        for current_frame in (self.internal_frame + 1)..=frame {
+        for _ in (self.internal_frame + 1)..=frame {
             self.runtime.advance();
         }
 
