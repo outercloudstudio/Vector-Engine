@@ -21,6 +21,8 @@ pub trait Clip {
 
 pub struct ScriptClip {
     runtime: ScriptClipRuntime,
+    script: String,
+    internal_frame: u32,
 }
 
 impl ScriptClip {
@@ -28,18 +30,30 @@ impl ScriptClip {
         let mut runtime = ScriptClipRuntime::new();
 
         runtime.initialize_clip(&script);
+        runtime.advance();
 
-        ScriptClip { runtime }
+        ScriptClip { runtime, script, internal_frame: 0 }
     }
 }
 
 impl Clip for ScriptClip {
-    fn set_frame(&mut self, _frame: u32) {
-        let before_advance = Instant::now();
+    fn set_frame(&mut self, frame: u32) {
+        if self.internal_frame == frame {
+            return;
+        }
 
-        self.runtime.advance();
+        if self.internal_frame > frame {
+            self.internal_frame = 0;
 
-        info!("Advanced in {}ms", before_advance.elapsed().as_millis());
+            self.runtime.initialize_clip(&self.script);
+            self.runtime.advance();
+        }
+
+        for current_frame in (self.internal_frame + 1)..=frame {
+            self.runtime.advance();
+        }
+
+        self.internal_frame = frame;
     }
 
     fn render(&self, renderer: &mut Renderer) -> Vec<u8> {
@@ -49,28 +63,8 @@ impl Clip for ScriptClip {
             return Vec::new();
         }
 
-        let before_render = Instant::now();
-
         let bytes = renderer.render(elements);
 
-        info!("Rendered in {}ms", before_render.elapsed().as_millis());
-
         return bytes;
-
-        // let before_encode = Instant::now();
-
-        // let mut encoded_bytes: Vec<u8> = vec![];
-
-        // let mut encoder = png::Encoder::new(&mut encoded_bytes, 480, 270);
-        // encoder.set_color(png::ColorType::Rgba);
-        // encoder.set_depth(png::BitDepth::Eight);
-
-        // let mut writer = encoder.write_header().unwrap();
-        // writer.write_image_data(&bytes).unwrap();
-        // writer.finish().unwrap();
-
-        // info!("Encoded in {}ms", before_encode.elapsed().as_millis());
-
-        // return encoded_bytes;
     }
 }

@@ -4,25 +4,28 @@ import { onMounted, ref } from 'vue'
 let imageSrc = ref('')
 let frameRate = ref(0)
 
-let frame = 0
+let animationStart = Date.now()
+
 let lastFrameTime = Date.now()
 
 async function preview() {
-	let currentFrameTime = Date.now()
-	frameRate.value = (1 / (currentFrameTime - lastFrameTime)) * 1000
-	lastFrameTime = currentFrameTime
+	const now = Date.now()
+	let frame = Math.floor(((now - animationStart) / 1000) * 60)
 
-	// await fetch('https://preview.localhost/')
+	if (frame >= 60) {
+		frame = 0
 
-	const arrayBuffer = await (await fetch('https://preview.localhost/')).arrayBuffer()
+		animationStart = now
+	}
+
+	frameRate.value = (1 / (now - lastFrameTime)) * 1000
+	lastFrameTime = now
+
+	const arrayBuffer = await (await fetch(`https://preview.localhost/?frame=${frame}`)).arrayBuffer()
 	const blob = new Blob([arrayBuffer], { type: 'image/png' })
 	const src = window.URL.createObjectURL(blob)
 
 	imageSrc.value = src
-
-	frame++
-
-	if (frame === 60) frame = 0
 
 	requestAnimationFrame(preview)
 }

@@ -7,6 +7,7 @@ mod runtime;
 
 use log::{info, warn};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::{Cursor, Write};
 use std::path::Path;
@@ -46,13 +47,15 @@ fn main() {
         .manage(sender)
         .invoke_handler(tauri::generate_handler![render])
         .register_uri_scheme_protocol("preview", move |_app, req| {
-            // let url: Url = req.uri().parse().unwrap();
-
-            let before_preview = Instant::now();
+            let url: Url = req.uri().parse().unwrap();
 
             let (response_sender, response_receiver) = channel();
 
-            preview_thread_sender.send(Command::Preview(0, response_sender)).unwrap();
+            let queries: HashMap<String, String> = url.query_pairs().into_owned().collect();
+
+            preview_thread_sender
+                .send(Command::Preview(u32::from_str_radix(queries.get("frame").unwrap(), 10).unwrap(), response_sender))
+                .unwrap();
 
             let bytes = response_receiver.recv().unwrap();
 
@@ -65,8 +68,6 @@ fn main() {
             let mut writer = encoder.write_header().unwrap();
             writer.write_image_data(&bytes).unwrap();
             writer.finish().unwrap();
-
-            info!("Preview took {}ms", before_preview.elapsed().as_millis());
 
             tauri::http::ResponseBuilder::new()
                 .header("Access-Control-Allow-Origin", "*")
