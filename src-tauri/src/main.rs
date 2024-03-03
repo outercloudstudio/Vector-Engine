@@ -58,7 +58,7 @@ fn main() {
 
             let mut encoded_bytes: Vec<u8> = vec![];
 
-            let mut encoder = png::Encoder::new(&mut encoded_bytes, 1920, 1080);
+            let mut encoder = png::Encoder::new(&mut encoded_bytes, 480, 270);
             encoder.set_color(png::ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
 

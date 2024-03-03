@@ -142,8 +142,8 @@ fn create_framebuffer(device: &Device, target_image_view: vk::ImageView, render_
         let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
             .render_pass(render_pass)
             .attachments(frame_buffer_attachments)
-            .width(1920)
-            .height(1080)
+            .width(480)
+            .height(270)
             .layers(1);
 
         device.create_framebuffer(&frame_buffer_create_info, None).unwrap()
@@ -176,15 +176,15 @@ fn create_viewport() -> vk::Viewport {
     vk::Viewport {
         x: 0.0,
         y: 0.0,
-        width: 1920.0,
-        height: 1080.0,
+        width: 480.0,
+        height: 270.0,
         min_depth: 0.0,
         max_depth: 1.0,
     }
 }
 
 fn create_scissor() -> vk::Rect2D {
-    *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(1920).height(1080))
+    *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(480).height(270))
 }
 
 fn create_graphics_pipeline(
@@ -426,7 +426,7 @@ fn begin_render_pass(
         let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass)
             .framebuffer(frame_buffer)
-            .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(1920).height(1080)))
+            .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(480).height(270)))
             .clear_values(&clear_values);
 
         device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).unwrap();
