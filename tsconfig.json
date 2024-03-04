@@ -24,7 +24,9 @@
 		"src/**/*.tsx",
 		"src/**/*.vue",
 		"playground/**/*.ts",
-		"playground/**/*.d.ts"
+		"playground/**/*.d.ts",
+		"src-tauri/src/runtime/**/*.ts",
+		"src-tauri/src/runtime/**/*.d.ts"
 	],
 	"references": [{ "path": "./tsconfig.node.json" }]
 }

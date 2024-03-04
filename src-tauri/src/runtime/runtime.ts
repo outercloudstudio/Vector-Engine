@@ -1,55 +1,58 @@
-;(globalThis => {
-	function argsToMessage(...args) {
-		return args.map(arg => JSON.stringify(arg)).join(' ')
-	}
+const global: any = globalThis
 
-	;(<any>globalThis).console = {
-		log: (...args) => {
-			Deno.core.print(`[out]: ${argsToMessage(...args)}\n`, false)
-		},
-		error: (...args) => {
-			Deno.core.print(`[err]: ${argsToMessage(...args)}\n`, true)
-		},
-	}
+function argsToMessage(...args: any[]) {
+	return args.map(arg => JSON.stringify(arg)).join(' ')
+}
 
-	class Vector2 {
-		constructor(public x: number, public y: number) {}
-	}
+global.console = {
+	log: (...args: any[]) => {
+		Deno.core.print(`[out]: ${argsToMessage(...args)}\n`, false)
+	},
+	error: (...args: any[]) => {
+		Deno.core.print(`[err]: ${argsToMessage(...args)}\n`, true)
+	},
+}
 
-	class Vector4 {
-		constructor(public x: number, public y: number, public z: number, public w: number) {}
-	}
+class Vector2 {
+	constructor(public x: number, public y: number) {}
+}
 
-	class Rect {
-		private readonly type = 'Rect'
+class Vector4 {
+	constructor(public x: number, public y: number, public z: number, public w: number) {}
+}
 
-		constructor(public position: Vector2, public size: Vector2, public color: Vector4) {}
-	}
+class Rect {
+	private readonly type = 'Rect'
 
-	;(<any>globalThis).Vector2 = Vector2
-	;(<any>globalThis).Vector4 = Vector4
-	;(<any>globalThis).Rect = Rect
-})(globalThis)
-;(globalThis => {
-	const elements: any[] = []
+	constructor(public position: Vector2, public size: Vector2, public color: Vector4) {}
+}
 
-	globalThis.add = function (element: any) {
-		elements.push(element)
+for (const [key, value] of Object.entries({
+	Vector2,
+	Vector4,
+	Rect,
+})) {
+	global[key] = value
+}
 
-		return element
-	}
+const elements: any[] = []
 
-	globalThis.clip = function (context: GeneratorFunction) {
-		const generator = context()
+global.add = function (element: any) {
+	elements.push(element)
 
-		globalThis.advance = function () {
-			generator.next()
+	return element
+}
 
-			Deno.core.ops.op_reset_frame()
+global.clip = function (context: GeneratorFunction) {
+	const generator = context()
 
-			for (const element of elements) {
-				Deno.core.ops.op_add_frame_element(element)
-			}
+	global.advance = function () {
+		generator.next()
+
+		Deno.core.ops.op_reset_frame()
+
+		for (const element of elements) {
+			Deno.core.ops.op_add_frame_element(element)
 		}
 	}
-})(globalThis)
+}

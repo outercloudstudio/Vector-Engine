@@ -57,7 +57,10 @@ impl ScriptClipRuntime {
 
     pub fn initialize_clip(&mut self, script: &String) {
         self.js_runtime
-            .execute_script("vector-engine/runtime.ts", deno_core::FastString::from(transpile_ts(String::from(include_str!("./runtime.ts")))))
+            .execute_script(
+                "vector-engine/runtime.ts",
+                deno_core::FastString::from(transpile_ts(format!(";(globalThis => {{{}}})(globalThis)", String::from(include_str!("./runtime.ts"))))),
+            )
             .unwrap();
 
         self.js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpile_ts(script.clone()))).unwrap();
