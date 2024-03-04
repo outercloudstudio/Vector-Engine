@@ -16,13 +16,18 @@
 		constructor(public x: number, public y: number) {}
 	}
 
+	class Vector4 {
+		constructor(public x: number, public y: number, public z: number, public w: number) {}
+	}
+
 	class Rect {
 		private readonly type = 'Rect'
 
-		constructor(public position: Vector2, public size: Vector2) {}
+		constructor(public position: Vector2, public size: Vector2, public color: Vector4) {}
 	}
 
 	;(<any>globalThis).Vector2 = Vector2
+	;(<any>globalThis).Vector4 = Vector4
 	;(<any>globalThis).Rect = Rect
 })(globalThis)
 ;(globalThis => {

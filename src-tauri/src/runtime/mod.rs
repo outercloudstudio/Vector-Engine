@@ -1,5 +1,7 @@
 use cgmath::vec2;
 use cgmath::vec4;
+use cgmath::Vector2;
+use cgmath::Vector4;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
@@ -20,7 +22,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::renderer::elements;
-use crate::renderer::elements::Elements;
+use crate::renderer::elements::{Elements, Rect};
 
 struct ClipRuntimeState {
     elements: Vec<Elements>,
@@ -110,31 +112,39 @@ pub fn deserialize_number(scope: &mut v8::HandleScope, value: v8::Local<v8::Valu
     v8::Local::<v8::Number>::try_from(value).unwrap().value() as f32
 }
 
-pub struct Vector2 {
-    pub x: f32,
-    pub y: f32,
+pub fn deserialize_vector2(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Vector2<f32> {
+    let object = v8::Local::<v8::Object>::try_from(value).unwrap();
+
+    let x_key = v8::String::new(scope, "x").unwrap().into();
+    let x_value = object.get(scope, x_key).unwrap();
+
+    let y_key = v8::String::new(scope, "y").unwrap().into();
+    let y_value = object.get(scope, y_key).unwrap();
+
+    vec2(deserialize_number(scope, x_value), deserialize_number(scope, y_value))
 }
 
-impl Vector2 {
-    pub fn deserialize(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Vector2 {
-        let object = v8::Local::<v8::Object>::try_from(value).unwrap();
+pub fn deserialize_vector4(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Vector4<f32> {
+    let object = v8::Local::<v8::Object>::try_from(value).unwrap();
 
-        let x_key = v8::String::new(scope, "x").unwrap().into();
-        let x_value = object.get(scope, x_key).unwrap();
+    let x_key = v8::String::new(scope, "x").unwrap().into();
+    let x_value = object.get(scope, x_key).unwrap();
 
-        let y_key = v8::String::new(scope, "y").unwrap().into();
-        let y_value = object.get(scope, y_key).unwrap();
+    let y_key = v8::String::new(scope, "y").unwrap().into();
+    let y_value = object.get(scope, y_key).unwrap();
 
-        Vector2 {
-            x: deserialize_number(scope, x_value),
-            y: deserialize_number(scope, y_value),
-        }
-    }
-}
+    let z_key = v8::String::new(scope, "z").unwrap().into();
+    let z_value = object.get(scope, z_key).unwrap();
 
-pub struct Rect {
-    pub position: Vector2,
-    pub size: Vector2,
+    let w_key = v8::String::new(scope, "w").unwrap().into();
+    let w_value = object.get(scope, w_key).unwrap();
+
+    vec4(
+        deserialize_number(scope, x_value),
+        deserialize_number(scope, y_value),
+        deserialize_number(scope, z_value),
+        deserialize_number(scope, w_value),
+    )
 }
 
 impl Rect {
@@ -147,9 +157,13 @@ impl Rect {
         let size_key = v8::String::new(scope, "size").unwrap().into();
         let size_value = object.get(scope, size_key).unwrap();
 
+        let color_key = v8::String::new(scope, "color").unwrap().into();
+        let color_value = object.get(scope, color_key).unwrap();
+
         Rect {
-            position: Vector2::deserialize(scope, position_value),
-            size: Vector2::deserialize(scope, size_value),
+            position: deserialize_vector2(scope, position_value),
+            size: deserialize_vector2(scope, size_value),
+            color: deserialize_vector4(scope, color_value),
         }
     }
 }
@@ -176,13 +190,7 @@ fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value:
     let type_string = v8::Local::<v8::String>::try_from(type_value).unwrap().to_rust_string_lossy(scope);
 
     if type_string == "Rect" {
-        let rect = Rect::deserialize(scope, value);
-
-        clip_state.elements.push(Elements::Rect(elements::Rect {
-            position: vec2(rect.position.x, rect.position.y),
-            size: vec2(rect.size.x, rect.size.y),
-            color: vec4(1.0, 0.0, 0.0, 1.0),
-        }));
+        clip_state.elements.push(Elements::Rect(Rect::deserialize(scope, value)));
     }
 
     Ok(())
