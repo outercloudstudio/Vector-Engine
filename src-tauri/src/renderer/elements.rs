@@ -61,8 +61,8 @@ impl Element for Rect {
 
         let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(device, vertex_shader, fragment_shader, viewport, scissor, render_pass, descriptor_set_layouts);
 
-        let index_buffer = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
-        let vertex_buffer = create_vertex_buffer(
+        let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
+        let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
             &vec![
                 vec2(self.position.x / 1920.0, self.position.y / 1080.0),
                 vec2(self.position.x / 1920.0, (self.position.y + self.size.y) / 1080.0),
@@ -73,7 +73,7 @@ impl Element for Rect {
             device,
             physical_device,
         );
-        let uniform_buffer = create_uniform_buffer(self.color, instance, device, physical_device);
+        let (uniform_buffer, uniform_buffer_memory) = create_uniform_buffer(self.color, instance, device, physical_device);
 
         let descriptor_pools = create_descriptor_pool(device);
         let descriptor_sets = create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
@@ -88,6 +88,28 @@ impl Element for Rect {
         }
 
         end_render_pass(device, command_buffer, graphics_queue);
+
+        unsafe {
+            device.destroy_descriptor_pool(descriptor_pools, None);
+
+            device.destroy_framebuffer(frame_buffer, None);
+
+            device.destroy_pipeline(graphics_pipeline, None);
+            device.destroy_pipeline_layout(graphics_pipeline_layout, None);
+
+            device.destroy_render_pass(render_pass, None);
+
+            device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
+
+            device.destroy_buffer(index_buffer, None);
+            device.free_memory(index_buffer_memory, None);
+
+            device.destroy_buffer(vertex_buffer, None);
+            device.free_memory(vertex_buffer_memory, None);
+
+            device.destroy_buffer(uniform_buffer, None);
+            device.free_memory(uniform_buffer_memory, None);
+        }
     }
 }
 
@@ -336,7 +358,7 @@ fn create_graphics_pipeline(
 
 const COLORS: [Vector3<f32>; 3] = [vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)];
 
-fn create_index_buffer(indices: &Vec<u32>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> vk::Buffer {
+fn create_index_buffer(indices: &Vec<u32>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
     unsafe {
         let index_buffer_size = 4 * indices.len() as u64;
 
@@ -368,11 +390,11 @@ fn create_index_buffer(indices: &Vec<u32>, instance: &Instance, device: &Device,
         device.unmap_memory(index_buffer_memory);
         device.bind_buffer_memory(index_buffer, index_buffer_memory, 0).unwrap();
 
-        return index_buffer;
+        return (index_buffer, index_buffer_memory);
     }
 }
 
-fn create_vertex_buffer(vertex_positions: &Vec<Vector2<f32>>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> vk::Buffer {
+fn create_vertex_buffer(vertex_positions: &Vec<Vector2<f32>>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
     unsafe {
         let mut vertices: Vec<Vertex> = Vec::new();
 
@@ -410,11 +432,11 @@ fn create_vertex_buffer(vertex_positions: &Vec<Vector2<f32>>, instance: &Instanc
         device.unmap_memory(vertex_buffer_memory);
         device.bind_buffer_memory(vertex_buffer, vertex_buffer_memory, 0).unwrap();
 
-        return vertex_buffer;
+        return (vertex_buffer, vertex_buffer_memory);
     }
 }
 
-fn create_uniform_buffer(color: Vector4<f32>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> vk::Buffer {
+fn create_uniform_buffer(color: Vector4<f32>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
     unsafe {
         let uniform_buffer_object = UniformBufferObject { color };
 
@@ -451,7 +473,7 @@ fn create_uniform_buffer(color: Vector4<f32>, instance: &Instance, device: &Devi
         device.unmap_memory(uniform_buffer_memory);
         device.bind_buffer_memory(uniform_buffer, uniform_buffer_memory, 0).unwrap();
 
-        return uniform_buffer;
+        return (uniform_buffer, uniform_buffer_memory);
     }
 }
 
