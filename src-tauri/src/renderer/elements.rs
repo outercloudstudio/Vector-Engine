@@ -183,7 +183,7 @@ fn create_framebuffer(device: &Device, target_image_view: vk::ImageView, render_
 
 fn create_vertex_shader(device: &Device) -> ShaderModule {
     unsafe {
-        let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/vert.spv"));
+        let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.vert.spv"));
 
         let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
         let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
@@ -194,7 +194,7 @@ fn create_vertex_shader(device: &Device) -> ShaderModule {
 
 fn create_fragment_shader(device: &Device) -> ShaderModule {
     unsafe {
-        let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/frag.spv"));
+        let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.frag.spv"));
 
         let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
         let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
