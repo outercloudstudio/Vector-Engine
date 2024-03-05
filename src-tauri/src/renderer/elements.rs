@@ -1,7 +1,7 @@
 use ash::util::read_spv;
 use ash::vk::ShaderModule;
 use ash::{util::Align, vk, Device, Instance};
-use cgmath::{vec2, vec3, Vector2, Vector3, Vector4};
+use cgmath::{vec2, Vector2, Vector4};
 use std::ffi::CStr;
 use std::io::Cursor;
 use std::mem::align_of;
@@ -33,6 +33,134 @@ pub struct Rect {
     pub color: Vector4<f32>,
 }
 
+#[derive(Clone, Copy)]
+#[allow(dead_code)]
+struct RectData {
+    color: Vector4<f32>,
+    radius: f32,
+    size: Vector2<f32>,
+}
+const RECT_DATA_SIZE: u64 = 16 + 4 + 8;
+
+impl RectData {
+    fn get_descriptor_set_layout_bindings() -> [vk::DescriptorSetLayoutBinding; 1] {
+        let layout_binding = vk::DescriptorSetLayoutBinding::builder()
+            .binding(0)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::FRAGMENT)
+            .build();
+        [layout_binding]
+    }
+}
+
+impl Rect {
+    fn create_vertex_shader(device: &Device) -> ShaderModule {
+        unsafe {
+            let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.vert.spv"));
+
+            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
+            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
+
+            device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
+        }
+    }
+
+    fn create_fragment_shader(device: &Device) -> ShaderModule {
+        unsafe {
+            let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.frag.spv"));
+
+            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
+            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
+
+            device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
+        }
+    }
+
+    fn create_descriptor_set_layout(device: &Device) -> vk::DescriptorSetLayout {
+        let bindings = RectData::get_descriptor_set_layout_bindings();
+        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings).build();
+
+        unsafe { device.create_descriptor_set_layout(&layout_info, None).unwrap() }
+    }
+
+    fn create_descriptor_pool(device: &Device) -> vk::DescriptorPool {
+        unsafe {
+            let uniform_buffer_object_size = *vk::DescriptorPoolSize::builder().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1);
+
+            let pool_sizes = [uniform_buffer_object_size];
+            let info = vk::DescriptorPoolCreateInfo::builder().pool_sizes(&pool_sizes).max_sets(1);
+
+            device.create_descriptor_pool(&info, None).unwrap()
+        }
+    }
+
+    fn create_descriptor_sets(device: &Device, descriptor_set_layout: vk::DescriptorSetLayout, descriptor_pool: vk::DescriptorPool, uniform_buffer: vk::Buffer) -> Vec<vk::DescriptorSet> {
+        unsafe {
+            let layouts = vec![descriptor_set_layout; 1];
+            let info = vk::DescriptorSetAllocateInfo::builder().descriptor_pool(descriptor_pool).set_layouts(&layouts);
+
+            let descriptor_sets = device.allocate_descriptor_sets(&info).unwrap();
+
+            // Range is the size of the RectDataStruct
+            let info = *vk::DescriptorBufferInfo::builder().buffer(uniform_buffer).offset(0).range(RECT_DATA_SIZE);
+
+            let buffer_info = &[info];
+            let ubo_write = *vk::WriteDescriptorSet::builder()
+                .dst_set(descriptor_sets[0])
+                .dst_binding(0)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .buffer_info(buffer_info);
+
+            device.update_descriptor_sets(&[ubo_write], &[] as &[vk::CopyDescriptorSet]);
+
+            return descriptor_sets;
+        }
+    }
+
+    fn create_uniform_buffer(rect_data: RectData, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
+        unsafe {
+            let uniform_buffer_object = rect_data;
+
+            let uniform_buffer_size = RECT_DATA_SIZE;
+
+            let unfiorm_buffer_info = *vk::BufferCreateInfo::builder()
+                .size(uniform_buffer_size)
+                .usage(vk::BufferUsageFlags::UNIFORM_BUFFER)
+                .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+            let uniform_buffer = device.create_buffer(&unfiorm_buffer_info, None).unwrap();
+
+            let uniform_buffer_memory_requirements = device.get_buffer_memory_requirements(uniform_buffer);
+            let uniform_buffer_memory_index = get_memory_type_index(
+                &instance,
+                physical_device,
+                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                uniform_buffer_memory_requirements,
+            );
+
+            let uniform_buffer_allocate_info = *vk::MemoryAllocateInfo::builder()
+                .allocation_size(uniform_buffer_memory_requirements.size)
+                .memory_type_index(uniform_buffer_memory_index);
+
+            let uniform_buffer_memory = device.allocate_memory(&uniform_buffer_allocate_info, None).unwrap();
+
+            let uniform_ptr = device
+                .map_memory(uniform_buffer_memory, 0, uniform_buffer_memory_requirements.size, vk::MemoryMapFlags::empty())
+                .unwrap();
+
+            let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, RECT_DATA_SIZE);
+            align.copy_from_slice(&[uniform_buffer_object]);
+
+            device.unmap_memory(uniform_buffer_memory);
+            device.bind_buffer_memory(uniform_buffer, uniform_buffer_memory, 0).unwrap();
+
+            return (uniform_buffer, uniform_buffer_memory);
+        }
+    }
+}
+
 impl Element for Rect {
     fn render(
         &self,
@@ -51,15 +179,25 @@ impl Element for Rect {
 
         let frame_buffer = create_framebuffer(device, target_image_view, render_pass);
 
-        let vertex_shader = create_vertex_shader(device);
-        let fragment_shader = create_fragment_shader(device);
+        let vertex_shader = Rect::create_vertex_shader(device);
+        let fragment_shader = Rect::create_fragment_shader(device);
 
         let viewport = create_viewport();
         let scissor = create_scissor();
 
-        let descriptor_set_layouts = create_descriptor_set_layout(device);
+        let descriptor_set_layouts = Rect::create_descriptor_set_layout(device);
 
-        let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(device, vertex_shader, fragment_shader, viewport, scissor, render_pass, descriptor_set_layouts);
+        let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
+            device,
+            vertex_shader,
+            fragment_shader,
+            viewport,
+            scissor,
+            render_pass,
+            descriptor_set_layouts,
+            Vertex::get_descriptor_set_layout_binding(),
+            &Vertex::get_attribute_descriptions(),
+        );
 
         let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
         let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
@@ -73,10 +211,19 @@ impl Element for Rect {
             device,
             physical_device,
         );
-        let (uniform_buffer, uniform_buffer_memory) = create_uniform_buffer(self.color, instance, device, physical_device);
+        let (uniform_buffer, uniform_buffer_memory) = Rect::create_uniform_buffer(
+            RectData {
+                color: self.color,
+                radius: 10.0,
+                size: self.size,
+            },
+            instance,
+            device,
+            physical_device,
+        );
 
-        let descriptor_pools = create_descriptor_pool(device);
-        let descriptor_sets = create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
+        let descriptor_pools = Rect::create_descriptor_pool(device);
+        let descriptor_sets = Rect::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
 
         begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor);
 
@@ -181,28 +328,6 @@ fn create_framebuffer(device: &Device, target_image_view: vk::ImageView, render_
     }
 }
 
-fn create_vertex_shader(device: &Device) -> ShaderModule {
-    unsafe {
-        let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.vert.spv"));
-
-        let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
-        let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
-
-        device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
-    }
-}
-
-fn create_fragment_shader(device: &Device) -> ShaderModule {
-    unsafe {
-        let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.frag.spv"));
-
-        let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
-        let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
-
-        device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
-    }
-}
-
 fn create_viewport() -> vk::Viewport {
     vk::Viewport {
         x: 0.0,
@@ -218,47 +343,6 @@ fn create_scissor() -> vk::Rect2D {
     *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(480).height(270))
 }
 
-fn create_descriptor_set_layout(device: &Device) -> vk::DescriptorSetLayout {
-    let bindings = UniformBufferObject::get_descriptor_set_layout_bindings();
-    let layout_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings).build();
-
-    unsafe { device.create_descriptor_set_layout(&layout_info, None).unwrap() }
-}
-
-fn create_descriptor_pool(device: &Device) -> vk::DescriptorPool {
-    unsafe {
-        let uniform_buffer_object_size = *vk::DescriptorPoolSize::builder().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1);
-
-        let pool_sizes = [uniform_buffer_object_size];
-        let info = vk::DescriptorPoolCreateInfo::builder().pool_sizes(&pool_sizes).max_sets(1);
-
-        device.create_descriptor_pool(&info, None).unwrap()
-    }
-}
-
-fn create_descriptor_sets(device: &Device, descriptor_set_layout: vk::DescriptorSetLayout, descriptor_pool: vk::DescriptorPool, uniform_buffer: vk::Buffer) -> Vec<vk::DescriptorSet> {
-    unsafe {
-        let layouts = vec![descriptor_set_layout; 1];
-        let info = vk::DescriptorSetAllocateInfo::builder().descriptor_pool(descriptor_pool).set_layouts(&layouts);
-
-        let descriptor_sets = device.allocate_descriptor_sets(&info).unwrap();
-
-        let info = *vk::DescriptorBufferInfo::builder().buffer(uniform_buffer).offset(0).range(16);
-
-        let buffer_info = &[info];
-        let ubo_write = *vk::WriteDescriptorSet::builder()
-            .dst_set(descriptor_sets[0])
-            .dst_binding(0)
-            .dst_array_element(0)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .buffer_info(buffer_info);
-
-        device.update_descriptor_sets(&[ubo_write], &[] as &[vk::CopyDescriptorSet]);
-
-        return descriptor_sets;
-    }
-}
-
 fn create_graphics_pipeline(
     device: &Device,
     vertex_shader: vk::ShaderModule,
@@ -267,6 +351,8 @@ fn create_graphics_pipeline(
     scissor: vk::Rect2D,
     render_pass: vk::RenderPass,
     descriptor_set_layout: vk::DescriptorSetLayout,
+    binding_description: vk::VertexInputBindingDescription,
+    attribute_description: &[vk::VertexInputAttributeDescription],
 ) -> (vk::Pipeline, vk::PipelineLayout) {
     unsafe {
         let layouts = [descriptor_set_layout];
@@ -290,11 +376,10 @@ fn create_graphics_pipeline(
             },
         ];
 
-        let binding_descriptions = &[Vertex::binding_description()];
-        let attribute_descriptions = Vertex::attribute_descriptions();
+        let binding_descriptions = &[binding_description];
         let vertex_input_state = *vk::PipelineVertexInputStateCreateInfo::builder()
             .vertex_binding_descriptions(binding_descriptions)
-            .vertex_attribute_descriptions(&attribute_descriptions);
+            .vertex_attribute_descriptions(attribute_description);
 
         let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
             .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
@@ -355,8 +440,6 @@ fn create_graphics_pipeline(
         (graphics_pipelines[0], pipeline_layout)
     }
 }
-
-const COLORS: [Vector3<f32>; 3] = [vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)];
 
 fn create_index_buffer(indices: &Vec<u32>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
     unsafe {
@@ -436,47 +519,6 @@ fn create_vertex_buffer(vertex_positions: &Vec<Vector2<f32>>, instance: &Instanc
     }
 }
 
-fn create_uniform_buffer(color: Vector4<f32>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
-    unsafe {
-        let uniform_buffer_object = UniformBufferObject { color };
-
-        let uniform_buffer_size = 16 as u64;
-
-        let unfiorm_buffer_info = *vk::BufferCreateInfo::builder()
-            .size(uniform_buffer_size)
-            .usage(vk::BufferUsageFlags::UNIFORM_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-        let uniform_buffer = device.create_buffer(&unfiorm_buffer_info, None).unwrap();
-
-        let uniform_buffer_memory_requirements = device.get_buffer_memory_requirements(uniform_buffer);
-        let uniform_buffer_memory_index = get_memory_type_index(
-            &instance,
-            physical_device,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-            uniform_buffer_memory_requirements,
-        );
-
-        let uniform_buffer_allocate_info = *vk::MemoryAllocateInfo::builder()
-            .allocation_size(uniform_buffer_memory_requirements.size)
-            .memory_type_index(uniform_buffer_memory_index);
-
-        let uniform_buffer_memory = device.allocate_memory(&uniform_buffer_allocate_info, None).unwrap();
-
-        let uniform_ptr = device
-            .map_memory(uniform_buffer_memory, 0, uniform_buffer_memory_requirements.size, vk::MemoryMapFlags::empty())
-            .unwrap();
-
-        let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, 16);
-        align.copy_from_slice(&[uniform_buffer_object]);
-
-        device.unmap_memory(uniform_buffer_memory);
-        device.bind_buffer_memory(uniform_buffer, uniform_buffer_memory, 0).unwrap();
-
-        return (uniform_buffer, uniform_buffer_memory);
-    }
-}
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct Vertex {
@@ -488,11 +530,11 @@ impl Vertex {
         Self { pos }
     }
 
-    pub fn binding_description() -> vk::VertexInputBindingDescription {
+    pub fn get_descriptor_set_layout_binding() -> vk::VertexInputBindingDescription {
         vk::VertexInputBindingDescription::builder().binding(0).stride(8).input_rate(vk::VertexInputRate::VERTEX).build()
     }
 
-    pub fn attribute_descriptions() -> [vk::VertexInputAttributeDescription; 1] {
+    pub fn get_attribute_descriptions() -> [vk::VertexInputAttributeDescription; 1] {
         let pos = vk::VertexInputAttributeDescription::builder()
             .binding(0)
             .location(0)
@@ -501,24 +543,6 @@ impl Vertex {
             .build();
 
         [pos]
-    }
-}
-
-#[derive(Clone, Copy)]
-#[allow(dead_code)]
-struct UniformBufferObject {
-    color: Vector4<f32>,
-}
-
-impl UniformBufferObject {
-    fn get_descriptor_set_layout_bindings() -> [vk::DescriptorSetLayoutBinding; 1] {
-        let ubo_layout_binding = vk::DescriptorSetLayoutBinding::builder()
-            .binding(0)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::FRAGMENT)
-            .build();
-        [ubo_layout_binding]
     }
 }
 
