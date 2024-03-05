@@ -284,12 +284,16 @@ impl Element for Rect {
         );
 
         let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
+
+        const X_SCALE: f32 = 1920.0 / 2.0;
+        const Y_SCALE: f32 = 1080.0 / 2.0;
+
         let (vertex_buffer, vertex_buffer_memory) = Rect::create_vertex_buffer(
             &vec![
-                vec2(self.position.x / 1920.0, -self.position.y / 1080.0),
-                vec2(self.position.x / 1920.0, -(self.position.y + self.size.y) / 1080.0),
-                vec2((self.position.x + self.size.x) / 1920.0, -(self.position.y + self.size.y) / 1080.0),
-                vec2((self.position.x + self.size.x) / 1920.0, -self.position.y / 1080.0),
+                vec2(self.position.x / X_SCALE, -self.position.y / Y_SCALE),
+                vec2(self.position.x / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
+                vec2((self.position.x + self.size.x) / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
+                vec2((self.position.x + self.size.x) / X_SCALE, -self.position.y / Y_SCALE),
             ],
             instance,
             device,
@@ -360,7 +364,7 @@ fn create_command_buffer(device: &Device, command_pool: vk::CommandPool) -> vk::
 fn create_render_pass(device: &Device, first_element: bool, last_element: bool) -> vk::RenderPass {
     unsafe {
         let color_attachment = *vk::AttachmentDescription::builder()
-            .format(vk::Format::R8G8B8A8_SRGB)
+            .format(vk::Format::R8G8B8A8_UNORM)
             .samples(vk::SampleCountFlags::TYPE_1)
             .load_op(if first_element { vk::AttachmentLoadOp::CLEAR } else { vk::AttachmentLoadOp::LOAD })
             .store_op(vk::AttachmentStoreOp::STORE)

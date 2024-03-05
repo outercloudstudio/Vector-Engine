@@ -91,7 +91,7 @@ impl Renderer {
 
             let target_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
-                .format(vk::Format::R8G8B8A8_SRGB)
+                .format(vk::Format::R8G8B8A8_UNORM)
                 .extent(*vk::Extent3D::builder().width(480).height(270).depth(1))
                 .mip_levels(1)
                 .array_layers(1)
@@ -112,7 +112,7 @@ impl Renderer {
             let target_image_view_create_info = vk::ImageViewCreateInfo::builder()
                 .image(target_image)
                 .view_type(vk::ImageViewType::TYPE_2D)
-                .format(vk::Format::R8G8B8A8_SRGB)
+                .format(vk::Format::R8G8B8A8_UNORM)
                 .subresource_range(*subresource_range);
 
             let target_image_requirements = device.get_image_memory_requirements(target_image);
