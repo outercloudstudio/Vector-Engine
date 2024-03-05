@@ -7,13 +7,14 @@ use std::{borrow::Cow, default::Default};
 use ash::extensions::ext::DebugUtils;
 use ash::{vk, Device, Entry, Instance};
 
-use self::elements::{Element, Elements};
+use self::elements::{Element, Elements, Ellipse};
 
 type Vec2 = cgmath::Vector2<f32>;
 type Vec3 = cgmath::Vector3<f32>;
 type Mat4 = cgmath::Matrix4<f32>;
 
 pub mod elements;
+mod utils;
 
 pub struct Renderer {
     instance: Instance,
@@ -148,6 +149,16 @@ impl Renderer {
 
             match element {
                 Elements::Rect(rect) => rect.render(
+                    &self.instance,
+                    &self.device,
+                    self.physical_device,
+                    self.target_image_view,
+                    self.command_pool,
+                    self.graphics_queue,
+                    element_index == 0,
+                    element_index == elements.len() - 1,
+                ),
+                Elements::Ellipse(ellipse) => ellipse.render(
                     &self.instance,
                     &self.device,
                     self.physical_device,

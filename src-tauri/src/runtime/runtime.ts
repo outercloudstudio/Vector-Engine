@@ -32,6 +32,12 @@ class Rect {
 	) {}
 }
 
+class Ellipse {
+	private readonly type = 'Ellipse'
+
+	constructor(public position: Vector2, public size: Vector2, public color: Vector4) {}
+}
+
 const elements: any[] = []
 
 function add(element: any) {
@@ -58,6 +64,7 @@ for (const [key, value] of Object.entries({
 	Vector2,
 	Vector4,
 	Rect,
+	Ellipse,
 
 	add,
 	clip,
