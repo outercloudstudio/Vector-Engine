@@ -163,10 +163,14 @@ impl Rect {
         let color_key = v8::String::new(scope, "color").unwrap().into();
         let color_value = object.get(scope, color_key).unwrap();
 
+        let radius_key = v8::String::new(scope, "radius").unwrap().into();
+        let radius_value = object.get(scope, radius_key).unwrap();
+
         Rect {
             position: deserialize_vector2(scope, position_value),
             size: deserialize_vector2(scope, size_value),
             color: deserialize_vector4(scope, color_value),
+            radius: deserialize_number(scope, radius_value),
         }
     }
 }

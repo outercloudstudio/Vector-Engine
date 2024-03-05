@@ -1,20 +1,13 @@
 #![allow(dead_code, unused_variables)]
 
-use ash::vk::Buffer;
-use cgmath::{point3, vec2, vec3, Deg};
-use log::*;
 use std::ffi::{c_char, CStr};
-use std::io::Cursor;
-use std::mem;
 use std::ptr::copy_nonoverlapping;
-use std::time::Instant;
 use std::{borrow::Cow, default::Default};
 
 use ash::extensions::ext::DebugUtils;
-use ash::util::*;
 use ash::{vk, Device, Entry, Instance};
 
-use self::elements::{Element, Elements, Vertex};
+use self::elements::{Element, Elements};
 
 type Vec2 = cgmath::Vector2<f32>;
 type Vec3 = cgmath::Vector3<f32>;

@@ -24,26 +24,23 @@ class Vector4 {
 class Rect {
 	private readonly type = 'Rect'
 
-	constructor(public position: Vector2, public size: Vector2, public color: Vector4) {}
-}
-
-for (const [key, value] of Object.entries({
-	Vector2,
-	Vector4,
-	Rect,
-})) {
-	global[key] = value
+	constructor(
+		public position: Vector2,
+		public size: Vector2,
+		public color: Vector4,
+		public radius: number
+	) {}
 }
 
 const elements: any[] = []
 
-global.add = function (element: any) {
+function add(element: any) {
 	elements.push(element)
 
 	return element
 }
 
-global.clip = function (context: GeneratorFunction) {
+function clip(context: () => Generator<any, any, any>) {
 	const generator = context()
 
 	global.advance = function () {
@@ -55,4 +52,15 @@ global.clip = function (context: GeneratorFunction) {
 			Deno.core.ops.op_add_frame_element(element)
 		}
 	}
+}
+
+for (const [key, value] of Object.entries({
+	Vector2,
+	Vector4,
+	Rect,
+
+	add,
+	clip,
+})) {
+	global[key] = value
 }
