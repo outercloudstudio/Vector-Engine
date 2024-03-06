@@ -26,5 +26,9 @@ clip(function* () {
 		})
 	)
 
-	yield* progress.bounce(1, 1, ease)
+	yield* progress.to(1, 1, ease)
+
+	yield* seconds(1)
+
+	yield* progress.to(0, 1, ease)
 })

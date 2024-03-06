@@ -179,6 +179,14 @@ function* frame() {
 	yield null
 }
 
+function* seconds(time: number) {
+	let finalFrame = Math.floor(time * 60)
+
+	for (let f = 1; f <= finalFrame; f++) {
+		yield* frame()
+	}
+}
+
 for (const [key, value] of Object.entries({
 	Vector2,
 	Vector4,
@@ -194,6 +202,7 @@ for (const [key, value] of Object.entries({
 	linear,
 
 	frame,
+	seconds,
 })) {
 	global[key] = value
 }
