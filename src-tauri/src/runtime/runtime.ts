@@ -32,6 +32,50 @@ class Reactive<T> {
 	public set value(value: OptionallyReactable<T>) {
 		this.reactable = ensureReactable(value)
 	}
+
+	public *to(final: T, time: number, ease?: (t: number) => number): Generator {
+		if (typeof final === 'number') {
+			let initial = <number>this.value
+			let finalFrame = Math.floor(time * 60)
+
+			for (let f = 1; f <= finalFrame; f++) {
+				let progress = ease === undefined ? f / finalFrame : ease(f / finalFrame)
+				this.value = <T>(initial + (final - initial) * progress)
+
+				yield* frame()
+			}
+		}
+	}
+
+	public *bounce(final: T, speed: number, ease?: (t: number) => number, times?: number): Generator {
+		let loopCount = 0
+		let forward = true
+
+		let initial = this.value
+		let finalFrame = Math.floor(speed * 60)
+
+		while (times === undefined || loopCount < times) {
+			if (typeof final === 'number') {
+				for (let f = 1; f <= finalFrame; f++) {
+					let progress = 0
+
+					if (forward) {
+						progress = ease === undefined ? f / finalFrame : ease(f / finalFrame)
+					} else {
+						progress = ease === undefined ? 1 - f / finalFrame : ease(1 - f / finalFrame)
+					}
+
+					this.value = <T>(<number>initial + (final - <number>initial) * progress)
+
+					yield* frame()
+				}
+			}
+
+			forward = !forward
+
+			loopCount++
+		}
+	}
 }
 
 function react<T>(value: OptionallyReactable<T>): Reactive<T> {
@@ -123,14 +167,33 @@ function clip(context: () => Generator<any, any, any>) {
 	}
 }
 
+function ease(x: number): number {
+	return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2
+}
+
+function linear(x: number): number {
+	return x
+}
+
+function* frame() {
+	yield null
+}
+
 for (const [key, value] of Object.entries({
 	Vector2,
 	Vector4,
 	Rect,
 	Ellipse,
 
+	react,
+
 	add,
 	clip,
+
+	ease,
+	linear,
+
+	frame,
 })) {
 	global[key] = value
 }
