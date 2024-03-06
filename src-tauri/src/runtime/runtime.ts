@@ -13,6 +13,31 @@ global.console = {
 	},
 }
 
+type Reactable<T> = () => T
+type OptionallyReactable<T> = T | Reactable<T>
+
+function ensureReactable<T>(value: OptionallyReactable<T>): Reactable<T> {
+	if (typeof value !== 'function') return () => <T>value
+
+	return <Reactable<T>>value
+}
+
+class Reactive<T> {
+	constructor(public reactable: Reactable<T>) {}
+
+	public get value(): T {
+		return this.reactable()
+	}
+
+	public set value(value: OptionallyReactable<T>) {
+		this.reactable = ensureReactable(value)
+	}
+}
+
+function react<T>(value: OptionallyReactable<T>): Reactive<T> {
+	return new Reactive<T>(ensureReactable(value))
+}
+
 class Vector2 {
 	constructor(public x: number, public y: number) {}
 }
@@ -22,37 +47,56 @@ class Vector4 {
 }
 
 class Rect {
-	constructor(
-		public position: Vector2,
-		public size: Vector2,
-		public color: Vector4,
-		public radius: number | (() => number)
-	) {}
+	public position: Reactive<Vector2> = react(new Vector2(0, 0))
+	public size: Reactive<Vector2> = react(new Vector2(100, 100))
+	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
+	public radius: Reactive<number> = react(0)
+
+	constructor(options: {
+		position?: OptionallyReactable<Vector2>
+		size?: OptionallyReactable<Vector2>
+		color?: OptionallyReactable<Vector4>
+		radius?: OptionallyReactable<number>
+	}) {
+		for (const key of Object.keys(options)) {
+			//@ts-ignore
+			this[key] = react(options[key])
+		}
+	}
 
 	public to_static() {
 		return {
 			type: 'Rect',
-			position: this.position,
-			size: this.size,
-			color: this.color,
-			radius: typeof this.radius === 'function' ? this.radius() : this.radius,
+			position: this.position.value,
+			size: this.size.value,
+			color: this.color.value,
+			radius: this.radius.value,
 		}
 	}
 }
 
 class Ellipse {
-	constructor(
-		public position: Vector2 | (() => Vector2),
-		public size: Vector2,
-		public color: Vector4
-	) {}
+	public position: Reactive<Vector2> = react(new Vector2(0, 0))
+	public size: Reactive<Vector2> = react(new Vector2(100, 100))
+	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
+
+	constructor(options: {
+		position: OptionallyReactable<Vector2>
+		size: OptionallyReactable<Vector2>
+		color: OptionallyReactable<Vector4>
+	}) {
+		for (const key of Object.keys(options)) {
+			//@ts-ignore
+			this[key] = react(options[key])
+		}
+	}
 
 	public to_static() {
 		return {
 			type: 'Ellipse',
-			position: typeof this.position === 'function' ? this.position() : this.position,
-			size: this.size,
-			color: this.color,
+			position: this.position.value,
+			size: this.size.value,
+			color: this.color.value,
 		}
 	}
 }
