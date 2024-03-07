@@ -54,34 +54,34 @@ pub fn create_render_pass(device: &Device, first_element: bool, last_element: bo
     }
 }
 
-pub fn create_framebuffer(device: &Device, target_image_view: vk::ImageView, render_pass: vk::RenderPass) -> vk::Framebuffer {
+pub fn create_framebuffer(device: &Device, target_image_view: vk::ImageView, render_pass: vk::RenderPass, width: u32, height: u32) -> vk::Framebuffer {
     unsafe {
         let frame_buffer_attachments = &[target_image_view];
 
         let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
             .render_pass(render_pass)
             .attachments(frame_buffer_attachments)
-            .width(480)
-            .height(270)
+            .width(width)
+            .height(height)
             .layers(1);
 
         device.create_framebuffer(&frame_buffer_create_info, None).unwrap()
     }
 }
 
-pub fn create_viewport() -> vk::Viewport {
+pub fn create_viewport(width: u32, height: u32) -> vk::Viewport {
     vk::Viewport {
         x: 0.0,
         y: 0.0,
-        width: 480.0,
-        height: 270.0,
+        width: width as f32,
+        height: height as f32,
         min_depth: 0.0,
         max_depth: 1.0,
     }
 }
 
-pub fn create_scissor() -> vk::Rect2D {
-    *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(480).height(270))
+pub fn create_scissor(width: u32, height: u32) -> vk::Rect2D {
+    *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(width).height(height))
 }
 
 pub fn create_graphics_pipeline(
@@ -239,6 +239,8 @@ pub fn begin_render_pass(
     graphics_pipeline: vk::Pipeline,
     viewport: vk::Viewport,
     scissor: vk::Rect2D,
+    width: u32,
+    height: u32,
 ) {
     unsafe {
         let clear_values = [vk::ClearValue {
@@ -248,7 +250,7 @@ pub fn begin_render_pass(
         let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass)
             .framebuffer(frame_buffer)
-            .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(480).height(270)))
+            .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(width).height(height)))
             .clear_values(&clear_values);
 
         device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).unwrap();

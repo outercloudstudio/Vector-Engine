@@ -87,7 +87,8 @@ fn main() {
             }
 
             thread::spawn(move || {
-                let mut renderer = Renderer::create();
+                let mut renderer = Renderer::create(1920, 1080);
+                let mut preview_renderer = Renderer::create(480, 270);
 
                 let mut clips: Vec<Clips> = Vec::new();
 
@@ -114,7 +115,7 @@ fn main() {
                                 Clips::ScriptClip(clip) => {
                                     clip.set_frame(frame);
 
-                                    let render = clip.render(&mut renderer);
+                                    let render = clip.render(&mut preview_renderer);
 
                                     response_sender.send(render).unwrap();
                                 }
@@ -125,6 +126,32 @@ fn main() {
                             drop(old_clip);
 
                             clips.push(Clips::ScriptClip(ScriptClip::new(read_to_string(Path::new(r#"D:\Vector Engine\playground\project.ts"#)).unwrap())));
+                        }
+                        Command::Render => {
+                            let clip = &mut clips[0];
+
+                            for frame in 0..240 {
+                                match clip {
+                                    Clips::ScriptClip(clip) => {
+                                        clip.set_frame(frame);
+
+                                        let bytes = clip.render(&mut renderer);
+
+                                        thread::spawn(move || {
+                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.png", frame)).unwrap();
+                                            let mut file_writer = BufWriter::new(file);
+
+                                            let mut encoder = png::Encoder::new(&mut file_writer, 1920, 1080);
+                                            encoder.set_color(png::ColorType::Rgba);
+                                            encoder.set_depth(png::BitDepth::Eight);
+
+                                            let mut writer = encoder.write_header().unwrap();
+                                            writer.write_image_data(&bytes).unwrap();
+                                            writer.finish().unwrap();
+                                        });
+                                    }
+                                }
+                            }
                         }
                         _ => {}
                     }

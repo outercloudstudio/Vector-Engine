@@ -24,10 +24,13 @@ pub struct Renderer {
     command_pool: vk::CommandPool,
     target_image: vk::Image,
     target_image_view: vk::ImageView,
+
+    width: u32,
+    height: u32,
 }
 
 impl Renderer {
-    pub fn create() -> Renderer {
+    pub fn create(width: u32, height: u32) -> Renderer {
         unsafe {
             let entry = Entry::linked();
 
@@ -93,7 +96,7 @@ impl Renderer {
             let target_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
                 .format(vk::Format::R8G8B8A8_UNORM)
-                .extent(*vk::Extent3D::builder().width(480).height(270).depth(1))
+                .extent(*vk::Extent3D::builder().width(width).height(height).depth(1))
                 .mip_levels(1)
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
@@ -139,6 +142,8 @@ impl Renderer {
                 command_pool,
                 target_image,
                 target_image_view,
+                width,
+                height,
             }
         }
     }
@@ -157,6 +162,8 @@ impl Renderer {
                     self.graphics_queue,
                     element_index == 0,
                     element_index == elements.len() - 1,
+                    self.width,
+                    self.height,
                 ),
                 Elements::Ellipse(ellipse) => ellipse.render(
                     &self.instance,
@@ -167,12 +174,14 @@ impl Renderer {
                     self.graphics_queue,
                     element_index == 0,
                     element_index == elements.len() - 1,
+                    self.width,
+                    self.height,
                 ),
             }
         }
 
         unsafe {
-            let size = 480 * 270 * 4;
+            let size = self.width as u64 * self.height as u64 * 4;
 
             let save_buffer_info = vk::BufferCreateInfo::builder()
                 .size(size)
@@ -220,7 +229,11 @@ impl Renderer {
                 .buffer_image_height(0)
                 .image_subresource(subresource)
                 .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
-                .image_extent(vk::Extent3D { width: 480, height: 270, depth: 1 });
+                .image_extent(vk::Extent3D {
+                    width: self.width,
+                    height: self.height,
+                    depth: 1,
+                });
 
             self.device
                 .cmd_copy_image_to_buffer(command_buffer, self.target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);

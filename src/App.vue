@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { invoke } from '@tauri-apps/api'
 import { onMounted, ref } from 'vue'
 
 let imageSrc = ref('')
@@ -38,6 +39,7 @@ onMounted(() => {
 <template>
 	<p>{{ frameRate }}</p>
 	<img class="preview" :src="imageSrc" />
+	<button @click="invoke('render')">Render</button>
 </template>
 
 <style scoped>

@@ -25,6 +25,8 @@ pub trait Element {
         graphics_queue: vk::Queue,
         first_element: bool,
         last_element: bool,
+        width: u32,
+        height: u32,
     );
 }
 
@@ -258,18 +260,20 @@ impl Element for Rect {
         graphics_queue: vk::Queue,
         first_element: bool,
         last_element: bool,
+        width: u32,
+        height: u32,
     ) {
         let command_buffer = create_command_buffer(device, command_pool);
 
         let render_pass = create_render_pass(device, first_element, last_element);
 
-        let frame_buffer = create_framebuffer(device, target_image_view, render_pass);
+        let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
 
         let vertex_shader = Rect::create_vertex_shader(device);
         let fragment_shader = Rect::create_fragment_shader(device);
 
-        let viewport = create_viewport();
-        let scissor = create_scissor();
+        let viewport = create_viewport(width, height);
+        let scissor = create_scissor(width, height);
 
         let descriptor_set_layouts = Rect::create_descriptor_set_layout(device);
 
@@ -315,7 +319,7 @@ impl Element for Rect {
         let descriptor_pools = Rect::create_descriptor_pool(device);
         let descriptor_sets = Rect::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
 
-        begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor);
+        begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
 
         unsafe {
             device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
@@ -575,18 +579,20 @@ impl Element for Ellipse {
         graphics_queue: vk::Queue,
         first_element: bool,
         last_element: bool,
+        width: u32,
+        height: u32,
     ) {
         let command_buffer = create_command_buffer(device, command_pool);
 
         let render_pass = create_render_pass(device, first_element, last_element);
 
-        let frame_buffer = create_framebuffer(device, target_image_view, render_pass);
+        let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
 
         let vertex_shader = Ellipse::create_vertex_shader(device);
         let fragment_shader = Ellipse::create_fragment_shader(device);
 
-        let viewport = create_viewport();
-        let scissor = create_scissor();
+        let viewport = create_viewport(width, height);
+        let scissor = create_scissor(width, height);
 
         let descriptor_set_layouts = Ellipse::create_descriptor_set_layout(device);
 
@@ -623,7 +629,7 @@ impl Element for Ellipse {
         let descriptor_pools = Ellipse::create_descriptor_pool(device);
         let descriptor_sets = Ellipse::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
 
-        begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor);
+        begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
 
         unsafe {
             device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);

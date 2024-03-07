@@ -26,9 +26,29 @@ clip(function* () {
 		})
 	)
 
-	yield* progress.to(1, 1, ease)
+	const rect2 = add(
+		new Rect({
+			position: new Vector2(-600, -450),
+			size: () => new Vector2(400 + progress.value * 700, 100),
+			color: new Vector4(30 / 255, 219 / 255, 101 / 255, 1),
+		})
+	)
 
-	yield* seconds(1)
+	const ellipse2Background = add(
+		new Ellipse({
+			position: new Vector2(-150 - 5, 200 - 5),
+			size: new Vector2(110, 110),
+			color: () => new Vector4(1 - progress.value, 1 - progress.value, 1 - progress.value, 1),
+		})
+	)
 
-	yield* progress.to(0, 1, ease)
+	const ellipse2 = add(
+		new Ellipse({
+			position: new Vector2(-150, 200),
+			size: new Vector2(100, 100),
+			color: () => new Vector4(progress.value, progress.value, progress.value, 1),
+		})
+	)
+
+	yield* progress.bounce(1, 1, ease)
 })
