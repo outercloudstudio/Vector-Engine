@@ -153,18 +153,16 @@ function add(element: any) {
 	return element
 }
 
+function _updateFrame() {
+	for (const element of elements) {
+		Deno.core.ops.op_add_frame_element(element.to_static())
+	}
+}
+
 function clip(context: () => Generator<any, any, any>) {
 	const generator = context()
 
-	global.advance = function () {
-		generator.next()
-
-		Deno.core.ops.op_reset_frame()
-
-		for (const element of elements) {
-			Deno.core.ops.op_add_frame_element(element.to_static())
-		}
-	}
+	Deno.core.ops.op_add_context(generator)
 }
 
 function ease(x: number): number {
@@ -203,6 +201,8 @@ for (const [key, value] of Object.entries({
 
 	frame,
 	seconds,
+
+	_updateFrame,
 })) {
 	global[key] = value
 }

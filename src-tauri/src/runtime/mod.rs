@@ -5,28 +5,26 @@ use cgmath::Vector4;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
-use deno_core::error::type_error;
 use deno_core::error::AnyError;
 use deno_core::futures::FutureExt;
 use deno_core::op2;
-use deno_core::serde_v8::Global;
 use deno_core::v8;
+use deno_core::v8::GetPropertyNamesArgsBuilder;
 use deno_core::Extension;
 use deno_core::Op;
 use deno_core::{FastString, OpState};
 use log::info;
-use log::warn;
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Instant;
 
-use crate::renderer::elements;
 use crate::renderer::elements::Ellipse;
 use crate::renderer::elements::{Elements, Rect};
 
 struct ClipRuntimeState {
     elements: Vec<Elements>,
+    contexts: Vec<v8::Global<v8::Object>>,
 }
 
 pub struct ScriptClipRuntime {
@@ -36,12 +34,15 @@ pub struct ScriptClipRuntime {
 
 impl ScriptClipRuntime {
     pub fn new() -> ScriptClipRuntime {
-        let state = Arc::new(Mutex::new(ClipRuntimeState { elements: Vec::new() }));
+        let state = Arc::new(Mutex::new(ClipRuntimeState {
+            elements: Vec::new(),
+            contexts: Vec::new(),
+        }));
 
         let state_arc = state.clone();
 
         let runtime_extension = Extension::builder("runtime_extension")
-            .ops(vec![op_reset_frame::DECL, op_add_frame_element::DECL])
+            .ops(vec![op_reset_frame::DECL, op_add_frame_element::DECL, op_add_context::DECL])
             .state(|extension_state| {
                 extension_state.put::<Arc<Mutex<ClipRuntimeState>>>(state_arc);
             })
@@ -57,6 +58,13 @@ impl ScriptClipRuntime {
     }
 
     pub fn initialize_clip(&mut self, script: &String) {
+        let mut state = self.state.lock().unwrap();
+
+        state.elements = Vec::new();
+        state.contexts = Vec::new();
+
+        drop(state);
+
         self.js_runtime
             .execute_script(
                 "vector-engine/runtime.ts",
@@ -72,6 +80,56 @@ impl ScriptClipRuntime {
     }
 
     pub fn advance(&mut self) {
+        let mut state = self.state.lock().unwrap();
+
+        state.elements = Vec::new();
+
+        drop(state);
+
+        self.advance_contexts();
+
+        self.update_frame();
+    }
+
+    fn advance_contexts(&mut self) {
+        let mut scope = self.js_runtime.handle_scope();
+
+        let state = self.state.lock().unwrap();
+
+        let contexts = state.contexts.clone();
+
+        drop(state);
+
+        for context in contexts {
+            let generator = v8::Local::new(&mut scope, context);
+
+            let key = v8::String::new(&mut scope, "next").unwrap();
+
+            let next = generator.get(&mut scope, key.into()).unwrap();
+
+            let next = v8::Local::<v8::Function>::try_from(next).unwrap();
+
+            let result = next.call(&mut scope, generator.into(), &[]).unwrap();
+
+            let result = v8::Local::<v8::Object>::try_from(result).unwrap();
+
+            let key = v8::String::new(&mut scope, "value").unwrap();
+
+            let result = result.get(&mut scope, key.into()).unwrap();
+
+            if result.is_generator_object() {
+                let mut state = self.state.lock().unwrap();
+
+                let result = v8::Local::<v8::Object>::try_from(result).unwrap();
+
+                let result = v8::Global::new(&mut scope, result);
+
+                state.contexts.push(result);
+            }
+        }
+    }
+
+    fn update_frame(&mut self) {
         let binding = self.js_runtime.main_context();
 
         let context = binding.open(&mut self.js_runtime.v8_isolate());
@@ -80,15 +138,15 @@ impl ScriptClipRuntime {
 
         let global = context.global(&mut scope);
 
-        let key = v8::String::new(&mut scope, "advance").unwrap();
-
-        let advance = global.get(&mut scope, key.into()).unwrap();
-
-        let advance = v8::Local::<v8::Function>::try_from(advance).unwrap();
-
         let this = v8::undefined(&mut scope);
 
-        advance.call(&mut scope, this.into(), &[]);
+        let update_frame_key = v8::String::new(&mut scope, "_updateFrame").unwrap();
+
+        let update_frame = global.get(&mut scope, update_frame_key.into()).unwrap();
+
+        let update_frame = v8::Local::<v8::Function>::try_from(update_frame).unwrap();
+
+        update_frame.call(&mut scope, this.into(), &[]);
     }
 
     pub fn get_elements(&self) -> Vec<Elements> {
@@ -199,18 +257,18 @@ impl Ellipse {
 
 #[op2]
 fn op_reset_frame(state: &mut OpState, scope: &mut v8::HandleScope) -> Result<(), AnyError> {
-    let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
-    let mut clip_state = clip_state_mutex.lock().unwrap();
+    let state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
+    let mut state = state_mutex.lock().unwrap();
 
-    clip_state.elements = Vec::new();
+    state.elements = Vec::new();
 
     Ok(())
 }
 
 #[op2]
 fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Result<(), AnyError> {
-    let clip_state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
-    let mut clip_state = clip_state_mutex.lock().unwrap();
+    let state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
+    let mut state = state_mutex.lock().unwrap();
 
     let object = v8::Local::<v8::Object>::try_from(value).unwrap();
 
@@ -219,12 +277,26 @@ fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value:
     let type_string = v8::Local::<v8::String>::try_from(type_value).unwrap().to_rust_string_lossy(scope);
 
     if type_string == "Rect" {
-        clip_state.elements.push(Elements::Rect(Rect::deserialize(scope, value)));
+        state.elements.push(Elements::Rect(Rect::deserialize(scope, value)));
     }
 
     if type_string == "Ellipse" {
-        clip_state.elements.push(Elements::Ellipse(Ellipse::deserialize(scope, value)));
+        state.elements.push(Elements::Ellipse(Ellipse::deserialize(scope, value)));
     }
+
+    Ok(())
+}
+
+#[op2]
+fn op_add_context(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Result<(), AnyError> {
+    let state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
+    let mut state = state_mutex.lock().unwrap();
+
+    let generator = v8::Local::<v8::Object>::try_from(value).unwrap();
+
+    let generator = v8::Global::new(scope, generator);
+
+    state.contexts.push(generator);
 
     Ok(())
 }

@@ -8,6 +8,7 @@ let frameRate = ref(0)
 let animationStart = Date.now()
 
 let lastFrameTime = Date.now()
+let lastFrame = -1
 
 async function preview() {
 	const now = Date.now()
@@ -19,14 +20,18 @@ async function preview() {
 		animationStart = now
 	}
 
-	frameRate.value = (1 / (now - lastFrameTime)) * 1000
-	lastFrameTime = now
+	if (lastFrame !== frame) {
+		frameRate.value = (1 / (now - lastFrameTime)) * 1000
+		lastFrameTime = now
 
-	const arrayBuffer = await (await fetch(`https://preview.localhost/?frame=${frame}`)).arrayBuffer()
-	const blob = new Blob([arrayBuffer], { type: 'image/png' })
-	const src = window.URL.createObjectURL(blob)
+		const arrayBuffer = await (await fetch(`https://preview.localhost/?frame=${frame}`)).arrayBuffer()
+		const blob = new Blob([arrayBuffer], { type: 'image/png' })
+		const src = window.URL.createObjectURL(blob)
 
-	imageSrc.value = src
+		imageSrc.value = src
+	}
+
+	lastFrame = frame
 
 	requestAnimationFrame(preview)
 }
@@ -37,7 +42,7 @@ onMounted(() => {
 </script>
 
 <template>
-	<p>{{ frameRate }}</p>
+	<p>{{ Math.floor(frameRate) }}</p>
 	<img class="preview" :src="imageSrc" />
 	<button @click="invoke('render')">Render</button>
 </template>

@@ -8,6 +8,7 @@ clip(function* () {
 	)
 
 	let progress = react(0)
+	let progress2 = react(0)
 
 	const rect = add(
 		new Rect({
@@ -29,7 +30,7 @@ clip(function* () {
 	const rect2 = add(
 		new Rect({
 			position: new Vector2(-600, -450),
-			size: () => new Vector2(400 + progress.value * 700, 100),
+			size: () => new Vector2(400 + progress2.value * 700, 100),
 			color: new Vector4(30 / 255, 219 / 255, 101 / 255, 1),
 		})
 	)
@@ -38,7 +39,7 @@ clip(function* () {
 		new Ellipse({
 			position: new Vector2(-150 - 5, 200 - 5),
 			size: new Vector2(110, 110),
-			color: () => new Vector4(1 - progress.value, 1 - progress.value, 1 - progress.value, 1),
+			color: () => new Vector4(1 - progress2.value, 1 - progress2.value, 1 - progress2.value, 1),
 		})
 	)
 
@@ -46,9 +47,13 @@ clip(function* () {
 		new Ellipse({
 			position: new Vector2(-150, 200),
 			size: new Vector2(100, 100),
-			color: () => new Vector4(progress.value, progress.value, progress.value, 1),
+			color: () => new Vector4(progress2.value, progress2.value, progress2.value, 1),
 		})
 	)
 
-	yield* progress.bounce(1, 1, ease)
+	yield progress.bounce(1, 1, ease)
+
+	yield* seconds(0.5)
+
+	yield progress2.bounce(1, 1, ease, 2)
 })
