@@ -14,13 +14,14 @@ use deno_core::Extension;
 use deno_core::Op;
 use deno_core::{FastString, OpState};
 use log::info;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
 
-use crate::renderer::elements::Ellipse;
-use crate::renderer::elements::{Elements, Rect};
+use crate::clips::Clips;
+use crate::renderer::elements::{Clip, Elements, Ellipse, Rect};
 
 struct ClipRuntimeState {
     elements: Vec<Elements>,
@@ -174,6 +175,10 @@ pub fn deserialize_number(scope: &mut v8::HandleScope, value: v8::Local<v8::Valu
     v8::Local::<v8::Number>::try_from(value).unwrap().value() as f32
 }
 
+pub fn deserialize_string(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> String {
+    value.to_rust_string_lossy(scope)
+}
+
 pub fn deserialize_vector2(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Vector2<f32> {
     let object = v8::Local::<v8::Object>::try_from(value).unwrap();
 
@@ -255,6 +260,35 @@ impl Ellipse {
     }
 }
 
+impl Clip {
+    pub fn deserialize(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Clip {
+        let object = v8::Local::<v8::Object>::try_from(value).unwrap();
+
+        let position_key = v8::String::new(scope, "position").unwrap().into();
+        let position_value = object.get(scope, position_key).unwrap();
+
+        let size_key = v8::String::new(scope, "size").unwrap().into();
+        let size_value = object.get(scope, size_key).unwrap();
+
+        let color_key = v8::String::new(scope, "color").unwrap().into();
+        let color_value = object.get(scope, color_key).unwrap();
+
+        let clip_key = v8::String::new(scope, "clip").unwrap().into();
+        let clip_value = object.get(scope, clip_key).unwrap();
+
+        let frame_key = v8::String::new(scope, "frame").unwrap().into();
+        let frame_value = object.get(scope, frame_key).unwrap();
+
+        Clip {
+            clip: deserialize_string(scope, clip_value),
+            frame: deserialize_number(scope, frame_value) as u32,
+            position: deserialize_vector2(scope, position_value),
+            size: deserialize_vector2(scope, size_value),
+            color: deserialize_vector4(scope, color_value),
+        }
+    }
+}
+
 #[op2]
 fn op_reset_frame(state: &mut OpState, scope: &mut v8::HandleScope) -> Result<(), AnyError> {
     let state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
@@ -282,6 +316,10 @@ fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value:
 
     if type_string == "Ellipse" {
         state.elements.push(Elements::Ellipse(Ellipse::deserialize(scope, value)));
+    }
+
+    if type_string == "Clip" {
+        state.elements.push(Elements::Clip(Clip::deserialize(scope, value)));
     }
 
     Ok(())

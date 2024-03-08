@@ -1,22 +1,29 @@
-use std::time::Instant;
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fs::read_to_string,
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
 use log::info;
 
-use crate::{
-    renderer::{
-        elements::{Elements, Rect},
-        Renderer,
-    },
-    runtime::ScriptClipRuntime,
-};
+use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
+
+pub struct ClipLoader {}
+
+impl ClipLoader {
+    pub fn new() -> ClipLoader {
+        ClipLoader {}
+    }
+
+    pub fn get_new(&self, path: String) -> Option<Clips> {
+        Some(Clips::ScriptClip(ScriptClip::new(read_to_string(format!("D:/Vector Engine/playground/{}", path)).unwrap())))
+    }
+}
 
 pub enum Clips {
     ScriptClip(ScriptClip),
-}
-
-pub trait Clip {
-    fn set_frame(&mut self, frame: u32);
-    fn render(&self, project: &mut Renderer) -> Vec<u8>;
 }
 
 pub struct ScriptClip {
@@ -36,8 +43,8 @@ impl ScriptClip {
     }
 }
 
-impl Clip for ScriptClip {
-    fn set_frame(&mut self, frame: u32) {
+impl ScriptClip {
+    pub fn set_frame(&mut self, frame: u32) {
         if self.internal_frame == frame {
             return;
         }
@@ -56,14 +63,14 @@ impl Clip for ScriptClip {
         self.internal_frame = frame;
     }
 
-    fn render(&self, renderer: &mut Renderer) -> Vec<u8> {
+    pub fn render(&self, renderer: &mut Renderer, clip_loader: &ClipLoader) -> Vec<u8> {
         let elements = self.runtime.get_elements();
 
         if elements.len() == 0 {
             return Vec::new();
         }
 
-        let bytes = renderer.render(elements);
+        let bytes = renderer.render(elements, clip_loader);
 
         return bytes;
     }

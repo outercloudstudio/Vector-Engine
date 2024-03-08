@@ -125,9 +125,9 @@ class Ellipse {
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 
 	constructor(options: {
-		position: OptionallyReactable<Vector2>
-		size: OptionallyReactable<Vector2>
-		color: OptionallyReactable<Vector4>
+		position?: OptionallyReactable<Vector2>
+		size?: OptionallyReactable<Vector2>
+		color?: OptionallyReactable<Vector4>
 	}) {
 		for (const key of Object.keys(options)) {
 			//@ts-ignore
@@ -145,9 +145,41 @@ class Ellipse {
 	}
 }
 
+class Clip {
+	public clip: Reactive<string> = react('')
+	public frame: Reactive<number> = react(0)
+	public position: Reactive<Vector2> = react(new Vector2(0, 0))
+	public size: Reactive<Vector2> = react(new Vector2(100, 100))
+	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
+
+	constructor(options: {
+		clip?: OptionallyReactable<string>
+		frame?: OptionallyReactable<number>
+		position?: OptionallyReactable<Vector2>
+		size?: OptionallyReactable<Vector2>
+		color?: OptionallyReactable<Vector4>
+	}) {
+		for (const key of Object.keys(options)) {
+			//@ts-ignore
+			this[key] = react(options[key])
+		}
+	}
+
+	public to_static() {
+		return {
+			type: 'Clip',
+			clip: this.clip.value,
+			frame: this.frame.value,
+			position: this.position.value,
+			size: this.size.value,
+			color: this.color.value,
+		}
+	}
+}
+
 const elements: any[] = []
 
-function add(element: any) {
+function add<T>(element: T): T {
 	elements.push(element)
 
 	return element
@@ -190,6 +222,7 @@ for (const [key, value] of Object.entries({
 	Vector4,
 	Rect,
 	Ellipse,
+	Clip,
 
 	react,
 

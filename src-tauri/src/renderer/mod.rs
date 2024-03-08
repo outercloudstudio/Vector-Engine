@@ -1,13 +1,18 @@
 #![allow(dead_code, unused_variables)]
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::{c_char, CStr};
 use std::ptr::copy_nonoverlapping;
+use std::sync::{Arc, Mutex};
 use std::{borrow::Cow, default::Default};
 
 use ash::extensions::ext::DebugUtils;
 use ash::{vk, Device, Entry, Instance};
 
-use self::elements::{Element, Elements, Ellipse};
+use crate::clips::{ClipLoader, Clips};
+
+use self::elements::Elements;
 
 type Vec2 = cgmath::Vector2<f32>;
 type Vec3 = cgmath::Vector3<f32>;
@@ -20,6 +25,8 @@ pub struct Renderer {
     instance: Instance,
     device: Device,
     physical_device: vk::PhysicalDevice,
+    debug_call_back: vk::DebugUtilsMessengerEXT,
+    debug_utils: DebugUtils,
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
     target_image: vk::Image,
@@ -27,6 +34,7 @@ pub struct Renderer {
 
     width: u32,
     height: u32,
+    target_image_memory: vk::DeviceMemory,
 }
 
 impl Renderer {
@@ -58,9 +66,9 @@ impl Renderer {
                 .message_type(vk::DebugUtilsMessageTypeFlagsEXT::GENERAL | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE)
                 .pfn_user_callback(Some(vulkan_debug_callback));
 
-            let debug_utils_loader = DebugUtils::new(&entry, &instance);
+            let debug_utils = DebugUtils::new(&entry, &instance);
 
-            let debug_call_back = debug_utils_loader.create_debug_utils_messenger(&debug_info, None).unwrap();
+            let debug_call_back = debug_utils.create_debug_utils_messenger(&debug_info, None).unwrap();
 
             let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
 
@@ -138,17 +146,20 @@ impl Renderer {
                 instance,
                 device,
                 physical_device,
+                debug_utils,
+                debug_call_back,
                 graphics_queue,
                 command_pool,
                 target_image,
                 target_image_view,
+                target_image_memory,
                 width,
                 height,
             }
         }
     }
 
-    pub fn render(&mut self, elements: Vec<Elements>) -> Vec<u8> {
+    pub fn render(&mut self, elements: Vec<Elements>, clip_loader: &ClipLoader) -> Vec<u8> {
         for element_index in 0..elements.len() {
             let element = &elements[element_index];
 
@@ -176,6 +187,19 @@ impl Renderer {
                     element_index == elements.len() - 1,
                     self.width,
                     self.height,
+                ),
+                Elements::Clip(clip) => clip.render(
+                    &self.instance,
+                    &self.device,
+                    self.physical_device,
+                    self.target_image_view,
+                    self.command_pool,
+                    self.graphics_queue,
+                    element_index == 0,
+                    element_index == elements.len() - 1,
+                    self.width,
+                    self.height,
+                    clip_loader,
                 ),
             }
         }
@@ -260,6 +284,22 @@ impl Renderer {
             self.device.free_memory(save_buffer_memory, None);
 
             return pixels;
+        }
+    }
+
+    pub fn destroy(self) {
+        unsafe {
+            self.device.free_memory(self.target_image_memory, None);
+            self.device.destroy_image_view(self.target_image_view, None);
+            self.device.destroy_image(self.target_image, None);
+
+            self.device.destroy_command_pool(self.command_pool, None);
+
+            self.device.destroy_device(None);
+
+            self.debug_utils.destroy_debug_utils_messenger(self.debug_call_back, None);
+
+            self.instance.destroy_instance(None);
         }
     }
 }
