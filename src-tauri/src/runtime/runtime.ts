@@ -105,6 +105,7 @@ class Rect {
 	public rotation: Reactive<number> = react(0)
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 	public radius: Reactive<number> = react(0)
+	public order: Reactive<number> = react(0)
 
 	constructor(options: {
 		position?: OptionallyReactable<Vector2>
@@ -113,6 +114,7 @@ class Rect {
 		rotation?: OptionallyReactable<number>
 		color?: OptionallyReactable<Vector4>
 		radius?: OptionallyReactable<number>
+		order?: OptionallyReactable<number>
 	}) {
 		for (const key of Object.keys(options)) {
 			//@ts-ignore
@@ -129,6 +131,7 @@ class Rect {
 			rotation: this.rotation.value,
 			color: this.color.value,
 			radius: this.radius.value,
+			order: this.order.value,
 		}
 	}
 }
@@ -138,12 +141,14 @@ class Ellipse {
 	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
+	public order: Reactive<number> = react(0)
 
 	constructor(options: {
 		position?: OptionallyReactable<Vector2>
 		origin?: OptionallyReactable<Vector2>
 		size?: OptionallyReactable<Vector2>
 		color?: OptionallyReactable<Vector4>
+		order?: OptionallyReactable<number>
 	}) {
 		for (const key of Object.keys(options)) {
 			//@ts-ignore
@@ -158,6 +163,7 @@ class Ellipse {
 			origin: this.origin.value,
 			size: this.size.value,
 			color: this.color.value,
+			order: this.order.value,
 		}
 	}
 }
@@ -170,6 +176,7 @@ class Clip {
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
 	public rotation: Reactive<number> = react(0)
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
+	public order: Reactive<number> = react(0)
 
 	constructor(options: {
 		clip?: OptionallyReactable<string>
@@ -179,6 +186,7 @@ class Clip {
 		size?: OptionallyReactable<Vector2>
 		rotation?: OptionallyReactable<number>
 		color?: OptionallyReactable<Vector4>
+		order?: OptionallyReactable<number>
 	}) {
 		for (const key of Object.keys(options)) {
 			//@ts-ignore
@@ -196,6 +204,7 @@ class Clip {
 			size: this.size.value,
 			rotation: this.rotation.value,
 			color: this.color.value,
+			order: this.order.value,
 		}
 	}
 }

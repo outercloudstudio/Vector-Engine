@@ -236,6 +236,9 @@ impl Rect {
         let radius_key = v8::String::new(scope, "radius").unwrap().into();
         let radius_value = object.get(scope, radius_key).unwrap();
 
+        let order_key = v8::String::new(scope, "order").unwrap().into();
+        let order_value = object.get(scope, order_key).unwrap();
+
         Rect {
             position: deserialize_vector2(scope, position_value),
             origin: deserialize_vector2(scope, origin_value),
@@ -243,6 +246,7 @@ impl Rect {
             rotation: deserialize_number(scope, rotation_value),
             color: deserialize_vector4(scope, color_value),
             radius: deserialize_number(scope, radius_value),
+            order: deserialize_number(scope, order_value),
         }
     }
 }
@@ -263,11 +267,15 @@ impl Ellipse {
         let color_key = v8::String::new(scope, "color").unwrap().into();
         let color_value = object.get(scope, color_key).unwrap();
 
+        let order_key = v8::String::new(scope, "order").unwrap().into();
+        let order_value = object.get(scope, order_key).unwrap();
+
         Ellipse {
             position: deserialize_vector2(scope, position_value),
             origin: deserialize_vector2(scope, origin_value),
             size: deserialize_vector2(scope, size_value),
             color: deserialize_vector4(scope, color_value),
+            order: deserialize_number(scope, order_value),
         }
     }
 }
@@ -297,6 +305,9 @@ impl Clip {
         let frame_key = v8::String::new(scope, "frame").unwrap().into();
         let frame_value = object.get(scope, frame_key).unwrap();
 
+        let order_key = v8::String::new(scope, "order").unwrap().into();
+        let order_value = object.get(scope, order_key).unwrap();
+
         Clip {
             clip: deserialize_string(scope, clip_value),
             frame: deserialize_number(scope, frame_value) as u32,
@@ -305,6 +316,7 @@ impl Clip {
             rotation: deserialize_number(scope, rotation_value),
             size: deserialize_vector2(scope, size_value),
             color: deserialize_vector4(scope, color_value),
+            order: deserialize_number(scope, order_value),
         }
     }
 }

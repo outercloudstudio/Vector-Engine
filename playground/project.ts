@@ -34,6 +34,7 @@ clip(function* () {
 		new Rect({
 			size: new Vector2(1920, 1080),
 			color: new Vector4(12 / 256, 12 / 256, 12 / 256, 1),
+			order: -100,
 		})
 	)
 
@@ -66,19 +67,20 @@ clip(function* () {
 		})
 	)
 
-	const ellipse2Background = add(
-		new Ellipse({
-			position: new Vector2(-100, 250),
-			size: new Vector2(110, 110),
-			color: () => new Vector4(1 - progress2.value, 1 - progress2.value, 1 - progress2.value, 1),
-		})
-	)
-
 	const ellipse2 = add(
 		new Ellipse({
 			position: new Vector2(-100, 250),
 			size: new Vector2(100, 100),
 			color: () => new Vector4(progress2.value, progress2.value, progress2.value, 1),
+		})
+	)
+
+	const ellipse2Background = add(
+		new Ellipse({
+			position: new Vector2(-100, 250),
+			size: new Vector2(110, 110),
+			color: () => new Vector4(1 - progress2.value, 1 - progress2.value, 1 - progress2.value, 1),
+			order: -1,
 		})
 	)
 

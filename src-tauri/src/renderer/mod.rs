@@ -160,8 +160,11 @@ impl Renderer {
     }
 
     pub fn render(&mut self, elements: Vec<Elements>, clip_loader: &ClipLoader) -> Vec<u8> {
-        for element_index in 0..elements.len() {
-            let element = &elements[element_index];
+        let mut ordered_elements = elements.clone();
+        ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
+
+        for element_index in 0..ordered_elements.len() {
+            let element = &ordered_elements[element_index];
 
             match element {
                 Elements::Rect(rect) => rect.render(
@@ -172,7 +175,7 @@ impl Renderer {
                     self.command_pool,
                     self.graphics_queue,
                     element_index == 0,
-                    element_index == elements.len() - 1,
+                    element_index == ordered_elements.len() - 1,
                     self.width,
                     self.height,
                 ),
@@ -184,7 +187,7 @@ impl Renderer {
                     self.command_pool,
                     self.graphics_queue,
                     element_index == 0,
-                    element_index == elements.len() - 1,
+                    element_index == ordered_elements.len() - 1,
                     self.width,
                     self.height,
                 ),
@@ -196,7 +199,7 @@ impl Renderer {
                     self.command_pool,
                     self.graphics_queue,
                     element_index == 0,
-                    element_index == elements.len() - 1,
+                    element_index == ordered_elements.len() - 1,
                     self.width,
                     self.height,
                     clip_loader,

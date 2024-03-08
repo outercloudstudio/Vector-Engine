@@ -34,6 +34,16 @@ pub enum Elements {
     Clip(Clip),
 }
 
+impl Elements {
+    pub fn get_order(&self) -> f32 {
+        match &self {
+            Elements::Rect(rect) => rect.order,
+            Elements::Ellipse(ellipse) => ellipse.order,
+            Elements::Clip(clip) => clip.order,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Rect {
     pub position: Vector2<f32>,
@@ -42,6 +52,7 @@ pub struct Rect {
     pub rotation: f32,
     pub color: Vector4<f32>,
     pub radius: f32,
+    pub order: f32,
 }
 
 #[repr(C)]
@@ -369,6 +380,7 @@ pub struct Ellipse {
     pub origin: Vector2<f32>,
     pub size: Vector2<f32>,
     pub color: Vector4<f32>,
+    pub order: f32,
 }
 
 #[repr(C)]
@@ -688,6 +700,7 @@ pub struct Clip {
     pub size: Vector2<f32>,
     pub rotation: f32,
     pub color: Vector4<f32>,
+    pub order: f32,
 }
 
 #[repr(C)]
