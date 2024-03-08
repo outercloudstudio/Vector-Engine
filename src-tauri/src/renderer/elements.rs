@@ -21,6 +21,7 @@ pub enum Elements {
 #[derive(Clone)]
 pub struct Rect {
     pub position: Vector2<f32>,
+    pub origin: Vector2<f32>,
     pub size: Vector2<f32>,
     pub color: Vector4<f32>,
     pub radius: f32,
@@ -278,17 +279,21 @@ impl Rect {
         const X_SCALE: f32 = 1920.0 / 2.0;
         const Y_SCALE: f32 = 1080.0 / 2.0;
 
+        let offsetted_x = self.position.x - self.origin.x * self.size.x;
+        let offsetted_y = self.position.y - self.origin.y * self.size.y;
+
         let (vertex_buffer, vertex_buffer_memory) = Rect::create_vertex_buffer(
             &vec![
-                vec2(self.position.x / X_SCALE, -self.position.y / Y_SCALE),
-                vec2(self.position.x / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
-                vec2((self.position.x + self.size.x) / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
-                vec2((self.position.x + self.size.x) / X_SCALE, -self.position.y / Y_SCALE),
+                vec2(offsetted_x / X_SCALE, -offsetted_y / Y_SCALE),
+                vec2(offsetted_x / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+                vec2((offsetted_x + self.size.x) / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+                vec2((offsetted_x + self.size.x) / X_SCALE, -offsetted_y / Y_SCALE),
             ],
             instance,
             device,
             physical_device,
         );
+
         let (uniform_buffer, uniform_buffer_memory) = Rect::create_uniform_buffer(
             RectData {
                 color: self.color,
@@ -344,6 +349,7 @@ impl Rect {
 #[derive(Clone)]
 pub struct Ellipse {
     pub position: Vector2<f32>,
+    pub origin: Vector2<f32>,
     pub size: Vector2<f32>,
     pub color: Vector4<f32>,
 }
@@ -598,17 +604,21 @@ impl Ellipse {
         const X_SCALE: f32 = 1920.0 / 2.0;
         const Y_SCALE: f32 = 1080.0 / 2.0;
 
+        let offsetted_x = self.position.x - self.origin.x * self.size.x;
+        let offsetted_y = self.position.y - self.origin.y * self.size.y;
+
         let (vertex_buffer, vertex_buffer_memory) = Ellipse::create_vertex_buffer(
             &vec![
-                vec2(self.position.x / X_SCALE, -self.position.y / Y_SCALE),
-                vec2(self.position.x / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
-                vec2((self.position.x + self.size.x) / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
-                vec2((self.position.x + self.size.x) / X_SCALE, -self.position.y / Y_SCALE),
+                vec2(offsetted_x / X_SCALE, -offsetted_y / Y_SCALE),
+                vec2(offsetted_x / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+                vec2((offsetted_x + self.size.x) / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+                vec2((offsetted_x + self.size.x) / X_SCALE, -offsetted_y / Y_SCALE),
             ],
             instance,
             device,
             physical_device,
         );
+
         let (uniform_buffer, uniform_buffer_memory) = Ellipse::create_uniform_buffer(EllipseData { color: self.color }, instance, device, physical_device);
 
         let descriptor_pools = Ellipse::create_descriptor_pool(device);
@@ -657,6 +667,7 @@ pub struct Clip {
     pub clip: String,
     pub frame: u32,
     pub position: Vector2<f32>,
+    pub origin: Vector2<f32>,
     pub size: Vector2<f32>,
     pub color: Vector4<f32>,
 }
@@ -1089,17 +1100,21 @@ impl Clip {
         const X_SCALE: f32 = 1920.0 / 2.0;
         const Y_SCALE: f32 = 1080.0 / 2.0;
 
+        let offsetted_x = self.position.x - self.origin.x * self.size.x;
+        let offsetted_y = self.position.y - self.origin.y * self.size.y;
+
         let (vertex_buffer, vertex_buffer_memory) = Clip::create_vertex_buffer(
             &vec![
-                vec2(self.position.x / X_SCALE, -self.position.y / Y_SCALE),
-                vec2(self.position.x / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
-                vec2((self.position.x + self.size.x) / X_SCALE, -(self.position.y + self.size.y) / Y_SCALE),
-                vec2((self.position.x + self.size.x) / X_SCALE, -self.position.y / Y_SCALE),
+                vec2(offsetted_x / X_SCALE, -offsetted_y / Y_SCALE),
+                vec2(offsetted_x / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+                vec2((offsetted_x + self.size.x) / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+                vec2((offsetted_x + self.size.x) / X_SCALE, -offsetted_y / Y_SCALE),
             ],
             instance,
             device,
             physical_device,
         );
+
         let (uniform_buffer, uniform_buffer_memory) = Clip::create_uniform_buffer(ClipData { color: self.color, size: self.size }, instance, device, physical_device);
 
         let descriptor_pools = Clip::create_descriptor_pool(device);

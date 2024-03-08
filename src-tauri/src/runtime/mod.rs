@@ -221,6 +221,9 @@ impl Rect {
         let position_key = v8::String::new(scope, "position").unwrap().into();
         let position_value = object.get(scope, position_key).unwrap();
 
+        let origin_key = v8::String::new(scope, "origin").unwrap().into();
+        let origin_value = object.get(scope, origin_key).unwrap();
+
         let size_key = v8::String::new(scope, "size").unwrap().into();
         let size_value = object.get(scope, size_key).unwrap();
 
@@ -232,6 +235,7 @@ impl Rect {
 
         Rect {
             position: deserialize_vector2(scope, position_value),
+            origin: deserialize_vector2(scope, origin_value),
             size: deserialize_vector2(scope, size_value),
             color: deserialize_vector4(scope, color_value),
             radius: deserialize_number(scope, radius_value),
@@ -246,6 +250,9 @@ impl Ellipse {
         let position_key = v8::String::new(scope, "position").unwrap().into();
         let position_value = object.get(scope, position_key).unwrap();
 
+        let origin_key = v8::String::new(scope, "origin").unwrap().into();
+        let origin_value = object.get(scope, origin_key).unwrap();
+
         let size_key = v8::String::new(scope, "size").unwrap().into();
         let size_value = object.get(scope, size_key).unwrap();
 
@@ -254,6 +261,7 @@ impl Ellipse {
 
         Ellipse {
             position: deserialize_vector2(scope, position_value),
+            origin: deserialize_vector2(scope, origin_value),
             size: deserialize_vector2(scope, size_value),
             color: deserialize_vector4(scope, color_value),
         }
@@ -266,6 +274,9 @@ impl Clip {
 
         let position_key = v8::String::new(scope, "position").unwrap().into();
         let position_value = object.get(scope, position_key).unwrap();
+
+        let origin_key = v8::String::new(scope, "origin").unwrap().into();
+        let origin_value = object.get(scope, origin_key).unwrap();
 
         let size_key = v8::String::new(scope, "size").unwrap().into();
         let size_value = object.get(scope, size_key).unwrap();
@@ -283,6 +294,7 @@ impl Clip {
             clip: deserialize_string(scope, clip_value),
             frame: deserialize_number(scope, frame_value) as u32,
             position: deserialize_vector2(scope, position_value),
+            origin: deserialize_vector2(scope, origin_value),
             size: deserialize_vector2(scope, size_value),
             color: deserialize_vector4(scope, color_value),
         }

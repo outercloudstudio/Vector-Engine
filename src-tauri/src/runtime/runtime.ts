@@ -22,6 +22,18 @@ function ensureReactable<T>(value: OptionallyReactable<T>): Reactable<T> {
 	return <Reactable<T>>value
 }
 
+function lerp<T>(a: T, b: T, t: number): T {
+	if (typeof a === 'number' && typeof b === 'number') {
+		return <T>(a + (b - a) * t)
+	} else if (a instanceof Vector2 && b instanceof Vector2) {
+		return <T>new Vector2(lerp(a.x, b.x, t), lerp(a.y, b.y, t))
+	} else if (a instanceof Vector4 && b instanceof Vector4) {
+		return <T>new Vector4(lerp(a.x, b.x, t), lerp(a.y, b.y, t), lerp(a.z, b.z, t), lerp(a.w, b.w, t))
+	}
+
+	return a
+}
+
 class Reactive<T> {
 	constructor(public reactable: Reactable<T>) {}
 
@@ -34,16 +46,14 @@ class Reactive<T> {
 	}
 
 	public *to(final: T, time: number, ease?: (t: number) => number): Generator {
-		if (typeof final === 'number') {
-			let initial = <number>this.value
-			let finalFrame = Math.floor(time * 60)
+		let initial = this.value
+		let finalFrame = Math.floor(time * 60)
 
-			for (let f = 1; f <= finalFrame; f++) {
-				let progress = ease === undefined ? f / finalFrame : ease(f / finalFrame)
-				this.value = <T>(initial + (final - initial) * progress)
+		for (let f = 1; f <= finalFrame; f++) {
+			let progress = ease === undefined ? f / finalFrame : ease(f / finalFrame)
+			this.value = <T>lerp(initial, final, progress)
 
-				yield* frame()
-			}
+			yield* frame()
 		}
 	}
 
@@ -55,20 +65,18 @@ class Reactive<T> {
 		let finalFrame = Math.floor(speed * 60)
 
 		while (times === undefined || loopCount < times) {
-			if (typeof final === 'number') {
-				for (let f = 1; f <= finalFrame; f++) {
-					let progress = 0
+			for (let f = 1; f <= finalFrame; f++) {
+				let progress = 0
 
-					if (forward) {
-						progress = ease === undefined ? f / finalFrame : ease(f / finalFrame)
-					} else {
-						progress = ease === undefined ? 1 - f / finalFrame : ease(1 - f / finalFrame)
-					}
-
-					this.value = <T>(<number>initial + (final - <number>initial) * progress)
-
-					yield* frame()
+				if (forward) {
+					progress = ease === undefined ? f / finalFrame : ease(f / finalFrame)
+				} else {
+					progress = ease === undefined ? 1 - f / finalFrame : ease(1 - f / finalFrame)
 				}
+
+				this.value = <T>lerp(initial, final, progress)
+
+				yield* frame()
 			}
 
 			forward = !forward
@@ -92,12 +100,14 @@ class Vector4 {
 
 class Rect {
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
+	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 	public radius: Reactive<number> = react(0)
 
 	constructor(options: {
 		position?: OptionallyReactable<Vector2>
+		origin?: OptionallyReactable<Vector2>
 		size?: OptionallyReactable<Vector2>
 		color?: OptionallyReactable<Vector4>
 		radius?: OptionallyReactable<number>
@@ -112,6 +122,7 @@ class Rect {
 		return {
 			type: 'Rect',
 			position: this.position.value,
+			origin: this.origin.value,
 			size: this.size.value,
 			color: this.color.value,
 			radius: this.radius.value,
@@ -121,11 +132,13 @@ class Rect {
 
 class Ellipse {
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
+	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 
 	constructor(options: {
 		position?: OptionallyReactable<Vector2>
+		origin?: OptionallyReactable<Vector2>
 		size?: OptionallyReactable<Vector2>
 		color?: OptionallyReactable<Vector4>
 	}) {
@@ -139,6 +152,7 @@ class Ellipse {
 		return {
 			type: 'Ellipse',
 			position: this.position.value,
+			origin: this.origin.value,
 			size: this.size.value,
 			color: this.color.value,
 		}
@@ -149,6 +163,7 @@ class Clip {
 	public clip: Reactive<string> = react('')
 	public frame: Reactive<number> = react(0)
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
+	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 
@@ -156,6 +171,7 @@ class Clip {
 		clip?: OptionallyReactable<string>
 		frame?: OptionallyReactable<number>
 		position?: OptionallyReactable<Vector2>
+		origin?: OptionallyReactable<Vector2>
 		size?: OptionallyReactable<Vector2>
 		color?: OptionallyReactable<Vector4>
 	}) {
@@ -171,6 +187,7 @@ class Clip {
 			clip: this.clip.value,
 			frame: this.frame.value,
 			position: this.position.value,
+			origin: this.origin.value,
 			size: this.size.value,
 			color: this.color.value,
 		}
