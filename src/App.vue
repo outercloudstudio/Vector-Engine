@@ -25,7 +25,7 @@ async function preview() {
 		lastFrameTime = now
 
 		const arrayBuffer = await (await fetch(`https://preview.localhost/?frame=${frame}`)).arrayBuffer()
-		const blob = new Blob([arrayBuffer], { type: 'image/png' })
+		const blob = new Blob([arrayBuffer], { type: 'image/bmp' })
 		const src = window.URL.createObjectURL(blob)
 
 		imageSrc.value = src

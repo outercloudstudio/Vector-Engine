@@ -1041,7 +1041,7 @@ impl Clip {
     ) {
         let mut clip_renderer = Renderer::create(self.size.x as u32, self.size.y as u32);
 
-        let clip = clip_loader.get_new(String::from("test.ts")).unwrap();
+        let clip = clip_loader.get_new(&String::from("test.ts")).unwrap();
 
         let mut render = Vec::new();
 

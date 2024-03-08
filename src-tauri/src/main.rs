@@ -6,20 +6,18 @@ mod renderer;
 mod runtime;
 
 use log::{info, warn};
-use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::cell::RefCell;
+use notify::{Event, RecursiveMode, Watcher};
+use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::fs::read_to_string;
-use std::io::{Cursor, Write};
+use std::ops::Deref;
 use std::path::Path;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::Arc;
+use std::sync::mpsc::{channel, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
-use std::{env, fs::File, io::BufWriter, sync::Mutex};
+use std::{env, fs::File, io::BufWriter};
 use tauri::{Manager, State, Url};
 
-use clips::{ClipLoader, Clips, ScriptClip};
+use clips::{ClipLoader, Clips};
 use renderer::Renderer;
 
 struct Timeline {}
@@ -54,7 +52,6 @@ fn main() {
             let (response_sender, response_receiver) = channel();
 
             let queries: HashMap<String, String> = url.query_pairs().into_owned().collect();
-
             preview_thread_sender
                 .send(Command::Preview(u32::from_str_radix(queries.get("frame").unwrap(), 10).unwrap(), response_sender))
                 .unwrap();
@@ -63,18 +60,13 @@ fn main() {
 
             let mut encoded_bytes: Vec<u8> = vec![];
 
-            let mut encoder = png::Encoder::new(&mut encoded_bytes, 480, 270);
-            encoder.set_color(png::ColorType::Rgba);
-            encoder.set_depth(png::BitDepth::Eight);
-
-            let mut writer = encoder.write_header().unwrap();
-            writer.write_image_data(&bytes).unwrap();
-            writer.finish().unwrap();
+            let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut encoded_bytes);
+            encoder.encode(&bytes, 480, 270, image::ColorType::Rgba8).unwrap();
 
             tauri::http::ResponseBuilder::new()
                 .header("Access-Control-Allow-Origin", "*")
                 .header("Origin", "*")
-                .mimetype("image/png")
+                .mimetype("image/bmp")
                 .header("Content-Length", encoded_bytes.len())
                 .status(200)
                 .body(encoded_bytes)
@@ -82,10 +74,10 @@ fn main() {
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
-                let window = app.handle().get_window("main").unwrap();
+                // let window = app.handle().get_window("main").unwrap();
 
-                window.open_devtools();
-                window.close_devtools();
+                // window.open_devtools();
+                // window.close_devtools();
             }
 
             thread::spawn(move || {
@@ -93,7 +85,7 @@ fn main() {
 
                 let mut preview_renderer = Renderer::create(480, 270);
 
-                let clip_loader = ClipLoader::new();
+                let mut clip_loader = ClipLoader::new();
 
                 let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
                     Ok(_event) => {
@@ -110,10 +102,12 @@ fn main() {
 
                     match command {
                         Command::Preview(frame, response_sender) => {
-                            let clip = clip_loader.get_new(String::from("project.ts")).unwrap();
+                            let clip = clip_loader.get(&String::from("project.ts")).unwrap();
 
-                            match clip {
-                                Clips::ScriptClip(mut clip) => {
+                            let mut clip = &mut *clip.borrow_mut();
+
+                            match &mut clip {
+                                Clips::ScriptClip(ref mut clip) => {
                                     clip.set_frame(frame);
 
                                     let render = clip.render(&mut preview_renderer, &clip_loader);
@@ -122,20 +116,10 @@ fn main() {
                                 }
                             }
                         }
-                        Command::PlaygroundUpdate => {
-                            // let old_clip = clips.remove(&String::from("project.ts"));
-                            // drop(old_clip);
-
-                            // clips.insert(
-                            //     String::from("project.ts"),
-                            //     Arc::new(RefCell::new(Clips::ScriptClip(ScriptClip::new(
-                            //         read_to_string(Path::new(r#"D:\Vector Engine\playground\project.ts"#)).unwrap(),
-                            //     )))),
-                            // );
-                        }
+                        Command::PlaygroundUpdate => clip_loader.invalidate(&String::from("project.ts")),
                         Command::Render => {
                             for frame in 0..240 {
-                                let clip = clip_loader.get_new(String::from("project.ts")).unwrap();
+                                let clip = clip_loader.get_new(&String::from("project.ts")).unwrap();
 
                                 match clip {
                                     Clips::ScriptClip(mut clip) => {
@@ -144,16 +128,11 @@ fn main() {
                                         let bytes = clip.render(&mut renderer, &clip_loader);
 
                                         thread::spawn(move || {
-                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.png", frame)).unwrap();
+                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
                                             let mut file_writer = BufWriter::new(file);
 
-                                            let mut encoder = png::Encoder::new(&mut file_writer, 1920, 1080);
-                                            encoder.set_color(png::ColorType::Rgba);
-                                            encoder.set_depth(png::BitDepth::Eight);
-
-                                            let mut writer = encoder.write_header().unwrap();
-                                            writer.write_image_data(&bytes).unwrap();
-                                            writer.finish().unwrap();
+                                            let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
+                                            encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
                                         });
                                     }
                                 }

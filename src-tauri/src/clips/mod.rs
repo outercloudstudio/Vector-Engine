@@ -1,24 +1,36 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    fs::read_to_string,
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::{cell::RefCell, collections::HashMap, fs::read_to_string, rc::Rc, time::Instant};
 
 use log::info;
 
 use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
 
-pub struct ClipLoader {}
+pub struct ClipLoader {
+    cache: HashMap<String, Rc<RefCell<Clips>>>,
+}
 
 impl ClipLoader {
     pub fn new() -> ClipLoader {
-        ClipLoader {}
+        ClipLoader { cache: HashMap::new() }
     }
 
-    pub fn get_new(&self, path: String) -> Option<Clips> {
+    pub fn get(&mut self, path: &String) -> Option<Rc<RefCell<Clips>>> {
+        if self.cache.contains_key(path) {
+            return Some(self.cache.get(path).unwrap().clone());
+        }
+
+        let clip = Rc::new(RefCell::new(self.get_new(path).unwrap()));
+
+        self.cache.insert(path.clone(), clip.clone());
+
+        Some(clip.clone())
+    }
+
+    pub fn get_new(&self, path: &String) -> Option<Clips> {
         Some(Clips::ScriptClip(ScriptClip::new(read_to_string(format!("D:/Vector Engine/playground/{}", path)).unwrap())))
+    }
+
+    pub fn invalidate(&mut self, path: &String) {
+        self.cache.remove(path);
     }
 }
 
