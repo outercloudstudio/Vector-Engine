@@ -93,6 +93,13 @@ clip(function* () {
 		})
 	)
 
+	const clip = add(
+		new Clip({
+			clip: 'test.png',
+			size: new Vector2(540, 540),
+		})
+	)
+
 	yield progress.bounce(1, 1, ease)
 
 	yield* seconds(0.5)

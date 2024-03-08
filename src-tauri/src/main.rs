@@ -114,6 +114,11 @@ fn main() {
 
                                     response_sender.send(render).unwrap();
                                 }
+                                Clips::ImageClip(clip) => {
+                                    let render = clip.render(&mut preview_renderer, &clip_loader);
+
+                                    response_sender.send(render).unwrap();
+                                }
                             }
                         }
                         Command::PlaygroundUpdate => clip_loader.invalidate(&String::from("project.ts")),
@@ -126,6 +131,17 @@ fn main() {
                                         clip.set_frame(frame);
 
                                         let bytes = clip.render(&mut renderer, &clip_loader);
+
+                                        thread::spawn(move || {
+                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
+                                            let mut file_writer = BufWriter::new(file);
+
+                                            let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
+                                            encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+                                        });
+                                    }
+                                    Clips::ImageClip(clip) => {
+                                        let bytes = clip.render(&mut preview_renderer, &clip_loader);
 
                                         thread::spawn(move || {
                                             let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();

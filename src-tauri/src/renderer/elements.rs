@@ -9,7 +9,7 @@ use std::ptr::copy_nonoverlapping;
 use crate::clips::{ClipLoader, Clips};
 use crate::renderer::{utils::*, Renderer};
 
-const UVS: [Vector2<f32>; 4] = [vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0), vec2(1.0, 0.0)];
+const UVS: [Vector2<f32>; 4] = [vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)];
 
 fn rotate(point: Vector2<f32>, origin: Vector2<f32>, angle: f32) -> Vector2<f32> {
     let offset = vec2(point.x - origin.x, point.y - origin.y);
@@ -1081,9 +1081,17 @@ impl Clip {
         height: u32,
         clip_loader: &ClipLoader,
     ) {
-        let mut clip_renderer = Renderer::create(self.size.x as u32, self.size.y as u32);
+        let mut render_size_x = self.size.x;
+        let mut render_size_y = self.size.x;
 
-        let clip = clip_loader.get_new(&String::from("test.ts")).unwrap();
+        let mut clip = clip_loader.get_new(&self.clip).unwrap();
+
+        if let Clips::ImageClip(ref mut clip) = &mut clip {
+            render_size_x = clip.width as f32;
+            render_size_y = clip.height as f32;
+        }
+
+        let mut clip_renderer = Renderer::create(render_size_x as u32, render_size_y as u32);
 
         let mut render = Vec::new();
 
@@ -1093,12 +1101,15 @@ impl Clip {
 
                 render = clip.render(&mut clip_renderer, clip_loader);
             }
+            Clips::ImageClip(clip) => {
+                render = clip.render(&mut clip_renderer, clip_loader);
+            }
         }
 
         clip_renderer.destroy();
 
         let (texture_image, texture_image_view, texture_image_memory, texture_image_sampler) =
-            Clip::create_texture_image(render, self.size.x as u32, self.size.y as u32, instance, device, physical_device, command_pool, graphics_queue);
+            Clip::create_texture_image(render, render_size_x as u32, render_size_y as u32, instance, device, physical_device, command_pool, graphics_queue);
 
         let command_buffer = create_command_buffer(device, command_pool);
 

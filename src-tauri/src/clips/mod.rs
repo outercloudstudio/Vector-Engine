@@ -1,5 +1,12 @@
-use std::{cell::RefCell, collections::HashMap, fs::read_to_string, rc::Rc, time::Instant};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fs::{self, read_to_string},
+    rc::Rc,
+    time::Instant,
+};
 
+use image::ImageDecoder;
 use log::info;
 
 use crate::{renderer::Renderer, runtime::ScriptClipRuntime};
@@ -26,6 +33,21 @@ impl ClipLoader {
     }
 
     pub fn get_new(&self, path: &String) -> Option<Clips> {
+        if path.ends_with(".png") {
+            let buffer = fs::read(format!("D:/Vector Engine/playground/{}", path)).unwrap();
+
+            let decoder = image::codecs::png::PngDecoder::new(buffer.as_slice()).unwrap();
+
+            let (width, height) = decoder.dimensions();
+
+            let mut bytes = Vec::new();
+            bytes.resize((width * height * 4) as usize, 0);
+
+            decoder.read_image(&mut bytes).unwrap();
+
+            return Some(Clips::ImageClip(ImageClip::new(bytes, width, height)));
+        }
+
         Some(Clips::ScriptClip(ScriptClip::new(read_to_string(format!("D:/Vector Engine/playground/{}", path)).unwrap())))
     }
 
@@ -36,6 +58,7 @@ impl ClipLoader {
 
 pub enum Clips {
     ScriptClip(ScriptClip),
+    ImageClip(ImageClip),
 }
 
 pub struct ScriptClip {
@@ -53,9 +76,7 @@ impl ScriptClip {
 
         ScriptClip { runtime, script, internal_frame: 0 }
     }
-}
 
-impl ScriptClip {
     pub fn set_frame(&mut self, frame: u32) {
         if self.internal_frame == frame {
             return;
@@ -85,5 +106,23 @@ impl ScriptClip {
         let bytes = renderer.render(elements, clip_loader);
 
         return bytes;
+    }
+}
+
+pub struct ImageClip {
+    bytes: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl ImageClip {
+    pub fn new(bytes: Vec<u8>, width: u32, height: u32) -> ImageClip {
+        ImageClip { bytes, width, height }
+    }
+
+    pub fn set_frame(&mut self, frame: u32) {}
+
+    pub fn render(&self, renderer: &mut Renderer, clip_loader: &ClipLoader) -> Vec<u8> {
+        self.bytes.clone()
     }
 }
