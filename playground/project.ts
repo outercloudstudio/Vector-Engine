@@ -95,8 +95,8 @@ clip(function* () {
 
 	const clip = add(
 		new Clip({
-			clip: 'test.png',
-			size: new Vector2(540, 540),
+			clip: 'LogoTest.png',
+			size: new Vector2(1000, 700),
 		})
 	)
 
