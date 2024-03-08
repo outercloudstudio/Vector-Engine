@@ -82,6 +82,15 @@ clip(function* () {
 		})
 	)
 
+	const rect3 = add(
+		new Rect({
+			position: new Vector2(-700, 300),
+			size: new Vector2(200, 200),
+			color: new Vector4(101 / 255, 30 / 255, 219 / 255, 1),
+			rotation: () => progress.value * Math.PI * 2,
+		})
+	)
+
 	yield progress.bounce(1, 1, ease)
 
 	yield* seconds(0.5)

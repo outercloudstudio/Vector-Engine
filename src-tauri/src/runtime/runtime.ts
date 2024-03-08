@@ -102,6 +102,7 @@ class Rect {
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
 	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
+	public rotation: Reactive<number> = react(0)
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 	public radius: Reactive<number> = react(0)
 
@@ -109,6 +110,7 @@ class Rect {
 		position?: OptionallyReactable<Vector2>
 		origin?: OptionallyReactable<Vector2>
 		size?: OptionallyReactable<Vector2>
+		rotation?: OptionallyReactable<number>
 		color?: OptionallyReactable<Vector4>
 		radius?: OptionallyReactable<number>
 	}) {
@@ -124,6 +126,7 @@ class Rect {
 			position: this.position.value,
 			origin: this.origin.value,
 			size: this.size.value,
+			rotation: this.rotation.value,
 			color: this.color.value,
 			radius: this.radius.value,
 		}
@@ -165,6 +168,7 @@ class Clip {
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
 	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
+	public rotation: Reactive<number> = react(0)
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 
 	constructor(options: {
@@ -173,6 +177,7 @@ class Clip {
 		position?: OptionallyReactable<Vector2>
 		origin?: OptionallyReactable<Vector2>
 		size?: OptionallyReactable<Vector2>
+		rotation?: OptionallyReactable<number>
 		color?: OptionallyReactable<Vector4>
 	}) {
 		for (const key of Object.keys(options)) {
@@ -189,6 +194,7 @@ class Clip {
 			position: this.position.value,
 			origin: this.origin.value,
 			size: this.size.value,
+			rotation: this.rotation.value,
 			color: this.color.value,
 		}
 	}

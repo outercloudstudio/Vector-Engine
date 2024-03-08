@@ -11,6 +11,22 @@ use crate::renderer::{utils::*, Renderer};
 
 const UVS: [Vector2<f32>; 4] = [vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0), vec2(1.0, 0.0)];
 
+fn rotate(point: Vector2<f32>, origin: Vector2<f32>, angle: f32) -> Vector2<f32> {
+    let offset = vec2(point.x - origin.x, point.y - origin.y);
+
+    let rotated = vec2(offset.x * angle.cos() - offset.y * angle.sin(), offset.y * angle.cos() + offset.x * angle.sin());
+
+    vec2(origin.x + rotated.x, origin.y + rotated.y)
+}
+
+fn divide(a: Vector2<f32>, b: Vector2<f32>) -> Vector2<f32> {
+    vec2(a.x / b.x, a.y / b.y)
+}
+
+fn flip_vertically(a: Vector2<f32>) -> Vector2<f32> {
+    vec2(a.x, -a.y)
+}
+
 #[derive(Clone)]
 pub enum Elements {
     Rect(Rect),
@@ -23,6 +39,7 @@ pub struct Rect {
     pub position: Vector2<f32>,
     pub origin: Vector2<f32>,
     pub size: Vector2<f32>,
+    pub rotation: f32,
     pub color: Vector4<f32>,
     pub radius: f32,
 }
@@ -276,23 +293,23 @@ impl Rect {
 
         let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
 
-        const X_SCALE: f32 = 1920.0 / 2.0;
-        const Y_SCALE: f32 = 1080.0 / 2.0;
+        let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
         let offsetted_x = self.position.x - self.origin.x * self.size.x;
         let offsetted_y = self.position.y - self.origin.y * self.size.y;
 
-        let (vertex_buffer, vertex_buffer_memory) = Rect::create_vertex_buffer(
-            &vec![
-                vec2(offsetted_x / X_SCALE, -offsetted_y / Y_SCALE),
-                vec2(offsetted_x / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
-                vec2((offsetted_x + self.size.x) / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
-                vec2((offsetted_x + self.size.x) / X_SCALE, -offsetted_y / Y_SCALE),
-            ],
-            instance,
-            device,
-            physical_device,
-        );
+        let mut vertices = vec![
+            vec2(offsetted_x, offsetted_y),
+            vec2(offsetted_x, offsetted_y + self.size.y),
+            vec2(offsetted_x + self.size.x, offsetted_y + self.size.y),
+            vec2(offsetted_x + self.size.x, offsetted_y),
+        ];
+
+        for vertex_index in 0..vertices.len() {
+            vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], self.position, self.rotation), normalize_scale))
+        }
+
+        let (vertex_buffer, vertex_buffer_memory) = Rect::create_vertex_buffer(&vertices, instance, device, physical_device);
 
         let (uniform_buffer, uniform_buffer_memory) = Rect::create_uniform_buffer(
             RectData {
@@ -669,6 +686,7 @@ pub struct Clip {
     pub position: Vector2<f32>,
     pub origin: Vector2<f32>,
     pub size: Vector2<f32>,
+    pub rotation: f32,
     pub color: Vector4<f32>,
 }
 
@@ -1097,23 +1115,23 @@ impl Clip {
 
         let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
 
-        const X_SCALE: f32 = 1920.0 / 2.0;
-        const Y_SCALE: f32 = 1080.0 / 2.0;
+        let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
         let offsetted_x = self.position.x - self.origin.x * self.size.x;
         let offsetted_y = self.position.y - self.origin.y * self.size.y;
 
-        let (vertex_buffer, vertex_buffer_memory) = Clip::create_vertex_buffer(
-            &vec![
-                vec2(offsetted_x / X_SCALE, -offsetted_y / Y_SCALE),
-                vec2(offsetted_x / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
-                vec2((offsetted_x + self.size.x) / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
-                vec2((offsetted_x + self.size.x) / X_SCALE, -offsetted_y / Y_SCALE),
-            ],
-            instance,
-            device,
-            physical_device,
-        );
+        let mut vertices = vec![
+            vec2(offsetted_x, offsetted_y),
+            vec2(offsetted_x, offsetted_y + self.size.y),
+            vec2(offsetted_x + self.size.x, offsetted_y + self.size.y),
+            vec2(offsetted_x + self.size.x, offsetted_y),
+        ];
+
+        for vertex_index in 0..vertices.len() {
+            vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], self.position, self.rotation), normalize_scale))
+        }
+
+        let (vertex_buffer, vertex_buffer_memory) = Clip::create_vertex_buffer(&vertices, instance, device, physical_device);
 
         let (uniform_buffer, uniform_buffer_memory) = Clip::create_uniform_buffer(ClipData { color: self.color, size: self.size }, instance, device, physical_device);
 

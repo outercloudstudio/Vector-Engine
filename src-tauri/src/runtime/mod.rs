@@ -227,6 +227,9 @@ impl Rect {
         let size_key = v8::String::new(scope, "size").unwrap().into();
         let size_value = object.get(scope, size_key).unwrap();
 
+        let rotation_key = v8::String::new(scope, "rotation").unwrap().into();
+        let rotation_value = object.get(scope, rotation_key).unwrap();
+
         let color_key = v8::String::new(scope, "color").unwrap().into();
         let color_value = object.get(scope, color_key).unwrap();
 
@@ -237,6 +240,7 @@ impl Rect {
             position: deserialize_vector2(scope, position_value),
             origin: deserialize_vector2(scope, origin_value),
             size: deserialize_vector2(scope, size_value),
+            rotation: deserialize_number(scope, rotation_value),
             color: deserialize_vector4(scope, color_value),
             radius: deserialize_number(scope, radius_value),
         }
@@ -281,6 +285,9 @@ impl Clip {
         let size_key = v8::String::new(scope, "size").unwrap().into();
         let size_value = object.get(scope, size_key).unwrap();
 
+        let rotation_key = v8::String::new(scope, "rotation").unwrap().into();
+        let rotation_value = object.get(scope, rotation_key).unwrap();
+
         let color_key = v8::String::new(scope, "color").unwrap().into();
         let color_value = object.get(scope, color_key).unwrap();
 
@@ -295,6 +302,7 @@ impl Clip {
             frame: deserialize_number(scope, frame_value) as u32,
             position: deserialize_vector2(scope, position_value),
             origin: deserialize_vector2(scope, origin_value),
+            rotation: deserialize_number(scope, rotation_value),
             size: deserialize_vector2(scope, size_value),
             color: deserialize_vector4(scope, color_value),
         }
