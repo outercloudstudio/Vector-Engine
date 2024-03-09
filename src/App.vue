@@ -33,7 +33,7 @@ async function preview() {
 
 	lastFrame = frame
 
-	// requestAnimationFrame(preview)
+	requestAnimationFrame(preview)
 }
 
 onMounted(() => {

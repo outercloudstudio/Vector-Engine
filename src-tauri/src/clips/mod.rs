@@ -1,13 +1,14 @@
 use ash::vk::{self, ShaderModule};
 use cgmath::{vec2, Vector2, Vector4};
 use image::ImageDecoder;
-use log::warn;
+use log::{info, warn};
 use std::{
     cell::RefCell,
     collections::HashMap,
+    ffi::c_void,
     fs::{self, read_to_string},
     mem::align_of,
-    ptr::copy_nonoverlapping,
+    ptr::{self, copy_nonoverlapping},
     rc::Rc,
 };
 
@@ -97,10 +98,13 @@ pub struct ScriptClip {
 
     rect_index_buffer: vk::Buffer,
     rect_index_buffer_memory: vk::DeviceMemory,
+    rect_index_buffer_size: u64,
     rect_vertex_buffer: vk::Buffer,
     rect_vertex_buffer_memory: vk::DeviceMemory,
+    rect_vertex_buffer_size: u64,
     rect_uniform_buffer: vk::Buffer,
     rect_uniform_buffer_memory: vk::DeviceMemory,
+    rect_uniform_buffer_size: u64,
     render_pass: vk::RenderPass,
 }
 
@@ -117,17 +121,17 @@ impl ScriptClip {
         let rect_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.vert.spv").to_vec());
         let rect_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.frag.spv").to_vec());
 
-        let (rect_index_buffer, rect_index_buffer_memory) = renderer.create_buffer(
+        let (rect_index_buffer, rect_index_buffer_memory, rect_index_buffer_size) = renderer.create_buffer(
             4 * 6,
             vk::BufferUsageFlags::INDEX_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
-        let (rect_vertex_buffer, rect_vertex_buffer_memory) = renderer.create_buffer(
+        let (rect_vertex_buffer, rect_vertex_buffer_memory, rect_vertex_buffer_size) = renderer.create_buffer(
             RECT_VERTEX_SIZE * 4,
             vk::BufferUsageFlags::VERTEX_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
-        let (rect_uniform_buffer, rect_uniform_buffer_memory) = renderer.create_buffer(
+        let (rect_uniform_buffer, rect_uniform_buffer_memory, rect_uniform_buffer_size) = renderer.create_buffer(
             RECT_DATA_SIZE,
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
@@ -148,10 +152,13 @@ impl ScriptClip {
 
             rect_index_buffer,
             rect_index_buffer_memory,
+            rect_index_buffer_size,
             rect_vertex_buffer,
             rect_vertex_buffer_memory,
+            rect_vertex_buffer_size,
             rect_uniform_buffer,
             rect_uniform_buffer_memory,
+            rect_uniform_buffer_size,
 
             render_pass,
         }
@@ -196,10 +203,10 @@ impl ScriptClip {
                 Elements::Rect(rect) => {
                     warn!("Rendering rect");
 
-                    let index_ptr = renderer.start_copy_data_to_buffer(4 * 6, self.rect_index_buffer_memory);
+                    let index_ptr = renderer.start_copy_data_to_buffer(self.rect_index_buffer_size, self.rect_index_buffer_memory);
 
                     unsafe {
-                        copy_nonoverlapping(&vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
+                        copy_nonoverlapping(vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
                     }
 
                     renderer.end_copy_data_to_buffer(self.rect_index_buffer_memory);
@@ -209,26 +216,35 @@ impl ScriptClip {
                     let offsetted_x = rect.position.x - rect.origin.x * rect.size.x;
                     let offsetted_y = rect.position.y - rect.origin.y * rect.size.y;
 
-                    let mut vertices = vec![
+                    let mut vertex_positions: Vec<Vector2<f32>> = vec![
                         vec2(offsetted_x, offsetted_y),
                         vec2(offsetted_x, offsetted_y + rect.size.y),
                         vec2(offsetted_x + rect.size.x, offsetted_y + rect.size.y),
                         vec2(offsetted_x + rect.size.x, offsetted_y),
                     ];
 
-                    for vertex_index in 0..vertices.len() {
-                        vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], rect.position, rect.rotation), normalize_scale))
+                    for vertex_position_index in 0..vertex_positions.len() {
+                        vertex_positions[vertex_position_index] = flip_vertically(divide(rotate(vertex_positions[vertex_position_index], rect.position, rect.rotation), normalize_scale))
                     }
 
-                    let vertex_ptr = renderer.start_copy_data_to_buffer(RECT_VERTEX_SIZE * 4, self.rect_vertex_buffer_memory);
+                    let mut vertices: Vec<RectVertex> = Vec::new();
+
+                    for index in 0..vertex_positions.len() {
+                        vertices.push(RectVertex {
+                            position: vertex_positions[index],
+                            uv: UVS[index],
+                        });
+                    }
+
+                    let vertex_ptr = renderer.start_copy_data_to_buffer(self.rect_vertex_buffer_size, self.rect_vertex_buffer_memory);
 
                     unsafe {
-                        copy_nonoverlapping(&vertices.as_ptr(), vertex_ptr.cast(), 6);
+                        copy_nonoverlapping(vertices.as_ptr(), vertex_ptr.cast(), vertices.len());
                     }
 
                     renderer.end_copy_data_to_buffer(self.rect_vertex_buffer_memory);
 
-                    let uniform_ptr = renderer.start_copy_data_to_buffer(RECT_DATA_SIZE, self.rect_uniform_buffer_memory);
+                    let uniform_ptr = renderer.start_copy_data_to_buffer(self.rect_uniform_buffer_size, self.rect_uniform_buffer_memory);
 
                     unsafe {
                         let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, RECT_DATA_SIZE);

@@ -59,8 +59,8 @@ pub struct Rect {
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct RectVertex {
-    position: Vector2<f32>,
-    uv: Vector2<f32>,
+    pub position: Vector2<f32>,
+    pub uv: Vector2<f32>,
 }
 pub const RECT_VERTEX_SIZE: u64 = 8 + 8;
 

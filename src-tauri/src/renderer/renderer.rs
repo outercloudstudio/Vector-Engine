@@ -125,7 +125,7 @@ impl Renderer {
         }
     }
 
-    pub fn create_buffer(&self, size: u64, usage: vk::BufferUsageFlags, memory_property_flags: vk::MemoryPropertyFlags) -> (vk::Buffer, vk::DeviceMemory) {
+    pub fn create_buffer(&self, size: u64, usage: vk::BufferUsageFlags, memory_property_flags: vk::MemoryPropertyFlags) -> (vk::Buffer, vk::DeviceMemory, u64) {
         unsafe {
             let buffer_info = *vk::BufferCreateInfo::builder().size(size).usage(usage).sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -134,13 +134,13 @@ impl Renderer {
             let memory_requirements = self.device.get_buffer_memory_requirements(buffer);
             let memory_index = get_memory_type_index(&self.instance, self.physical_device, memory_property_flags, memory_requirements);
 
-            let allocate_info = *vk::MemoryAllocateInfo::builder().allocation_size(size).memory_type_index(memory_index);
+            let allocate_info = *vk::MemoryAllocateInfo::builder().allocation_size(memory_requirements.size).memory_type_index(memory_index);
 
             let memory = self.device.allocate_memory(&allocate_info, None).unwrap();
 
             self.device.bind_buffer_memory(buffer, memory, 0).unwrap();
 
-            return (buffer, memory);
+            return (buffer, memory, memory_requirements.size);
         }
     }
 
@@ -254,7 +254,7 @@ impl Renderer {
             let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(scissors).viewports(viewports);
 
             let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
-                front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+                front_face: vk::FrontFace::CLOCKWISE,
                 line_width: 1.0,
                 polygon_mode: vk::PolygonMode::FILL,
                 ..Default::default()
@@ -330,7 +330,7 @@ impl Renderer {
     ) {
         unsafe {
             let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue { float32: [1.0, 1.0, 1.0, 1.0] },
+                color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 0.0] },
             }];
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()

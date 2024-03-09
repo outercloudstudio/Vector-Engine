@@ -133,7 +133,7 @@ pub fn create_graphics_pipeline(
         let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(scissors).viewports(viewports);
 
         let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
-            front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            front_face: vk::FrontFace::CLOCKWISE,
             line_width: 1.0,
             polygon_mode: vk::PolygonMode::FILL,
             ..Default::default()

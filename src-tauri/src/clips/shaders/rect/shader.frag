@@ -10,7 +10,7 @@ layout(location = 1) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-void main() {
+void main() { 
     vec2 pixelUv = uv * size;
 
     if(pixelUv.x < radius && pixelUv.y < radius && distance(pixelUv, vec2(radius, radius)) > radius) discard;
