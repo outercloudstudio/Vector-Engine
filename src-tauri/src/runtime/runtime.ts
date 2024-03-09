@@ -217,6 +217,12 @@ function add<T>(element: T): T {
 	return element
 }
 
+function remove<T>(element: T): T {
+	elements.splice(elements.indexOf(element), 1)
+
+	return element
+}
+
 function _updateFrame() {
 	for (const element of elements) {
 		Deno.core.ops.op_add_frame_element(element.to_static())
@@ -259,6 +265,7 @@ for (const [key, value] of Object.entries({
 	react,
 
 	add,
+	remove,
 	clip,
 
 	ease,

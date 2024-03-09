@@ -5,6 +5,7 @@ mod clips;
 mod renderer;
 mod runtime;
 
+use image::ImageEncoder;
 use log::{info, warn};
 use notify::{Event, RecursiveMode, Watcher};
 use std::borrow::Borrow;
@@ -123,7 +124,7 @@ fn main() {
                         }
                         Command::PlaygroundUpdate => clip_loader.invalidate(&String::from("project.ts")),
                         Command::Render => {
-                            for frame in 0..240 {
+                            for frame in 0..300 {
                                 let clip = clip_loader.get_new(&String::from("project.ts")).unwrap();
 
                                 match clip {
@@ -133,22 +134,34 @@ fn main() {
                                         let bytes = clip.render(&mut renderer, &clip_loader);
 
                                         thread::spawn(move || {
-                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
+                                            // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
+                                            // let mut file_writer = BufWriter::new(file);
+
+                                            // let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
+                                            // encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+
+                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.png", frame)).unwrap();
                                             let mut file_writer = BufWriter::new(file);
 
-                                            let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
-                                            encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+                                            let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
+                                            encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
                                         });
                                     }
                                     Clips::ImageClip(clip) => {
                                         let bytes = clip.render(&mut preview_renderer, &clip_loader);
 
                                         thread::spawn(move || {
-                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
+                                            // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
+                                            // let mut file_writer = BufWriter::new(file);
+
+                                            // let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
+                                            // encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+
+                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.png", frame)).unwrap();
                                             let mut file_writer = BufWriter::new(file);
 
-                                            let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
-                                            encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+                                            let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
+                                            encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
                                         });
                                     }
                                 }

@@ -110,7 +110,13 @@ impl ScriptClipRuntime {
 
             let next = v8::Local::<v8::Function>::try_from(next).unwrap();
 
-            let result = next.call(&mut scope, generator.into(), &[]).unwrap();
+            let result = next.call(&mut scope, generator.into(), &[]);
+
+            if result.is_none() {
+                continue;
+            }
+
+            let result = result.unwrap();
 
             let result = v8::Local::<v8::Object>::try_from(result).unwrap();
 

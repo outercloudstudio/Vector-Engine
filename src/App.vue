@@ -14,7 +14,7 @@ async function preview() {
 	const now = Date.now()
 	let frame = Math.floor(((now - animationStart) / 1000) * 60)
 
-	if (frame >= 240) {
+	if (frame >= 300) {
 		frame = 0
 
 		animationStart = now

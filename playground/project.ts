@@ -1,108 +1,71 @@
+function createRandomWithSeed(seed: number): () => number {
+	return () => {
+		seed |= 0
+		seed = (seed + 0x6d2b79f5) | 0
+		let imul = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+		imul = (imul + Math.imul(imul ^ (imul >>> 7), 61 | imul)) ^ imul
+		return ((imul ^ (imul >>> 14)) >>> 0) / 4294967296
+	}
+}
+
+function* createStars() {
+	for (let i = 0; i < 200; i++) {
+		yield createStar(i + 200)
+
+		yield* seconds(0.02)
+	}
+}
+
+function* createStar(seed: number) {
+	const random = createRandomWithSeed(seed)
+
+	const colors = [
+		new Vector4(166 / 255, 200 / 255, 255 / 255, 1),
+		new Vector4(255 / 255, 231 / 255, 166 / 255, 1),
+		new Vector4(166 / 255, 255 / 255, 188 / 255, 1),
+		new Vector4(1, 1, 1, 1),
+	]
+
+	let direction = random() * Math.PI * 2
+
+	const star = add(
+		new Ellipse({
+			position: new Vector2(Math.cos(direction) * 1200, Math.sin(direction) * 1200),
+			size: new Vector2(50, 50),
+			color: colors[Math.floor(random() * 4)],
+		})
+	)
+
+	const speed = 0.9 + random() * 0.2
+
+	yield star.size.to(new Vector2(0, 0), speed)
+	yield* star.position.to(new Vector2(0, 0), speed)
+
+	remove(star)
+}
+
 clip(function* () {
-	// add(
-	// 	new Rect({
-	// 		position: new Vector2(-1920 / 2, -1080 / 2),
-	// 		size: new Vector2(1920, 1080),
-	// 		color: new Vector4(0, 0, 1, 0.2),
-	// 	})
-	// )
-
-	// const clip = add(
-	// 	new Clip({
-	// 		clip: 'test.ts',
-	// 		position: new Vector2(-500, -300),
-	// 		size: new Vector2(1000, 600),
-	// 	})
-	// )
-
-	// let progress = react(0)
-
-	// const rect = add(
-	// 	new Rect({
-	// 		position: new Vector2(-800, -200),
-	// 		size: new Vector2(400, 400),
-	// 		color: new Vector4(219 / 255, 30 / 255, 101 / 255, 1),
-	// 		radius: () => progress.value * 200,
-	// 	})
-	// )
-
-	// yield progress.bounce(1, 1, ease)
-
-	// yield* clip.frame.to(120, 2)
-
 	const background = add(
 		new Rect({
 			size: new Vector2(1920, 1080),
-			color: new Vector4(12 / 256, 12 / 256, 12 / 256, 1),
+			color: new Vector4(9 / 256, 10 / 256, 20 / 256, 1),
 			order: -100,
-		})
-	)
-
-	let progress = react(0)
-	let progress2 = react(0)
-
-	const rect = add(
-		new Rect({
-			position: new Vector2(300, 0),
-			size: new Vector2(400, 400),
-			color: new Vector4(219 / 255, 30 / 255, 101 / 255, 1),
-			radius: () => progress.value * 200,
-		})
-	)
-
-	const ellipse = add(
-		new Ellipse({
-			position: () => new Vector2(-300, progress.value * 300 - 150),
-			size: new Vector2(100, 100),
-			color: new Vector4(19 / 256, 173 / 256, 235 / 256, 1),
-		})
-	)
-
-	const rect2 = add(
-		new Rect({
-			position: new Vector2(-600, -450),
-			origin: new Vector2(0, 0),
-			size: () => new Vector2(400 + progress2.value * 700, 100),
-			color: new Vector4(30 / 255, 219 / 255, 101 / 255, 1),
-		})
-	)
-
-	const ellipse2 = add(
-		new Ellipse({
-			position: new Vector2(-100, 250),
-			size: new Vector2(100, 100),
-			color: () => new Vector4(progress2.value, progress2.value, progress2.value, 1),
-		})
-	)
-
-	const ellipse2Background = add(
-		new Ellipse({
-			position: new Vector2(-100, 250),
-			size: new Vector2(110, 110),
-			color: () => new Vector4(1 - progress2.value, 1 - progress2.value, 1 - progress2.value, 1),
-			order: -1,
-		})
-	)
-
-	const rect3 = add(
-		new Rect({
-			position: new Vector2(-700, 300),
-			size: new Vector2(200, 200),
-			color: new Vector4(101 / 255, 30 / 255, 219 / 255, 1),
-			rotation: () => progress.value * Math.PI * 2,
 		})
 	)
 
 	const clip = add(
 		new Clip({
 			clip: 'LogoTest.png',
-			size: new Vector2(1000, 700),
+			size: new Vector2(0, 0),
+			order: 1,
+			rotation: -Math.PI / 20,
 		})
 	)
 
-	yield progress.bounce(1, 1, ease)
+	yield createStars()
 
-	yield* seconds(0.5)
+	yield* seconds(1)
 
-	yield progress2.bounce(1, 1, ease, 2)
+	yield clip.size.to(new Vector2(1000, 700), 1, ease)
+	yield clip.rotation.bounce(Math.PI / 20, 2, ease)
 })
