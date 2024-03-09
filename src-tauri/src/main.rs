@@ -6,6 +6,7 @@ mod renderer;
 mod runtime;
 
 use image::ImageEncoder;
+use log::info;
 use notify::{Event, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::Path;
@@ -114,7 +115,7 @@ fn main() {
                         }
                         Command::PlaygroundUpdate => clip_loader.invalidate(&String::from("project.ts")),
                         Command::Render => {
-                            for frame in 0..300 {
+                            for frame in 0..1 {
                                 let clip = clip_loader.get_new(&String::from("project.ts"), &renderer).unwrap();
 
                                 match clip {
@@ -122,6 +123,8 @@ fn main() {
                                         clip.set_frame(frame);
 
                                         let bytes = clip.render_to_raw(&mut renderer, &clip_loader, 1920, 1080);
+
+                                        info!("Render data size: {}", bytes.len());
 
                                         thread::spawn(move || {
                                             // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();

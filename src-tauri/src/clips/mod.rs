@@ -1,6 +1,7 @@
 use ash::vk::{self, ShaderModule};
 use cgmath::{vec2, Vector2, Vector4};
 use image::ImageDecoder;
+use log::warn;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -10,7 +11,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::renderer::elements::{Elements, RectData, RECT_DATA_SIZE, RECT_VERTEX_SIZE};
+use crate::renderer::elements::{Elements, Rect, RectData, RectVertex, RECT_DATA_SIZE, RECT_VERTEX_SIZE};
 use crate::renderer::renderer::{RenderTarget, Renderer};
 use crate::renderer::utils::*;
 use crate::runtime::ScriptClipRuntime;
@@ -100,6 +101,7 @@ pub struct ScriptClip {
     rect_vertex_buffer_memory: vk::DeviceMemory,
     rect_uniform_buffer: vk::Buffer,
     rect_uniform_buffer_memory: vk::DeviceMemory,
+    render_pass: vk::RenderPass,
 }
 
 impl ScriptClip {
@@ -116,7 +118,7 @@ impl ScriptClip {
         let rect_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.frag.spv").to_vec());
 
         let (rect_index_buffer, rect_index_buffer_memory) = renderer.create_buffer(
-            4 * 4,
+            4 * 6,
             vk::BufferUsageFlags::INDEX_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
@@ -130,6 +132,8 @@ impl ScriptClip {
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
+
+        let render_pass = renderer.create_render_pass();
 
         ScriptClip {
             runtime,
@@ -148,6 +152,8 @@ impl ScriptClip {
             rect_vertex_buffer_memory,
             rect_uniform_buffer,
             rect_uniform_buffer_memory,
+
+            render_pass,
         }
     }
 
@@ -173,6 +179,11 @@ impl ScriptClip {
     pub fn render(&self, renderer: &mut Renderer, clip_loader: &ClipLoader, width: u32, height: u32) -> RenderTarget {
         let render_target = RenderTarget::new(width, height, renderer);
 
+        let frame_buffer = renderer.create_framebuffer(&render_target, self.render_pass, width, height);
+
+        let viewport = create_viewport(width, height);
+        let scissor = create_scissor(width, height);
+
         let elements = self.runtime.get_elements();
 
         let mut ordered_elements = elements.clone();
@@ -183,13 +194,15 @@ impl ScriptClip {
 
             match element {
                 Elements::Rect(rect) => {
+                    warn!("Rendering rect");
+
                     let index_ptr = renderer.start_copy_data_to_buffer(4 * 6, self.rect_index_buffer_memory);
 
                     unsafe {
                         copy_nonoverlapping(&vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
                     }
 
-                    renderer.end_copy_data_to_buffer(self.rect_index_buffer, self.rect_index_buffer_memory);
+                    renderer.end_copy_data_to_buffer(self.rect_index_buffer_memory);
 
                     let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
@@ -213,7 +226,7 @@ impl ScriptClip {
                         copy_nonoverlapping(&vertices.as_ptr(), vertex_ptr.cast(), 6);
                     }
 
-                    renderer.end_copy_data_to_buffer(self.rect_vertex_buffer, self.rect_vertex_buffer_memory);
+                    renderer.end_copy_data_to_buffer(self.rect_vertex_buffer_memory);
 
                     let uniform_ptr = renderer.start_copy_data_to_buffer(RECT_DATA_SIZE, self.rect_uniform_buffer_memory);
 
@@ -226,7 +239,49 @@ impl ScriptClip {
                         }]);
                     }
 
-                    renderer.end_copy_data_to_buffer(self.rect_uniform_buffer, self.rect_uniform_buffer_memory);
+                    renderer.end_copy_data_to_buffer(self.rect_uniform_buffer_memory);
+
+                    let descriptor_set_layouts = Rect::create_descriptor_set_layout(&renderer);
+                    let descriptor_set_layout_bindings = RectVertex::get_descriptor_set_layout_binding();
+                    let attribute_descriptions = RectVertex::get_attribute_descriptions();
+
+                    let (graphics_pipeline, graphics_pipeline_layout) = renderer.create_graphics_pipeline(
+                        self.rect_vertex_shader,
+                        self.rect_fragment_shader,
+                        viewport,
+                        scissor,
+                        self.render_pass,
+                        descriptor_set_layouts,
+                        descriptor_set_layout_bindings,
+                        &attribute_descriptions,
+                    );
+
+                    let descriptor_pools = Rect::create_descriptor_pool(&renderer);
+                    let descriptor_sets = Rect::create_descriptor_sets(&renderer, descriptor_set_layouts, descriptor_pools, self.rect_uniform_buffer);
+
+                    let command_buffer = renderer.create_command_buffer(self.command_pool);
+
+                    renderer.begin_render_pass(self.render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
+
+                    unsafe {
+                        renderer.device.cmd_bind_vertex_buffers(command_buffer, 0, &[self.rect_vertex_buffer], &[0]);
+                        renderer.device.cmd_bind_index_buffer(command_buffer, self.rect_index_buffer, 0, vk::IndexType::UINT32);
+                        renderer
+                            .device
+                            .cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
+                        renderer.device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
+                    }
+
+                    renderer.end_render_pass(command_buffer, self.graphics_queue);
+
+                    unsafe {
+                        renderer.device.destroy_descriptor_pool(descriptor_pools, None);
+
+                        renderer.device.destroy_pipeline(graphics_pipeline, None);
+                        renderer.device.destroy_pipeline_layout(graphics_pipeline_layout, None);
+
+                        renderer.device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
+                    }
                 }
                 _ => {} // Elements::Ellipse(ellipse) => ellipse.render(
                         //     &self.instance,
@@ -256,6 +311,10 @@ impl ScriptClip {
             }
         }
 
+        unsafe {
+            renderer.device.destroy_framebuffer(frame_buffer, None);
+        }
+
         return render_target;
     }
 
@@ -263,6 +322,24 @@ impl ScriptClip {
         let render_target = self.render(renderer, clip_loader, width, height);
 
         render_target.to_raw(&renderer)
+    }
+
+    pub fn destroy(self, renderer: &Renderer) {
+        unsafe {
+            renderer.device.destroy_shader_module(self.rect_vertex_shader, None);
+            renderer.device.destroy_shader_module(self.rect_fragment_shader, None);
+
+            renderer.device.destroy_render_pass(self.render_pass, None);
+
+            renderer.device.destroy_buffer(self.rect_index_buffer, None);
+            renderer.device.free_memory(self.rect_index_buffer_memory, None);
+
+            renderer.device.destroy_buffer(self.rect_vertex_buffer, None);
+            renderer.device.free_memory(self.rect_vertex_buffer_memory, None);
+
+            renderer.device.destroy_buffer(self.rect_uniform_buffer, None);
+            renderer.device.free_memory(self.rect_uniform_buffer_memory, None);
+        }
     }
 }
 

@@ -100,10 +100,11 @@ pub struct RectData {
     pub radius: f32,
 }
 
-pub const RECT_DATA_SIZE: u64 = 16 + 4 + 8;
+// pub const RECT_DATA_SIZE: u64 = 16 + 4 + 8;
+pub const RECT_DATA_SIZE: u64 = 64;
 
 impl RectData {
-    fn get_descriptor_set_layout_bindings() -> [vk::DescriptorSetLayoutBinding; 1] {
+    pub fn get_descriptor_set_layout_bindings() -> [vk::DescriptorSetLayoutBinding; 1] {
         let layout_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
@@ -182,30 +183,30 @@ impl Rect {
         }
     }
 
-    fn create_descriptor_set_layout(device: &Device) -> vk::DescriptorSetLayout {
+    pub fn create_descriptor_set_layout(renderer: &Renderer) -> vk::DescriptorSetLayout {
         let bindings = RectData::get_descriptor_set_layout_bindings();
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings).build();
 
-        unsafe { device.create_descriptor_set_layout(&layout_info, None).unwrap() }
+        unsafe { renderer.device.create_descriptor_set_layout(&layout_info, None).unwrap() }
     }
 
-    fn create_descriptor_pool(device: &Device) -> vk::DescriptorPool {
+    pub fn create_descriptor_pool(renderer: &Renderer) -> vk::DescriptorPool {
         unsafe {
             let uniform_buffer_object_size = *vk::DescriptorPoolSize::builder().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1);
 
             let pool_sizes = [uniform_buffer_object_size];
             let info = vk::DescriptorPoolCreateInfo::builder().pool_sizes(&pool_sizes).max_sets(1);
 
-            device.create_descriptor_pool(&info, None).unwrap()
+            renderer.device.create_descriptor_pool(&info, None).unwrap()
         }
     }
 
-    fn create_descriptor_sets(device: &Device, descriptor_set_layout: vk::DescriptorSetLayout, descriptor_pool: vk::DescriptorPool, uniform_buffer: vk::Buffer) -> Vec<vk::DescriptorSet> {
+    pub fn create_descriptor_sets(renderer: &Renderer, descriptor_set_layout: vk::DescriptorSetLayout, descriptor_pool: vk::DescriptorPool, uniform_buffer: vk::Buffer) -> Vec<vk::DescriptorSet> {
         unsafe {
             let layouts = vec![descriptor_set_layout; 1];
             let info = vk::DescriptorSetAllocateInfo::builder().descriptor_pool(descriptor_pool).set_layouts(&layouts);
 
-            let descriptor_sets = device.allocate_descriptor_sets(&info).unwrap();
+            let descriptor_sets = renderer.device.allocate_descriptor_sets(&info).unwrap();
 
             // Range is the size of the RectDataStruct
             let info = *vk::DescriptorBufferInfo::builder().buffer(uniform_buffer).offset(0).range(RECT_DATA_SIZE);
@@ -218,7 +219,7 @@ impl Rect {
                 .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
                 .buffer_info(buffer_info);
 
-            device.update_descriptor_sets(&[ubo_write], &[] as &[vk::CopyDescriptorSet]);
+            renderer.device.update_descriptor_sets(&[ubo_write], &[] as &[vk::CopyDescriptorSet]);
 
             return descriptor_sets;
         }
@@ -266,31 +267,31 @@ impl Rect {
     }
 
     // pub fn render(&self, renderer: &Renderer, width: u32, height: u32) {
-    //     let command_buffer = create_command_buffer(device, command_pool);
+    // let command_buffer = create_command_buffer(device, command_pool);
 
-    //     let render_pass = create_render_pass(device, first_element, last_element);
+    // let render_pass = create_render_pass(device, first_element, last_element);
 
-    //     let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
+    // let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
 
-    //     let vertex_shader = Rect::create_vertex_shader(device);
-    //     let fragment_shader = Rect::create_fragment_shader(device);
+    // let vertex_shader = Rect::create_vertex_shader(device);
+    // let fragment_shader = Rect::create_fragment_shader(device);
 
-    //     let viewport = create_viewport(width, height);
-    //     let scissor = create_scissor(width, height);
+    // let viewport = create_viewport(width, height);
+    // let scissor = create_scissor(width, height);
 
-    //     let descriptor_set_layouts = Rect::create_descriptor_set_layout(device);
+    // let descriptor_set_layouts = Rect::create_descriptor_set_layout(device);
 
-    //     let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
-    //         device,
-    //         vertex_shader,
-    //         fragment_shader,
-    //         viewport,
-    //         scissor,
-    //         render_pass,
-    //         descriptor_set_layouts,
-    //         RectVertex::get_descriptor_set_layout_binding(),
-    //         &RectVertex::get_attribute_descriptions(),
-    //     );
+    // let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
+    //     device,
+    //     vertex_shader,
+    //     fragment_shader,
+    //     viewport,
+    //     scissor,
+    //     render_pass,
+    //     descriptor_set_layouts,
+    //     RectVertex::get_descriptor_set_layout_binding(),
+    //     &RectVertex::get_attribute_descriptions(),
+    // );
 
     //     let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
 
@@ -323,19 +324,19 @@ impl Rect {
     //         physical_device,
     //     );
 
-    //     let descriptor_pools = Rect::create_descriptor_pool(device);
-    //     let descriptor_sets = Rect::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
+    // let descriptor_pools = Rect::create_descriptor_pool(device);
+    // let descriptor_sets = Rect::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
 
-    //     begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
+    // begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
 
-    //     unsafe {
-    //         device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
-    //         device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
-    //         device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
-    //         device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
-    //     }
+    // unsafe {
+    //     device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
+    //     device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+    //     device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
+    //     device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
+    // }
 
-    //     end_render_pass(device, command_buffer, graphics_queue);
+    // end_render_pass(device, command_buffer, graphics_queue);
 
     //     unsafe {
     //         device.destroy_shader_module(vertex_shader, None);
