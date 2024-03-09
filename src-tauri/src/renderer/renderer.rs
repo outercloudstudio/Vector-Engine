@@ -154,7 +154,7 @@ impl Renderer {
         }
     }
 
-    pub fn create_render_pass(&self) -> vk::RenderPass {
+    pub fn create_render_pass(&self, mode: RenderMode) -> vk::RenderPass {
         unsafe {
             let color_attachment = *vk::AttachmentDescription::builder()
                 .format(vk::Format::R8G8B8A8_UNORM)
@@ -164,7 +164,11 @@ impl Renderer {
                 .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
                 .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
                 .initial_layout(vk::ImageLayout::UNDEFINED)
-                .final_layout(vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
+                .final_layout(if let RenderMode::Raw = mode {
+                    vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+                } else {
+                    vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+                });
 
             let color_attachment_ref = *vk::AttachmentReference::builder().attachment(0).layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
 
@@ -192,7 +196,7 @@ impl Renderer {
 
     pub fn create_framebuffer(&self, render_target: &RenderTarget, render_pass: vk::RenderPass, width: u32, height: u32) -> vk::Framebuffer {
         unsafe {
-            let frame_buffer_attachments = &[render_target.target_image_view];
+            let frame_buffer_attachments = &[render_target.image_view];
 
             let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                 .render_pass(render_pass)
@@ -408,12 +412,86 @@ impl Renderer {
             return descriptor_sets;
         }
     }
+
+    pub fn create_descriptor_uniform_sampler_sets(
+        &self,
+        descriptor_set_layout: vk::DescriptorSetLayout,
+        descriptor_pool: vk::DescriptorPool,
+        uniform_buffer: vk::Buffer,
+        texture_image_view: vk::ImageView,
+        texture_sampler: vk::Sampler,
+        size: u64,
+    ) -> Vec<vk::DescriptorSet> {
+        unsafe {
+            let layouts = vec![descriptor_set_layout; 1];
+            let info = vk::DescriptorSetAllocateInfo::builder().descriptor_pool(descriptor_pool).set_layouts(&layouts);
+
+            let descriptor_sets = self.device.allocate_descriptor_sets(&info).unwrap();
+
+            // Range is the size of the RectDataStruct
+            let info = *vk::DescriptorBufferInfo::builder().buffer(uniform_buffer).offset(0).range(size);
+
+            let buffer_info = &[info];
+            let ubo_write = *vk::WriteDescriptorSet::builder()
+                .dst_set(descriptor_sets[0])
+                .dst_binding(0)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .buffer_info(buffer_info);
+
+            let info = *vk::DescriptorImageInfo::builder()
+                .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .image_view(texture_image_view)
+                .sampler(texture_sampler);
+
+            let image_info = &[info];
+            let sampler_write = *vk::WriteDescriptorSet::builder()
+                .dst_set(descriptor_sets[0])
+                .dst_binding(1)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .image_info(image_info);
+
+            self.device.update_descriptor_sets(&[ubo_write, sampler_write], &[] as &[vk::CopyDescriptorSet]);
+
+            return descriptor_sets;
+        }
+    }
+
+    pub fn create_sampler(&self) -> vk::Sampler {
+        unsafe {
+            let info = vk::SamplerCreateInfo::builder()
+                .mag_filter(vk::Filter::NEAREST)
+                .min_filter(vk::Filter::NEAREST)
+                .address_mode_u(vk::SamplerAddressMode::REPEAT)
+                .address_mode_v(vk::SamplerAddressMode::REPEAT)
+                .address_mode_w(vk::SamplerAddressMode::REPEAT)
+                .anisotropy_enable(false)
+                .max_anisotropy(16.0)
+                .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
+                .unnormalized_coordinates(false)
+                .compare_enable(false)
+                .compare_op(vk::CompareOp::ALWAYS)
+                .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+                .mip_lod_bias(0.0)
+                .min_lod(0.0)
+                .max_lod(0.0);
+
+            self.device.create_sampler(&info, None).unwrap()
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum RenderMode {
+    Raw,
+    Sample,
 }
 
 pub struct RenderTarget {
-    target_image: vk::Image,
-    target_image_view: vk::ImageView,
-    target_image_memory: vk::DeviceMemory,
+    pub image: vk::Image,
+    pub image_view: vk::ImageView,
+    pub image_memory: vk::DeviceMemory,
 
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
@@ -423,7 +501,7 @@ pub struct RenderTarget {
 }
 
 impl RenderTarget {
-    pub fn new(width: u32, height: u32, renderer: &Renderer) -> RenderTarget {
+    pub fn new(width: u32, height: u32, renderer: &Renderer, mode: RenderMode) -> RenderTarget {
         unsafe {
             let target_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
@@ -433,7 +511,11 @@ impl RenderTarget {
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .tiling(vk::ImageTiling::OPTIMAL)
-                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC)
+                .usage(if let RenderMode::Sample = mode {
+                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED
+                } else {
+                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC
+                })
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
             let target_image = renderer.device.create_image(&target_image_create_info, None).unwrap();
@@ -472,9 +554,9 @@ impl RenderTarget {
             let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
 
             RenderTarget {
-                target_image,
-                target_image_view,
-                target_image_memory,
+                image: target_image,
+                image_view: target_image_view,
+                image_memory: target_image_memory,
 
                 width,
                 height,
@@ -543,7 +625,7 @@ impl RenderTarget {
 
             renderer
                 .device
-                .cmd_copy_image_to_buffer(command_buffer, self.target_image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
+                .cmd_copy_image_to_buffer(command_buffer, self.image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
 
             renderer.device.end_command_buffer(command_buffer).unwrap();
 
@@ -572,9 +654,9 @@ impl RenderTarget {
 
     pub fn destroy(self, renderer: &Renderer) {
         unsafe {
-            renderer.device.free_memory(self.target_image_memory, None);
-            renderer.device.destroy_image_view(self.target_image_view, None);
-            renderer.device.destroy_image(self.target_image, None);
+            renderer.device.free_memory(self.image_memory, None);
+            renderer.device.destroy_image_view(self.image_view, None);
+            renderer.device.destroy_image(self.image, None);
 
             renderer.device.destroy_command_pool(self.command_pool, None);
         }

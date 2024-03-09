@@ -53,9 +53,9 @@ clip(function* () {
 	)
 
 	const clip = add(
-		new Rect({
-			// clip: 'test.ts',
-			size: new Vector2(20, 20),
+		new Clip({
+			clip: 'test.ts',
+			size: new Vector2(1000, 600),
 			order: 1,
 			rotation: -Math.PI / 20,
 		})
@@ -63,8 +63,9 @@ clip(function* () {
 
 	yield createStars()
 
-	yield* seconds(1)
+	// yield* seconds(1)
 
-	yield clip.size.to(new Vector2(1000, 700), 1, ease)
-	yield clip.rotation.bounce(Math.PI / 20, 2, ease)
+	yield clip.frame.to(300, 300 / 60)
+	// yield clip.size.to(new Vector2(1000, 700), 1, ease)
+	// yield clip.rotation.bounce(Math.PI / 20, 2, ease)
 })

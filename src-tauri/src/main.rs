@@ -106,7 +106,7 @@ fn main() {
                                 Clips::ScriptClip(ref mut clip) => {
                                     clip.set_frame(frame);
 
-                                    let render = clip.render_to_raw(&mut renderer, &clip_loader, 480, 270);
+                                    let render = clip.render_to_raw(&mut renderer, &mut clip_loader, 480, 270);
 
                                     response_sender.send(render).unwrap();
                                 }
@@ -122,7 +122,7 @@ fn main() {
                                     Clips::ScriptClip(mut clip) => {
                                         clip.set_frame(frame);
 
-                                        let bytes = clip.render_to_raw(&mut renderer, &clip_loader, 1920, 1080);
+                                        let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
 
                                         thread::spawn(move || {
                                             // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
