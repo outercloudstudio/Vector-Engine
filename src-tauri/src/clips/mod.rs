@@ -1,4 +1,7 @@
-use ash::vk::{self, ShaderModule};
+use ash::{
+    vk::{self, ShaderModule},
+    Device,
+};
 use cgmath::{vec2, Vector2, Vector4};
 use image::ImageDecoder;
 use log::{info, warn};
@@ -10,6 +13,7 @@ use std::{
     mem::align_of,
     ptr::{self, copy_nonoverlapping},
     rc::Rc,
+    time::Instant,
 };
 
 use crate::renderer::elements::{Elements, Rect, RectData, RectVertex, ELLIPSE_DATA_SIZE, ELLIPSE_VERTEX_SIZE, RECT_DATA_SIZE, RECT_VERTEX_SIZE};
@@ -90,6 +94,7 @@ pub struct ScriptClip {
     script: String,
     internal_frame: u32,
 
+    device: Device,
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
     render_pass: vk::RenderPass,
@@ -178,6 +183,7 @@ impl ScriptClip {
             graphics_queue,
             command_pool,
             render_pass,
+            device: renderer.device.clone(),
 
             rect_vertex_shader,
             rect_fragment_shader,
@@ -313,24 +319,30 @@ impl ScriptClip {
     pub fn render_to_raw(&self, renderer: &mut Renderer, clip_loader: &ClipLoader, width: u32, height: u32) -> Vec<u8> {
         let render_target = self.render(renderer, clip_loader, width, height);
 
-        render_target.to_raw(&renderer)
+        let bytes = render_target.to_raw(&renderer);
+
+        render_target.destroy(renderer);
+
+        return bytes;
     }
+}
 
-    pub fn destroy(self, renderer: &Renderer) {
+impl Drop for ScriptClip {
+    fn drop(&mut self) {
         unsafe {
-            renderer.device.destroy_shader_module(self.rect_vertex_shader, None);
-            renderer.device.destroy_shader_module(self.rect_fragment_shader, None);
+            self.device.destroy_shader_module(self.rect_vertex_shader, None);
+            self.device.destroy_shader_module(self.rect_fragment_shader, None);
 
-            renderer.device.destroy_render_pass(self.render_pass, None);
+            self.device.destroy_render_pass(self.render_pass, None);
 
-            renderer.device.destroy_buffer(self.rect_index_buffer, None);
-            renderer.device.free_memory(self.rect_index_buffer_memory, None);
+            self.device.destroy_buffer(self.rect_index_buffer, None);
+            self.device.free_memory(self.rect_index_buffer_memory, None);
 
-            renderer.device.destroy_buffer(self.rect_vertex_buffer, None);
-            renderer.device.free_memory(self.rect_vertex_buffer_memory, None);
+            self.device.destroy_buffer(self.rect_vertex_buffer, None);
+            self.device.free_memory(self.rect_vertex_buffer_memory, None);
 
-            renderer.device.destroy_buffer(self.rect_uniform_buffer, None);
-            renderer.device.free_memory(self.rect_uniform_buffer_memory, None);
+            self.device.destroy_buffer(self.rect_uniform_buffer, None);
+            self.device.free_memory(self.rect_uniform_buffer_memory, None);
         }
     }
 }

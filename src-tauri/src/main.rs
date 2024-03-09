@@ -124,8 +124,6 @@ fn main() {
 
                                         let bytes = clip.render_to_raw(&mut renderer, &clip_loader, 1920, 1080);
 
-                                        info!("Render data size: {}", bytes.len());
-
                                         thread::spawn(move || {
                                             // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
                                             // let mut file_writer = BufWriter::new(file);
