@@ -7,7 +7,8 @@ use std::mem::align_of;
 use std::ptr::copy_nonoverlapping;
 
 use crate::clips::{ClipLoader, Clips};
-use crate::renderer::{utils::*, Renderer};
+use crate::renderer::renderer::Renderer;
+use crate::renderer::utils::*;
 
 const UVS: [Vector2<f32>; 4] = [vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)];
 
@@ -589,106 +590,106 @@ impl Ellipse {
         }
     }
 
-    pub fn render(
-        &self,
-        instance: &Instance,
-        device: &Device,
-        physical_device: vk::PhysicalDevice,
-        target_image_view: vk::ImageView,
-        command_pool: vk::CommandPool,
-        graphics_queue: vk::Queue,
-        first_element: bool,
-        last_element: bool,
-        width: u32,
-        height: u32,
-    ) {
-        let command_buffer = create_command_buffer(device, command_pool);
+    // pub fn render(
+    //     &self,
+    //     instance: &Instance,
+    //     device: &Device,
+    //     physical_device: vk::PhysicalDevice,
+    //     target_image_view: vk::ImageView,
+    //     command_pool: vk::CommandPool,
+    //     graphics_queue: vk::Queue,
+    //     first_element: bool,
+    //     last_element: bool,
+    //     width: u32,
+    //     height: u32,
+    // ) {
+    //     let command_buffer = create_command_buffer(device, command_pool);
 
-        let render_pass = create_render_pass(device, first_element, last_element);
+    //     let render_pass = create_render_pass(device, first_element, last_element);
 
-        let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
+    //     let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
 
-        let vertex_shader = Ellipse::create_vertex_shader(device);
-        let fragment_shader = Ellipse::create_fragment_shader(device);
+    //     let vertex_shader = Ellipse::create_vertex_shader(device);
+    //     let fragment_shader = Ellipse::create_fragment_shader(device);
 
-        let viewport = create_viewport(width, height);
-        let scissor = create_scissor(width, height);
+    //     let viewport = create_viewport(width, height);
+    //     let scissor = create_scissor(width, height);
 
-        let descriptor_set_layouts = Ellipse::create_descriptor_set_layout(device);
+    //     let descriptor_set_layouts = Ellipse::create_descriptor_set_layout(device);
 
-        let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
-            device,
-            vertex_shader,
-            fragment_shader,
-            viewport,
-            scissor,
-            render_pass,
-            descriptor_set_layouts,
-            EllipseVertex::get_descriptor_set_layout_binding(),
-            &EllipseVertex::get_attribute_descriptions(),
-        );
+    //     let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
+    //         device,
+    //         vertex_shader,
+    //         fragment_shader,
+    //         viewport,
+    //         scissor,
+    //         render_pass,
+    //         descriptor_set_layouts,
+    //         EllipseVertex::get_descriptor_set_layout_binding(),
+    //         &EllipseVertex::get_attribute_descriptions(),
+    //     );
 
-        let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
+    //     let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
 
-        const X_SCALE: f32 = 1920.0 / 2.0;
-        const Y_SCALE: f32 = 1080.0 / 2.0;
+    //     const X_SCALE: f32 = 1920.0 / 2.0;
+    //     const Y_SCALE: f32 = 1080.0 / 2.0;
 
-        let offsetted_x = self.position.x - self.origin.x * self.size.x;
-        let offsetted_y = self.position.y - self.origin.y * self.size.y;
+    //     let offsetted_x = self.position.x - self.origin.x * self.size.x;
+    //     let offsetted_y = self.position.y - self.origin.y * self.size.y;
 
-        let (vertex_buffer, vertex_buffer_memory) = Ellipse::create_vertex_buffer(
-            &vec![
-                vec2(offsetted_x / X_SCALE, -offsetted_y / Y_SCALE),
-                vec2(offsetted_x / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
-                vec2((offsetted_x + self.size.x) / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
-                vec2((offsetted_x + self.size.x) / X_SCALE, -offsetted_y / Y_SCALE),
-            ],
-            instance,
-            device,
-            physical_device,
-        );
+    //     let (vertex_buffer, vertex_buffer_memory) = Ellipse::create_vertex_buffer(
+    //         &vec![
+    //             vec2(offsetted_x / X_SCALE, -offsetted_y / Y_SCALE),
+    //             vec2(offsetted_x / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+    //             vec2((offsetted_x + self.size.x) / X_SCALE, -(offsetted_y + self.size.y) / Y_SCALE),
+    //             vec2((offsetted_x + self.size.x) / X_SCALE, -offsetted_y / Y_SCALE),
+    //         ],
+    //         instance,
+    //         device,
+    //         physical_device,
+    //     );
 
-        let (uniform_buffer, uniform_buffer_memory) = Ellipse::create_uniform_buffer(EllipseData { color: self.color }, instance, device, physical_device);
+    //     let (uniform_buffer, uniform_buffer_memory) = Ellipse::create_uniform_buffer(EllipseData { color: self.color }, instance, device, physical_device);
 
-        let descriptor_pools = Ellipse::create_descriptor_pool(device);
-        let descriptor_sets = Ellipse::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
+    //     let descriptor_pools = Ellipse::create_descriptor_pool(device);
+    //     let descriptor_sets = Ellipse::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
 
-        begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
+    //     begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
 
-        unsafe {
-            device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
-            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
-            device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
-            device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
-        }
+    //     unsafe {
+    //         device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
+    //         device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+    //         device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
+    //         device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
+    //     }
 
-        end_render_pass(device, command_buffer, graphics_queue);
+    //     end_render_pass(device, command_buffer, graphics_queue);
 
-        unsafe {
-            device.destroy_shader_module(vertex_shader, None);
-            device.destroy_shader_module(fragment_shader, None);
+    //     unsafe {
+    //         device.destroy_shader_module(vertex_shader, None);
+    //         device.destroy_shader_module(fragment_shader, None);
 
-            device.destroy_descriptor_pool(descriptor_pools, None);
+    //         device.destroy_descriptor_pool(descriptor_pools, None);
 
-            device.destroy_framebuffer(frame_buffer, None);
+    //         device.destroy_framebuffer(frame_buffer, None);
 
-            device.destroy_pipeline(graphics_pipeline, None);
-            device.destroy_pipeline_layout(graphics_pipeline_layout, None);
+    //         device.destroy_pipeline(graphics_pipeline, None);
+    //         device.destroy_pipeline_layout(graphics_pipeline_layout, None);
 
-            device.destroy_render_pass(render_pass, None);
+    //         device.destroy_render_pass(render_pass, None);
 
-            device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
+    //         device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
 
-            device.destroy_buffer(index_buffer, None);
-            device.free_memory(index_buffer_memory, None);
+    //         device.destroy_buffer(index_buffer, None);
+    //         device.free_memory(index_buffer_memory, None);
 
-            device.destroy_buffer(vertex_buffer, None);
-            device.free_memory(vertex_buffer_memory, None);
+    //         device.destroy_buffer(vertex_buffer, None);
+    //         device.free_memory(vertex_buffer_memory, None);
 
-            device.destroy_buffer(uniform_buffer, None);
-            device.free_memory(uniform_buffer_memory, None);
-        }
-    }
+    //         device.destroy_buffer(uniform_buffer, None);
+    //         device.free_memory(uniform_buffer_memory, None);
+    //     }
+    // }
 }
 
 #[derive(Clone)]
@@ -1067,139 +1068,139 @@ impl Clip {
         }
     }
 
-    pub fn render(
-        &self,
-        instance: &Instance,
-        device: &Device,
-        physical_device: vk::PhysicalDevice,
-        target_image_view: vk::ImageView,
-        command_pool: vk::CommandPool,
-        graphics_queue: vk::Queue,
-        first_element: bool,
-        last_element: bool,
-        width: u32,
-        height: u32,
-        clip_loader: &ClipLoader,
-    ) {
-        let mut render_size_x = self.size.x;
-        let mut render_size_y = self.size.x;
+    // pub fn render(
+    //     &self,
+    //     instance: &Instance,
+    //     device: &Device,
+    //     physical_device: vk::PhysicalDevice,
+    //     target_image_view: vk::ImageView,
+    //     command_pool: vk::CommandPool,
+    //     graphics_queue: vk::Queue,
+    //     first_element: bool,
+    //     last_element: bool,
+    //     width: u32,
+    //     height: u32,
+    //     clip_loader: &ClipLoader,
+    // ) {
+    //     let mut render_size_x = self.size.x;
+    //     let mut render_size_y = self.size.x;
 
-        let mut clip = clip_loader.get_new(&self.clip).unwrap();
+    //     let mut clip = clip_loader.get_new(&self.clip).unwrap();
 
-        if let Clips::ImageClip(ref mut clip) = &mut clip {
-            render_size_x = clip.width as f32;
-            render_size_y = clip.height as f32;
-        }
+    //     if let Clips::ImageClip(ref mut clip) = &mut clip {
+    //         render_size_x = clip.width as f32;
+    //         render_size_y = clip.height as f32;
+    //     }
 
-        let mut clip_renderer = Renderer::create(render_size_x as u32, render_size_y as u32);
+    //     let mut clip_renderer = Renderer::create(render_size_x as u32, render_size_y as u32);
 
-        let mut render = Vec::new();
+    //     let mut render = Vec::new();
 
-        match clip {
-            Clips::ScriptClip(mut clip) => {
-                clip.set_frame(self.frame);
+    //     match clip {
+    //         Clips::ScriptClip(mut clip) => {
+    //             clip.set_frame(self.frame);
 
-                render = clip.render(&mut clip_renderer, clip_loader);
-            }
-            Clips::ImageClip(clip) => {
-                render = clip.render(&mut clip_renderer, clip_loader);
-            }
-        }
+    //             render = clip.render_to_raw(&mut clip_renderer, clip_loader);
+    //         }
+    //         Clips::ImageClip(clip) => {
+    //             render = clip.render(&mut clip_renderer, clip_loader);
+    //         }
+    //     }
 
-        clip_renderer.destroy();
+    //     clip_renderer.destroy();
 
-        let (texture_image, texture_image_view, texture_image_memory, texture_image_sampler) =
-            Clip::create_texture_image(render, render_size_x as u32, render_size_y as u32, instance, device, physical_device, command_pool, graphics_queue);
+    //     let (texture_image, texture_image_view, texture_image_memory, texture_image_sampler) =
+    //         Clip::create_texture_image(render, render_size_x as u32, render_size_y as u32, instance, device, physical_device, command_pool, graphics_queue);
 
-        let command_buffer = create_command_buffer(device, command_pool);
+    //     let command_buffer = create_command_buffer(device, command_pool);
 
-        let render_pass = create_render_pass(device, first_element, last_element);
+    //     let render_pass = create_render_pass(device, first_element, last_element);
 
-        let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
+    //     let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
 
-        let vertex_shader = Clip::create_vertex_shader(device);
-        let fragment_shader = Clip::create_fragment_shader(device);
+    //     let vertex_shader = Clip::create_vertex_shader(device);
+    //     let fragment_shader = Clip::create_fragment_shader(device);
 
-        let viewport = create_viewport(width, height);
-        let scissor = create_scissor(width, height);
+    //     let viewport = create_viewport(width, height);
+    //     let scissor = create_scissor(width, height);
 
-        let descriptor_set_layouts = Clip::create_descriptor_set_layout(device);
+    //     let descriptor_set_layouts = Clip::create_descriptor_set_layout(device);
 
-        let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
-            device,
-            vertex_shader,
-            fragment_shader,
-            viewport,
-            scissor,
-            render_pass,
-            descriptor_set_layouts,
-            ClipVertex::get_descriptor_set_layout_binding(),
-            &ClipVertex::get_attribute_descriptions(),
-        );
+    //     let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
+    //         device,
+    //         vertex_shader,
+    //         fragment_shader,
+    //         viewport,
+    //         scissor,
+    //         render_pass,
+    //         descriptor_set_layouts,
+    //         ClipVertex::get_descriptor_set_layout_binding(),
+    //         &ClipVertex::get_attribute_descriptions(),
+    //     );
 
-        let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
+    //     let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
 
-        let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
+    //     let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
-        let offsetted_x = self.position.x - self.origin.x * self.size.x;
-        let offsetted_y = self.position.y - self.origin.y * self.size.y;
+    //     let offsetted_x = self.position.x - self.origin.x * self.size.x;
+    //     let offsetted_y = self.position.y - self.origin.y * self.size.y;
 
-        let mut vertices = vec![
-            vec2(offsetted_x, offsetted_y),
-            vec2(offsetted_x, offsetted_y + self.size.y),
-            vec2(offsetted_x + self.size.x, offsetted_y + self.size.y),
-            vec2(offsetted_x + self.size.x, offsetted_y),
-        ];
+    //     let mut vertices = vec![
+    //         vec2(offsetted_x, offsetted_y),
+    //         vec2(offsetted_x, offsetted_y + self.size.y),
+    //         vec2(offsetted_x + self.size.x, offsetted_y + self.size.y),
+    //         vec2(offsetted_x + self.size.x, offsetted_y),
+    //     ];
 
-        for vertex_index in 0..vertices.len() {
-            vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], self.position, self.rotation), normalize_scale))
-        }
+    //     for vertex_index in 0..vertices.len() {
+    //         vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], self.position, self.rotation), normalize_scale))
+    //     }
 
-        let (vertex_buffer, vertex_buffer_memory) = Clip::create_vertex_buffer(&vertices, instance, device, physical_device);
+    //     let (vertex_buffer, vertex_buffer_memory) = Clip::create_vertex_buffer(&vertices, instance, device, physical_device);
 
-        let (uniform_buffer, uniform_buffer_memory) = Clip::create_uniform_buffer(ClipData { color: self.color, size: self.size }, instance, device, physical_device);
+    //     let (uniform_buffer, uniform_buffer_memory) = Clip::create_uniform_buffer(ClipData { color: self.color, size: self.size }, instance, device, physical_device);
 
-        let descriptor_pools = Clip::create_descriptor_pool(device);
-        let descriptor_sets = Clip::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer, texture_image_view, texture_image_sampler);
+    //     let descriptor_pools = Clip::create_descriptor_pool(device);
+    //     let descriptor_sets = Clip::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer, texture_image_view, texture_image_sampler);
 
-        begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
+    //     begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
 
-        unsafe {
-            device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
-            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
-            device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
-            device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
-        }
+    //     unsafe {
+    //         device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
+    //         device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+    //         device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
+    //         device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
+    //     }
 
-        end_render_pass(device, command_buffer, graphics_queue);
+    //     end_render_pass(device, command_buffer, graphics_queue);
 
-        unsafe {
-            device.destroy_shader_module(vertex_shader, None);
-            device.destroy_shader_module(fragment_shader, None);
+    //     unsafe {
+    //         device.destroy_shader_module(vertex_shader, None);
+    //         device.destroy_shader_module(fragment_shader, None);
 
-            device.destroy_descriptor_pool(descriptor_pools, None);
+    //         device.destroy_descriptor_pool(descriptor_pools, None);
 
-            device.destroy_framebuffer(frame_buffer, None);
+    //         device.destroy_framebuffer(frame_buffer, None);
 
-            device.destroy_pipeline(graphics_pipeline, None);
-            device.destroy_pipeline_layout(graphics_pipeline_layout, None);
+    //         device.destroy_pipeline(graphics_pipeline, None);
+    //         device.destroy_pipeline_layout(graphics_pipeline_layout, None);
 
-            device.destroy_render_pass(render_pass, None);
+    //         device.destroy_render_pass(render_pass, None);
 
-            device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
+    //         device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
 
-            device.free_memory(texture_image_memory, None);
-            device.destroy_image_view(texture_image_view, None);
-            device.destroy_image(texture_image, None);
+    //         device.free_memory(texture_image_memory, None);
+    //         device.destroy_image_view(texture_image_view, None);
+    //         device.destroy_image(texture_image, None);
 
-            device.destroy_buffer(index_buffer, None);
-            device.free_memory(index_buffer_memory, None);
+    //         device.destroy_buffer(index_buffer, None);
+    //         device.free_memory(index_buffer_memory, None);
 
-            device.destroy_buffer(vertex_buffer, None);
-            device.free_memory(vertex_buffer_memory, None);
+    //         device.destroy_buffer(vertex_buffer, None);
+    //         device.free_memory(vertex_buffer_memory, None);
 
-            device.destroy_buffer(uniform_buffer, None);
-            device.free_memory(uniform_buffer_memory, None);
-        }
-    }
+    //         device.destroy_buffer(uniform_buffer, None);
+    //         device.free_memory(uniform_buffer_memory, None);
+    //     }
+    // }
 }

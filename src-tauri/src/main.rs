@@ -6,20 +6,16 @@ mod renderer;
 mod runtime;
 
 use image::ImageEncoder;
-use log::{info, warn};
 use notify::{Event, RecursiveMode, Watcher};
-use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
-use std::time::{Duration, Instant};
 use std::{env, fs::File, io::BufWriter};
-use tauri::{Manager, State, Url};
+use tauri::{State, Url};
 
 use clips::{ClipLoader, Clips};
-use renderer::Renderer;
+use renderer::renderer::Renderer;
 
 struct Timeline {}
 
@@ -82,9 +78,7 @@ fn main() {
             }
 
             thread::spawn(move || {
-                let mut renderer = Renderer::create(1920, 1080);
-
-                let mut preview_renderer = Renderer::create(480, 270);
+                let mut renderer = Renderer::new();
 
                 let mut clip_loader = ClipLoader::new();
 
@@ -103,7 +97,7 @@ fn main() {
 
                     match command {
                         Command::Preview(frame, response_sender) => {
-                            let clip = clip_loader.get(&String::from("project.ts")).unwrap();
+                            let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
 
                             let mut clip = &mut *clip.borrow_mut();
 
@@ -111,27 +105,23 @@ fn main() {
                                 Clips::ScriptClip(ref mut clip) => {
                                     clip.set_frame(frame);
 
-                                    let render = clip.render(&mut preview_renderer, &clip_loader);
+                                    let render = clip.render_to_raw(&mut renderer, &clip_loader, 480, 270);
 
                                     response_sender.send(render).unwrap();
                                 }
-                                Clips::ImageClip(clip) => {
-                                    let render = clip.render(&mut preview_renderer, &clip_loader);
-
-                                    response_sender.send(render).unwrap();
-                                }
+                                _ => {}
                             }
                         }
                         Command::PlaygroundUpdate => clip_loader.invalidate(&String::from("project.ts")),
                         Command::Render => {
                             for frame in 0..300 {
-                                let clip = clip_loader.get_new(&String::from("project.ts")).unwrap();
+                                let clip = clip_loader.get_new(&String::from("project.ts"), &renderer).unwrap();
 
                                 match clip {
                                     Clips::ScriptClip(mut clip) => {
                                         clip.set_frame(frame);
 
-                                        let bytes = clip.render(&mut renderer, &clip_loader);
+                                        let bytes = clip.render_to_raw(&mut renderer, &clip_loader, 1920, 1080);
 
                                         thread::spawn(move || {
                                             // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
@@ -147,23 +137,7 @@ fn main() {
                                             encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
                                         });
                                     }
-                                    Clips::ImageClip(clip) => {
-                                        let bytes = clip.render(&mut preview_renderer, &clip_loader);
-
-                                        thread::spawn(move || {
-                                            // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
-                                            // let mut file_writer = BufWriter::new(file);
-
-                                            // let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
-                                            // encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
-
-                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.png", frame)).unwrap();
-                                            let mut file_writer = BufWriter::new(file);
-
-                                            let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
-                                            encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
-                                        });
-                                    }
+                                    _ => {}
                                 }
                             }
                         }

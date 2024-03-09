@@ -400,3 +400,17 @@ pub fn copy_buffer_to_image(device: &Device, buffer: vk::Buffer, image: vk::Imag
         end_single_time_commands(device, command_buffer, graphics_queue, command_pool);
     }
 }
+
+pub fn create_graphics_queue(device: &Device, queue_family_index: u32) -> vk::Queue {
+    unsafe { device.get_device_queue(queue_family_index, 0) }
+}
+
+pub fn create_command_pool(device: &Device, queue_family_index: u32) -> vk::CommandPool {
+    unsafe {
+        let pool_create_info = vk::CommandPoolCreateInfo::builder()
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+            .queue_family_index(queue_family_index);
+
+        device.create_command_pool(&pool_create_info, None).unwrap()
+    }
+}
