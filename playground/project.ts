@@ -55,8 +55,8 @@ clip(function* () {
 
 	const clip = add(
 		new Clip({
-			clip: 'LogoTest.png',
-			size: new Vector2(0, 0),
+			clip: 'test.ts',
+			size: new Vector2(500, 500),
 			order: 1,
 			rotation: -Math.PI / 20,
 		})
