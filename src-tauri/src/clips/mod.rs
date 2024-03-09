@@ -1,15 +1,37 @@
-use ash::vk;
+use ash::vk::{self, ShaderModule};
+use cgmath::{vec2, Vector2, Vector4};
 use image::ImageDecoder;
 use std::{
     cell::RefCell,
     collections::HashMap,
     fs::{self, read_to_string},
+    mem::align_of,
+    ptr::copy_nonoverlapping,
     rc::Rc,
 };
 
+use crate::renderer::elements::{Elements, RectData, RECT_DATA_SIZE, RECT_VERTEX_SIZE};
 use crate::renderer::renderer::{RenderTarget, Renderer};
 use crate::renderer::utils::*;
 use crate::runtime::ScriptClipRuntime;
+
+const UVS: [Vector2<f32>; 4] = [vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)];
+
+fn rotate(point: Vector2<f32>, origin: Vector2<f32>, angle: f32) -> Vector2<f32> {
+    let offset = vec2(point.x - origin.x, point.y - origin.y);
+
+    let rotated = vec2(offset.x * angle.cos() - offset.y * angle.sin(), offset.y * angle.cos() + offset.x * angle.sin());
+
+    vec2(origin.x + rotated.x, origin.y + rotated.y)
+}
+
+fn divide(a: Vector2<f32>, b: Vector2<f32>) -> Vector2<f32> {
+    vec2(a.x / b.x, a.y / b.y)
+}
+
+fn flip_vertically(a: Vector2<f32>) -> Vector2<f32> {
+    vec2(a.x, -a.y)
+}
 
 pub struct ClipLoader {
     cache: HashMap<String, Rc<RefCell<Clips>>>,
@@ -68,6 +90,16 @@ pub struct ScriptClip {
 
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
+
+    rect_vertex_shader: ShaderModule,
+    rect_fragment_shader: ShaderModule,
+
+    rect_index_buffer: vk::Buffer,
+    rect_index_buffer_memory: vk::DeviceMemory,
+    rect_vertex_buffer: vk::Buffer,
+    rect_vertex_buffer_memory: vk::DeviceMemory,
+    rect_uniform_buffer: vk::Buffer,
+    rect_uniform_buffer_memory: vk::DeviceMemory,
 }
 
 impl ScriptClip {
@@ -78,15 +110,44 @@ impl ScriptClip {
         runtime.advance();
 
         let graphics_queue = create_graphics_queue(&renderer.device, renderer.queue_family_index);
-
         let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
+
+        let rect_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.vert.spv").to_vec());
+        let rect_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.frag.spv").to_vec());
+
+        let (rect_index_buffer, rect_index_buffer_memory) = renderer.create_buffer(
+            4 * 4,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (rect_vertex_buffer, rect_vertex_buffer_memory) = renderer.create_buffer(
+            RECT_VERTEX_SIZE * 4,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (rect_uniform_buffer, rect_uniform_buffer_memory) = renderer.create_buffer(
+            RECT_DATA_SIZE,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
 
         ScriptClip {
             runtime,
             script,
             internal_frame: 0,
+
             graphics_queue,
             command_pool,
+
+            rect_vertex_shader,
+            rect_fragment_shader,
+
+            rect_index_buffer,
+            rect_index_buffer_memory,
+            rect_vertex_buffer,
+            rect_vertex_buffer_memory,
+            rect_uniform_buffer,
+            rect_uniform_buffer_memory,
         }
     }
 
@@ -114,52 +175,86 @@ impl ScriptClip {
 
         let elements = self.runtime.get_elements();
 
-        // let mut ordered_elements = elements.clone();
-        // ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
+        let mut ordered_elements = elements.clone();
+        ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
 
-        // for element_index in 0..ordered_elements.len() {
-        //     let element = &ordered_elements[element_index];
+        for element_index in 0..ordered_elements.len() {
+            let element = &ordered_elements[element_index];
 
-        // match element {
-        //     Elements::Rect(rect) => rect.render(
-        //         &self.instance,
-        //         &self.device,
-        //         self.physical_device,
-        //         self.target_image_view,
-        //         self.command_pool,
-        //         self.graphics_queue,
-        //         element_index == 0,
-        //         element_index == ordered_elements.len() - 1,
-        //         self.width,
-        //         self.height,
-        //     ),
-        //     Elements::Ellipse(ellipse) => ellipse.render(
-        //         &self.instance,
-        //         &self.device,
-        //         self.physical_device,
-        //         self.target_image_view,
-        //         self.command_pool,
-        //         self.graphics_queue,
-        //         element_index == 0,
-        //         element_index == ordered_elements.len() - 1,
-        //         self.width,
-        //         self.height,
-        //     ),
-        //     Elements::Clip(clip) => clip.render(
-        //         &self.instance,
-        //         &self.device,
-        //         self.physical_device,
-        //         self.target_image_view,
-        //         self.command_pool,
-        //         self.graphics_queue,
-        //         element_index == 0,
-        //         element_index == ordered_elements.len() - 1,
-        //         self.width,
-        //         self.height,
-        //         clip_loader,
-        //     ),
-        // }
-        // }
+            match element {
+                Elements::Rect(rect) => {
+                    let index_ptr = renderer.start_copy_data_to_buffer(4 * 6, self.rect_index_buffer_memory);
+
+                    unsafe {
+                        copy_nonoverlapping(&vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
+                    }
+
+                    renderer.end_copy_data_to_buffer(self.rect_index_buffer, self.rect_index_buffer_memory);
+
+                    let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
+
+                    let offsetted_x = rect.position.x - rect.origin.x * rect.size.x;
+                    let offsetted_y = rect.position.y - rect.origin.y * rect.size.y;
+
+                    let mut vertices = vec![
+                        vec2(offsetted_x, offsetted_y),
+                        vec2(offsetted_x, offsetted_y + rect.size.y),
+                        vec2(offsetted_x + rect.size.x, offsetted_y + rect.size.y),
+                        vec2(offsetted_x + rect.size.x, offsetted_y),
+                    ];
+
+                    for vertex_index in 0..vertices.len() {
+                        vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], rect.position, rect.rotation), normalize_scale))
+                    }
+
+                    let vertex_ptr = renderer.start_copy_data_to_buffer(RECT_VERTEX_SIZE * 4, self.rect_vertex_buffer_memory);
+
+                    unsafe {
+                        copy_nonoverlapping(&vertices.as_ptr(), vertex_ptr.cast(), 6);
+                    }
+
+                    renderer.end_copy_data_to_buffer(self.rect_vertex_buffer, self.rect_vertex_buffer_memory);
+
+                    let uniform_ptr = renderer.start_copy_data_to_buffer(RECT_DATA_SIZE, self.rect_uniform_buffer_memory);
+
+                    unsafe {
+                        let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, RECT_DATA_SIZE);
+                        align.copy_from_slice(&[RectData {
+                            color: rect.color,
+                            radius: rect.radius,
+                            size: rect.size,
+                        }]);
+                    }
+
+                    renderer.end_copy_data_to_buffer(self.rect_uniform_buffer, self.rect_uniform_buffer_memory);
+                }
+                _ => {} // Elements::Ellipse(ellipse) => ellipse.render(
+                        //     &self.instance,
+                        //     &self.device,
+                        //     self.physical_device,
+                        //     self.target_image_view,
+                        //     self.command_pool,
+                        //     self.graphics_queue,
+                        //     element_index == 0,
+                        //     element_index == ordered_elements.len() - 1,
+                        //     self.width,
+                        //     self.height,
+                        // ),
+                        // Elements::Clip(clip) => clip.render(
+                        //     &self.instance,
+                        //     &self.device,
+                        //     self.physical_device,
+                        //     self.target_image_view,
+                        //     self.command_pool,
+                        //     self.graphics_queue,
+                        //     element_index == 0,
+                        //     element_index == ordered_elements.len() - 1,
+                        //     self.width,
+                        //     self.height,
+                        //     clip_loader,
+                        // ),
+            }
+        }
 
         return render_target;
     }

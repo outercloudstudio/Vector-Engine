@@ -1,8 +1,11 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char, c_void, CStr};
+use std::io::Cursor;
 use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
 use ash::extensions::ext::DebugUtils;
+use ash::util::read_spv;
+use ash::vk::ShaderModule;
 use ash::{vk, Device, Entry, Instance};
 
 use super::utils::*;
@@ -107,6 +110,45 @@ impl Renderer {
             self.debug_utils.destroy_debug_utils_messenger(self.debug_call_back, None);
 
             self.instance.destroy_instance(None);
+        }
+    }
+
+    pub fn create_shader(&self, spv: Vec<u8>) -> ShaderModule {
+        unsafe {
+            let mut spv_file = Cursor::new(spv);
+
+            let code = read_spv(&mut spv_file).expect("Failed to read shader spv file");
+            let shader_info = vk::ShaderModuleCreateInfo::builder().code(&code);
+
+            self.device.create_shader_module(&shader_info, None).expect("Shader module error")
+        }
+    }
+
+    pub fn create_buffer(&self, size: u64, usage: vk::BufferUsageFlags, memory_property_flags: vk::MemoryPropertyFlags) -> (vk::Buffer, vk::DeviceMemory) {
+        unsafe {
+            let buffer_info = *vk::BufferCreateInfo::builder().size(size).usage(usage).sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+            let buffer = self.device.create_buffer(&buffer_info, None).unwrap();
+
+            let memory_requirements = self.device.get_buffer_memory_requirements(buffer);
+            let memory_index = get_memory_type_index(&self.instance, self.physical_device, memory_property_flags, memory_requirements);
+
+            let allocate_info = *vk::MemoryAllocateInfo::builder().allocation_size(size).memory_type_index(memory_index);
+
+            let memory = self.device.allocate_memory(&allocate_info, None).unwrap();
+
+            return (buffer, memory);
+        }
+    }
+
+    pub fn start_copy_data_to_buffer(&self, size: u64, memory: vk::DeviceMemory) -> *mut c_void {
+        unsafe { self.device.map_memory(memory, 0, size, vk::MemoryMapFlags::empty()).unwrap() }
+    }
+
+    pub fn end_copy_data_to_buffer(&self, buffer: vk::Buffer, memory: vk::DeviceMemory) {
+        unsafe {
+            self.device.unmap_memory(memory);
+            self.device.bind_buffer_memory(buffer, memory, 0).unwrap();
         }
     }
 }

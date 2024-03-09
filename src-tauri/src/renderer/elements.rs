@@ -62,7 +62,7 @@ pub struct RectVertex {
     position: Vector2<f32>,
     uv: Vector2<f32>,
 }
-const RECT_VERTEX_SIZE: u64 = 8 + 8;
+pub const RECT_VERTEX_SIZE: u64 = 8 + 8;
 
 impl RectVertex {
     pub fn get_descriptor_set_layout_binding() -> vk::VertexInputBindingDescription {
@@ -94,12 +94,13 @@ impl RectVertex {
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
-struct RectData {
-    color: Vector4<f32>,
-    size: Vector2<f32>,
-    radius: f32,
+pub struct RectData {
+    pub color: Vector4<f32>,
+    pub size: Vector2<f32>,
+    pub radius: f32,
 }
-const RECT_DATA_SIZE: u64 = 16 + 4 + 8;
+
+pub const RECT_DATA_SIZE: u64 = 16 + 4 + 8;
 
 impl RectData {
     fn get_descriptor_set_layout_bindings() -> [vk::DescriptorSetLayoutBinding; 1] {
@@ -114,27 +115,27 @@ impl RectData {
 }
 
 impl Rect {
-    fn create_vertex_shader(device: &Device) -> ShaderModule {
-        unsafe {
-            let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.vert.spv"));
+    // fn create_vertex_shader(device: &Device) -> ShaderModule {
+    //     unsafe {
+    //         let mut vertex_spv_file = Cursor::new(&);
 
-            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
-            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
+    //         let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
+    //         let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
 
-            device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
-        }
-    }
+    //         device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
+    //     }
+    // }
 
-    fn create_fragment_shader(device: &Device) -> ShaderModule {
-        unsafe {
-            let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.frag.spv"));
+    // fn create_fragment_shader(device: &Device) -> ShaderModule {
+    //     unsafe {
+    //         let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/rect.frag.spv"));
 
-            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
-            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
+    //         let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
+    //         let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
 
-            device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
-        }
-    }
+    //         device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
+    //     }
+    // }
 
     fn create_vertex_buffer(vertex_positions: &Vec<Vector2<f32>>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
         unsafe {
@@ -264,115 +265,103 @@ impl Rect {
         }
     }
 
-    pub fn render(
-        &self,
-        instance: &Instance,
-        device: &Device,
-        physical_device: vk::PhysicalDevice,
-        target_image_view: vk::ImageView,
-        command_pool: vk::CommandPool,
-        graphics_queue: vk::Queue,
-        first_element: bool,
-        last_element: bool,
-        width: u32,
-        height: u32,
-    ) {
-        let command_buffer = create_command_buffer(device, command_pool);
+    // pub fn render(&self, renderer: &Renderer, width: u32, height: u32) {
+    //     let command_buffer = create_command_buffer(device, command_pool);
 
-        let render_pass = create_render_pass(device, first_element, last_element);
+    //     let render_pass = create_render_pass(device, first_element, last_element);
 
-        let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
+    //     let frame_buffer = create_framebuffer(device, target_image_view, render_pass, width, height);
 
-        let vertex_shader = Rect::create_vertex_shader(device);
-        let fragment_shader = Rect::create_fragment_shader(device);
+    //     let vertex_shader = Rect::create_vertex_shader(device);
+    //     let fragment_shader = Rect::create_fragment_shader(device);
 
-        let viewport = create_viewport(width, height);
-        let scissor = create_scissor(width, height);
+    //     let viewport = create_viewport(width, height);
+    //     let scissor = create_scissor(width, height);
 
-        let descriptor_set_layouts = Rect::create_descriptor_set_layout(device);
+    //     let descriptor_set_layouts = Rect::create_descriptor_set_layout(device);
 
-        let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
-            device,
-            vertex_shader,
-            fragment_shader,
-            viewport,
-            scissor,
-            render_pass,
-            descriptor_set_layouts,
-            RectVertex::get_descriptor_set_layout_binding(),
-            &RectVertex::get_attribute_descriptions(),
-        );
+    //     let (graphics_pipeline, graphics_pipeline_layout) = create_graphics_pipeline(
+    //         device,
+    //         vertex_shader,
+    //         fragment_shader,
+    //         viewport,
+    //         scissor,
+    //         render_pass,
+    //         descriptor_set_layouts,
+    //         RectVertex::get_descriptor_set_layout_binding(),
+    //         &RectVertex::get_attribute_descriptions(),
+    //     );
 
-        let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
+    //     let (index_buffer, index_buffer_memory) = create_index_buffer(&vec![0, 1, 2, 2, 3, 0], instance, device, physical_device);
 
-        let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
+    //     let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
-        let offsetted_x = self.position.x - self.origin.x * self.size.x;
-        let offsetted_y = self.position.y - self.origin.y * self.size.y;
+    //     let offsetted_x = self.position.x - self.origin.x * self.size.x;
+    //     let offsetted_y = self.position.y - self.origin.y * self.size.y;
 
-        let mut vertices = vec![
-            vec2(offsetted_x, offsetted_y),
-            vec2(offsetted_x, offsetted_y + self.size.y),
-            vec2(offsetted_x + self.size.x, offsetted_y + self.size.y),
-            vec2(offsetted_x + self.size.x, offsetted_y),
-        ];
+    //     let mut vertices = vec![
+    //         vec2(offsetted_x, offsetted_y),
+    //         vec2(offsetted_x, offsetted_y + self.size.y),
+    //         vec2(offsetted_x + self.size.x, offsetted_y + self.size.y),
+    //         vec2(offsetted_x + self.size.x, offsetted_y),
+    //     ];
 
-        for vertex_index in 0..vertices.len() {
-            vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], self.position, self.rotation), normalize_scale))
-        }
+    //     for vertex_index in 0..vertices.len() {
+    //         vertices[vertex_index] = flip_vertically(divide(rotate(vertices[vertex_index], self.position, self.rotation), normalize_scale))
+    //     }
 
-        let (vertex_buffer, vertex_buffer_memory) = Rect::create_vertex_buffer(&vertices, instance, device, physical_device);
+    //     let (vertex_buffer, vertex_buffer_memory) = Rect::create_vertex_buffer(&vertices, instance, device, physical_device);
 
-        let (uniform_buffer, uniform_buffer_memory) = Rect::create_uniform_buffer(
-            RectData {
-                color: self.color,
-                radius: self.radius,
-                size: self.size,
-            },
-            instance,
-            device,
-            physical_device,
-        );
+    //     let (uniform_buffer, uniform_buffer_memory) = Rect::create_uniform_buffer(
+    //         RectData {
+    //             color: self.color,
+    //             radius: self.radius,
+    //             size: self.size,
+    //         },
+    //         instance,
+    //         device,
+    //         physical_device,
+    //     );
 
-        let descriptor_pools = Rect::create_descriptor_pool(device);
-        let descriptor_sets = Rect::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
+    //     let descriptor_pools = Rect::create_descriptor_pool(device);
+    //     let descriptor_sets = Rect::create_descriptor_sets(device, descriptor_set_layouts, descriptor_pools, uniform_buffer);
 
-        begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
+    //     begin_render_pass(device, render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
 
-        unsafe {
-            device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
-            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
-            device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
-            device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
-        }
+    //     unsafe {
+    //         device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
+    //         device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+    //         device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
+    //         device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
+    //     }
 
-        end_render_pass(device, command_buffer, graphics_queue);
+    //     end_render_pass(device, command_buffer, graphics_queue);
 
-        unsafe {
-            device.destroy_shader_module(vertex_shader, None);
-            device.destroy_shader_module(fragment_shader, None);
+    //     unsafe {
+    //         device.destroy_shader_module(vertex_shader, None);
+    //         device.destroy_shader_module(fragment_shader, None);
 
-            device.destroy_descriptor_pool(descriptor_pools, None);
+    //         device.destroy_descriptor_pool(descriptor_pools, None);
 
-            device.destroy_framebuffer(frame_buffer, None);
+    //         device.destroy_framebuffer(frame_buffer, None);
 
-            device.destroy_pipeline(graphics_pipeline, None);
-            device.destroy_pipeline_layout(graphics_pipeline_layout, None);
+    //         device.destroy_pipeline(graphics_pipeline, None);
+    //         device.destroy_pipeline_layout(graphics_pipeline_layout, None);
 
-            device.destroy_render_pass(render_pass, None);
+    //         device.destroy_render_pass(render_pass, None);
 
-            device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
+    //         device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
 
-            device.destroy_buffer(index_buffer, None);
-            device.free_memory(index_buffer_memory, None);
+    //         device.destroy_buffer(index_buffer, None);
+    //         device.free_memory(index_buffer_memory, None);
 
-            device.destroy_buffer(vertex_buffer, None);
-            device.free_memory(vertex_buffer_memory, None);
+    //         device.destroy_buffer(vertex_buffer, None);
+    //         device.free_memory(vertex_buffer_memory, None);
 
-            device.destroy_buffer(uniform_buffer, None);
-            device.free_memory(uniform_buffer_memory, None);
-        }
-    }
+    //         device.destroy_buffer(uniform_buffer, None);
+    //         device.free_memory(uniform_buffer_memory, None);
+    //     }
+    // }
 }
 
 #[derive(Clone)]
@@ -440,27 +429,27 @@ impl EllipseData {
 }
 
 impl Ellipse {
-    fn create_vertex_shader(device: &Device) -> ShaderModule {
-        unsafe {
-            let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/ellipse.vert.spv"));
+    // fn create_vertex_shader(device: &Device) -> ShaderModule {
+    //     unsafe {
+    //         let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/ellipse.vert.spv"));
 
-            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
-            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
+    //         let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
+    //         let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
 
-            device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
-        }
-    }
+    //         device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
+    //     }
+    // }
 
-    fn create_fragment_shader(device: &Device) -> ShaderModule {
-        unsafe {
-            let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/ellipse.frag.spv"));
+    // fn create_fragment_shader(device: &Device) -> ShaderModule {
+    //     unsafe {
+    //         let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/ellipse.frag.spv"));
 
-            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
-            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
+    //         let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
+    //         let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
 
-            device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
-        }
-    }
+    //         device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
+    //     }
+    // }
 
     fn create_vertex_buffer(vertex_positions: &Vec<Vector2<f32>>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
         unsafe {
@@ -887,27 +876,27 @@ impl Clip {
         }
     }
 
-    fn create_vertex_shader(device: &Device) -> ShaderModule {
-        unsafe {
-            let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/clip.vert.spv"));
+    // fn create_vertex_shader(device: &Device) -> ShaderModule {
+    //     unsafe {
+    //         let mut vertex_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/clip.vert.spv"));
 
-            let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
-            let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
+    //         let vertex_code = read_spv(&mut vertex_spv_file).expect("Failed to read vertex shader spv file");
+    //         let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(&vertex_code);
 
-            device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
-        }
-    }
+    //         device.create_shader_module(&vertex_shader_info, None).expect("Vertex shader module error")
+    //     }
+    // }
 
-    fn create_fragment_shader(device: &Device) -> ShaderModule {
-        unsafe {
-            let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/clip.frag.spv"));
+    // fn create_fragment_shader(device: &Device) -> ShaderModule {
+    //     unsafe {
+    //         let mut frag_spv_file = Cursor::new(&include_bytes!("./shaders/compiled/clip.frag.spv"));
 
-            let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
-            let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
+    //         let frag_code = read_spv(&mut frag_spv_file).expect("Failed to read fragment shader spv file");
+    //         let frag_shader_info = vk::ShaderModuleCreateInfo::builder().code(&frag_code);
 
-            device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
-        }
-    }
+    //         device.create_shader_module(&frag_shader_info, None).expect("Fragment shader module error")
+    //     }
+    // }
 
     fn create_vertex_buffer(vertex_positions: &Vec<Vector2<f32>>, instance: &Instance, device: &Device, physical_device: vk::PhysicalDevice) -> (vk::Buffer, vk::DeviceMemory) {
         unsafe {
