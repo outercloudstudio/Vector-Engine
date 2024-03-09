@@ -488,6 +488,7 @@ pub enum RenderMode {
     Sample,
 }
 
+#[derive(Clone)]
 pub struct RenderTarget {
     pub image: vk::Image,
     pub image_view: vk::ImageView,
@@ -498,6 +499,8 @@ pub struct RenderTarget {
 
     width: u32,
     height: u32,
+
+    device: Device,
 }
 
 impl RenderTarget {
@@ -563,6 +566,8 @@ impl RenderTarget {
 
                 graphics_queue,
                 command_pool,
+
+                device: renderer.device.clone(),
             }
         }
     }
@@ -651,14 +656,16 @@ impl RenderTarget {
             return pixels;
         }
     }
+}
 
-    pub fn destroy(self, renderer: &Renderer) {
+impl Drop for RenderTarget {
+    fn drop(&mut self) {
         unsafe {
-            renderer.device.free_memory(self.image_memory, None);
-            renderer.device.destroy_image_view(self.image_view, None);
-            renderer.device.destroy_image(self.image, None);
+            self.device.free_memory(self.image_memory, None);
+            self.device.destroy_image_view(self.image_view, None);
+            self.device.destroy_image(self.image, None);
 
-            renderer.device.destroy_command_pool(self.command_pool, None);
+            self.device.destroy_command_pool(self.command_pool, None);
         }
     }
 }

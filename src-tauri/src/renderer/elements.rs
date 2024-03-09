@@ -527,15 +527,13 @@ impl Clip {
         let clip = clip_loader.get(&self.clip, renderer).unwrap();
         let clip = &mut *clip.borrow_mut();
 
-        let sub_render_target = match clip {
+        let clip_image_view = match clip {
             Clips::ScriptClip(ref mut clip) => {
                 clip.set_frame(self.frame);
 
-                clip.render(renderer, clip_loader, self.size.x as u32, self.size.y as u32, RenderMode::Sample)
+                clip.render(renderer, clip_loader, self.size.x as u32, self.size.y as u32, RenderMode::Sample).image_view
             }
-            _ => {
-                panic!("Can not sub render this clip type!")
-            }
+            Clips::ImageClip(ref mut clip) => clip.render(renderer, clip_loader).image_view,
         };
 
         let index_ptr = renderer.start_copy_data_to_buffer(index_buffer_size, index_buffer_memory);
@@ -617,7 +615,7 @@ impl Clip {
 
         let sampler = renderer.create_sampler();
 
-        let descriptor_sets = renderer.create_descriptor_uniform_sampler_sets(descriptor_set_layout, descriptor_pool, uniform_buffer, sub_render_target.image_view, sampler, CLIP_DATA_SIZE);
+        let descriptor_sets = renderer.create_descriptor_uniform_sampler_sets(descriptor_set_layout, descriptor_pool, uniform_buffer, clip_image_view, sampler, CLIP_DATA_SIZE);
 
         let command_buffer = renderer.create_command_buffer(command_pool);
 

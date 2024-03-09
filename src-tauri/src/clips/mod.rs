@@ -2,15 +2,14 @@ use ash::{
     vk::{self, ShaderModule},
     Device,
 };
-use cgmath::{vec2, Vector2};
 use image::ImageDecoder;
 use std::{
     cell::RefCell,
     collections::HashMap,
     fs::{self, read_to_string},
-    mem::align_of,
-    ptr::{self, copy_nonoverlapping},
+    ptr::copy_nonoverlapping,
     rc::Rc,
+    sync::Arc,
 };
 
 use crate::renderer::renderer::{RenderTarget, Renderer};
@@ -20,24 +19,6 @@ use crate::renderer::{
     renderer::RenderMode,
 };
 use crate::runtime::ScriptClipRuntime;
-
-const UVS: [Vector2<f32>; 4] = [vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)];
-
-fn rotate(point: Vector2<f32>, origin: Vector2<f32>, angle: f32) -> Vector2<f32> {
-    let offset = vec2(point.x - origin.x, point.y - origin.y);
-
-    let rotated = vec2(offset.x * angle.cos() - offset.y * angle.sin(), offset.y * angle.cos() + offset.x * angle.sin());
-
-    vec2(origin.x + rotated.x, origin.y + rotated.y)
-}
-
-fn divide(a: Vector2<f32>, b: Vector2<f32>) -> Vector2<f32> {
-    vec2(a.x / b.x, a.y / b.y)
-}
-
-fn flip_vertically(a: Vector2<f32>) -> Vector2<f32> {
-    vec2(a.x, -a.y)
-}
 
 pub struct ClipLoader {
     cache: HashMap<String, Rc<RefCell<Clips>>>,
@@ -73,7 +54,7 @@ impl ClipLoader {
 
             decoder.read_image(&mut bytes).unwrap();
 
-            return Some(Clips::ImageClip(ImageClip::new(bytes, width, height)));
+            return Some(Clips::ImageClip(ImageClip::new(bytes, width, height, renderer)));
         }
 
         Some(Clips::ScriptClip(ScriptClip::new(read_to_string(format!("D:/Vector Engine/playground/{}", path)).unwrap(), renderer)))
@@ -380,8 +361,6 @@ impl ScriptClip {
 
         let bytes = render_target.to_raw(&renderer);
 
-        render_target.destroy(renderer);
-
         return bytes;
     }
 }
@@ -400,24 +379,85 @@ impl Drop for ScriptClip {
 
             self.device.destroy_buffer(self.rect_uniform_buffer, None);
             self.device.free_memory(self.rect_uniform_buffer_memory, None);
+
+            self.device.destroy_command_pool(self.command_pool, None);
         }
     }
 }
 
 pub struct ImageClip {
-    bytes: Vec<u8>,
     pub width: u32,
     pub height: u32,
+
+    bytes: Vec<u8>,
+    render_target: Arc<RenderTarget>,
 }
 
 impl ImageClip {
-    pub fn new(bytes: Vec<u8>, width: u32, height: u32) -> ImageClip {
-        ImageClip { bytes, width, height }
+    pub fn new(bytes: Vec<u8>, width: u32, height: u32, renderer: &Renderer) -> ImageClip {
+        let graphics_queue = create_graphics_queue(&renderer.device, renderer.queue_family_index);
+        let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
+
+        let render_target = RenderTarget::new(width, height, renderer, RenderMode::Sample);
+
+        let (staging_buffer, staging_buffer_memory, staging_buffer_size) = renderer.create_buffer(
+            bytes.len() as u64,
+            vk::BufferUsageFlags::TRANSFER_SRC,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+
+        let ptr = renderer.start_copy_data_to_buffer(staging_buffer_size, staging_buffer_memory);
+
+        unsafe {
+            copy_nonoverlapping(bytes.as_ptr(), ptr.cast(), bytes.len());
+        }
+
+        renderer.end_copy_data_to_buffer(staging_buffer_memory);
+
+        transition_image_layout(
+            &renderer.device,
+            render_target.image,
+            vk::Format::R8G8B8A8_SRGB,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            command_pool,
+            graphics_queue,
+        );
+
+        copy_buffer_to_image(&renderer.device, staging_buffer, render_target.image, width, height, command_pool, graphics_queue);
+
+        transition_image_layout(
+            &renderer.device,
+            render_target.image,
+            vk::Format::R8G8B8A8_SRGB,
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            command_pool,
+            graphics_queue,
+        );
+
+        unsafe {
+            renderer.device.destroy_buffer(staging_buffer, None);
+            renderer.device.free_memory(staging_buffer_memory, None);
+
+            renderer.device.destroy_command_pool(command_pool, None);
+        }
+
+        ImageClip {
+            bytes,
+            width,
+            height,
+            render_target: Arc::new(render_target),
+        }
     }
 
     pub fn set_frame(&mut self, frame: u32) {}
 
-    pub fn render(&self, renderer: &mut Renderer, clip_loader: &ClipLoader) -> Vec<u8> {
+    pub fn render(&self, renderer: &Renderer, clip_loader: &ClipLoader) -> Arc<RenderTarget> {
+        self.render_target.clone()
+    }
+
+    pub fn render_to_raw(&self, renderer: &Renderer, clip_loader: &ClipLoader) -> Vec<u8> {
         self.bytes.clone()
     }
 }

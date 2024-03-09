@@ -125,17 +125,17 @@ fn main() {
                                         let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
 
                                         thread::spawn(move || {
-                                            // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
-                                            // let mut file_writer = BufWriter::new(file);
-
-                                            // let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
-                                            // encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
-
-                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.png", frame)).unwrap();
+                                            let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.bmp", frame)).unwrap();
                                             let mut file_writer = BufWriter::new(file);
 
-                                            let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
-                                            encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+                                            let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut file_writer);
+                                            encoder.encode(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+
+                                            // let file = File::create(format!("D:/Vector Engine/renders/render_{:0>3}.png", frame)).unwrap();
+                                            // let mut file_writer = BufWriter::new(file);
+
+                                            // let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
+                                            // encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
                                         });
                                     }
                                     _ => {}

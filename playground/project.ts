@@ -54,8 +54,8 @@ clip(function* () {
 
 	const clip = add(
 		new Clip({
-			clip: 'test.ts',
-			size: new Vector2(1000, 600),
+			clip: 'LogoTest.png',
+			size: new Vector2(0, 0),
 			order: 1,
 			rotation: -Math.PI / 20,
 		})
@@ -63,9 +63,8 @@ clip(function* () {
 
 	yield createStars()
 
-	// yield* seconds(1)
+	yield* seconds(1)
 
-	yield clip.frame.to(300, 300 / 60)
-	// yield clip.size.to(new Vector2(1000, 700), 1, ease)
-	// yield clip.rotation.bounce(Math.PI / 20, 2, ease)
+	yield clip.size.to(new Vector2(1000, 700), 1, ease)
+	yield clip.rotation.bounce(Math.PI / 20, 2, ease)
 })
