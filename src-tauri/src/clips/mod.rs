@@ -12,7 +12,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::renderer::elements::{Elements, Rect, RectData, RectVertex, RECT_DATA_SIZE, RECT_VERTEX_SIZE};
+use crate::renderer::elements::{Elements, Rect, RectData, RectVertex, ELLIPSE_DATA_SIZE, ELLIPSE_VERTEX_SIZE, RECT_DATA_SIZE, RECT_VERTEX_SIZE};
 use crate::renderer::renderer::{RenderTarget, Renderer};
 use crate::renderer::utils::*;
 use crate::runtime::ScriptClipRuntime;
@@ -92,6 +92,7 @@ pub struct ScriptClip {
 
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
+    render_pass: vk::RenderPass,
 
     rect_vertex_shader: ShaderModule,
     rect_fragment_shader: ShaderModule,
@@ -105,7 +106,19 @@ pub struct ScriptClip {
     rect_uniform_buffer: vk::Buffer,
     rect_uniform_buffer_memory: vk::DeviceMemory,
     rect_uniform_buffer_size: u64,
-    render_pass: vk::RenderPass,
+
+    ellipse_vertex_shader: ShaderModule,
+    ellipse_fragment_shader: ShaderModule,
+
+    ellipse_index_buffer: vk::Buffer,
+    ellipse_index_buffer_memory: vk::DeviceMemory,
+    ellipse_index_buffer_size: u64,
+    ellipse_vertex_buffer: vk::Buffer,
+    ellipse_vertex_buffer_memory: vk::DeviceMemory,
+    ellipse_vertex_buffer_size: u64,
+    ellipse_uniform_buffer: vk::Buffer,
+    ellipse_uniform_buffer_memory: vk::DeviceMemory,
+    ellipse_uniform_buffer_size: u64,
 }
 
 impl ScriptClip {
@@ -117,6 +130,7 @@ impl ScriptClip {
 
         let graphics_queue = create_graphics_queue(&renderer.device, renderer.queue_family_index);
         let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
+        let render_pass = renderer.create_render_pass();
 
         let rect_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.vert.spv").to_vec());
         let rect_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.frag.spv").to_vec());
@@ -137,7 +151,24 @@ impl ScriptClip {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
 
-        let render_pass = renderer.create_render_pass();
+        let ellipse_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/ellipse.vert.spv").to_vec());
+        let ellipse_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/ellipse.frag.spv").to_vec());
+
+        let (ellipse_index_buffer, ellipse_index_buffer_memory, ellipse_index_buffer_size) = renderer.create_buffer(
+            4 * 6,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (ellipse_vertex_buffer, ellipse_vertex_buffer_memory, ellipse_vertex_buffer_size) = renderer.create_buffer(
+            ELLIPSE_VERTEX_SIZE * 4,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (ellipse_uniform_buffer, ellipse_uniform_buffer_memory, ellipse_uniform_buffer_size) = renderer.create_buffer(
+            ELLIPSE_DATA_SIZE,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
 
         ScriptClip {
             runtime,
@@ -146,6 +177,7 @@ impl ScriptClip {
 
             graphics_queue,
             command_pool,
+            render_pass,
 
             rect_vertex_shader,
             rect_fragment_shader,
@@ -160,7 +192,18 @@ impl ScriptClip {
             rect_uniform_buffer_memory,
             rect_uniform_buffer_size,
 
-            render_pass,
+            ellipse_vertex_shader,
+            ellipse_fragment_shader,
+
+            ellipse_index_buffer,
+            ellipse_index_buffer_memory,
+            ellipse_index_buffer_size,
+            ellipse_vertex_buffer,
+            ellipse_vertex_buffer_memory,
+            ellipse_vertex_buffer_size,
+            ellipse_uniform_buffer,
+            ellipse_uniform_buffer_memory,
+            ellipse_uniform_buffer_size,
         }
     }
 
@@ -200,117 +243,51 @@ impl ScriptClip {
             let element = &ordered_elements[element_index];
 
             match element {
-                Elements::Rect(rect) => {
-                    let index_ptr = renderer.start_copy_data_to_buffer(self.rect_index_buffer_size, self.rect_index_buffer_memory);
-
-                    unsafe {
-                        copy_nonoverlapping(vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
-                    }
-
-                    renderer.end_copy_data_to_buffer(self.rect_index_buffer_memory);
-
-                    let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
-
-                    let offsetted_x = rect.position.x - rect.origin.x * rect.size.x;
-                    let offsetted_y = rect.position.y - rect.origin.y * rect.size.y;
-
-                    let mut vertex_positions: Vec<Vector2<f32>> = vec![
-                        vec2(offsetted_x, offsetted_y),
-                        vec2(offsetted_x, offsetted_y + rect.size.y),
-                        vec2(offsetted_x + rect.size.x, offsetted_y + rect.size.y),
-                        vec2(offsetted_x + rect.size.x, offsetted_y),
-                    ];
-
-                    for vertex_position_index in 0..vertex_positions.len() {
-                        vertex_positions[vertex_position_index] = flip_vertically(divide(rotate(vertex_positions[vertex_position_index], rect.position, rect.rotation), normalize_scale))
-                    }
-
-                    let mut vertices: Vec<RectVertex> = Vec::new();
-
-                    for index in 0..vertex_positions.len() {
-                        vertices.push(RectVertex {
-                            position: vertex_positions[index],
-                            uv: UVS[index],
-                        });
-                    }
-
-                    let vertex_ptr = renderer.start_copy_data_to_buffer(self.rect_vertex_buffer_size, self.rect_vertex_buffer_memory);
-
-                    unsafe {
-                        copy_nonoverlapping(vertices.as_ptr(), vertex_ptr.cast(), vertices.len());
-                    }
-
-                    renderer.end_copy_data_to_buffer(self.rect_vertex_buffer_memory);
-
-                    let uniform_ptr = renderer.start_copy_data_to_buffer(self.rect_uniform_buffer_size, self.rect_uniform_buffer_memory);
-
-                    unsafe {
-                        let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, RECT_DATA_SIZE);
-                        align.copy_from_slice(&[RectData {
-                            color: rect.color,
-                            radius: rect.radius,
-                            size: rect.size,
-                        }]);
-                    }
-
-                    renderer.end_copy_data_to_buffer(self.rect_uniform_buffer_memory);
-
-                    let descriptor_set_layout = renderer.create_descriptor_set_layout(RectData::get_descriptor_set_layout_bindings());
-                    let descriptor_set_layout_bindings = RectVertex::get_descriptor_set_layout_binding();
-                    let attribute_descriptions = RectVertex::get_attribute_descriptions();
-
-                    let (graphics_pipeline, graphics_pipeline_layout) = renderer.create_graphics_pipeline(
-                        self.rect_vertex_shader,
-                        self.rect_fragment_shader,
-                        viewport,
-                        scissor,
-                        self.render_pass,
-                        descriptor_set_layout,
-                        descriptor_set_layout_bindings,
-                        &attribute_descriptions,
-                    );
-
-                    let descriptor_pool = renderer.create_descriptor_pool(vec![*vk::DescriptorPoolSize::builder().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1)]);
-
-                    let descriptor_sets = renderer.create_descriptor_uniform_sets(descriptor_set_layout, descriptor_pool, self.rect_uniform_buffer, RECT_DATA_SIZE);
-
-                    let command_buffer = renderer.create_command_buffer(self.command_pool);
-
-                    renderer.begin_render_pass(self.render_pass, frame_buffer, command_buffer, graphics_pipeline, viewport, scissor, width, height);
-
-                    unsafe {
-                        renderer.device.cmd_bind_vertex_buffers(command_buffer, 0, &[self.rect_vertex_buffer], &[0]);
-                        renderer.device.cmd_bind_index_buffer(command_buffer, self.rect_index_buffer, 0, vk::IndexType::UINT32);
-                        renderer
-                            .device
-                            .cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
-                        renderer.device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
-                    }
-
-                    renderer.end_render_pass(command_buffer, self.graphics_queue);
-
-                    unsafe {
-                        renderer.device.destroy_descriptor_pool(descriptor_pool, None);
-
-                        renderer.device.destroy_pipeline(graphics_pipeline, None);
-                        renderer.device.destroy_pipeline_layout(graphics_pipeline_layout, None);
-
-                        renderer.device.destroy_descriptor_set_layout(descriptor_set_layout, None);
-                    }
-                }
-                _ => {} // Elements::Ellipse(ellipse) => ellipse.render(
-                        //     &self.instance,
-                        //     &self.device,
-                        //     self.physical_device,
-                        //     self.target_image_view,
-                        //     self.command_pool,
-                        //     self.graphics_queue,
-                        //     element_index == 0,
-                        //     element_index == ordered_elements.len() - 1,
-                        //     self.width,
-                        //     self.height,
-                        // ),
-                        // Elements::Clip(clip) => clip.render(
+                Elements::Rect(rect) => rect.render(
+                    renderer,
+                    self.graphics_queue,
+                    self.render_pass,
+                    self.command_pool,
+                    frame_buffer,
+                    self.rect_vertex_shader,
+                    self.rect_fragment_shader,
+                    self.rect_index_buffer,
+                    self.rect_index_buffer_memory,
+                    self.rect_index_buffer_size,
+                    self.rect_vertex_buffer,
+                    self.rect_vertex_buffer_memory,
+                    self.rect_vertex_buffer_size,
+                    self.rect_uniform_buffer,
+                    self.rect_uniform_buffer_memory,
+                    self.rect_uniform_buffer_size,
+                    viewport,
+                    scissor,
+                    width,
+                    height,
+                ),
+                Elements::Ellipse(ellipse) => ellipse.render(
+                    renderer,
+                    self.graphics_queue,
+                    self.render_pass,
+                    self.command_pool,
+                    frame_buffer,
+                    self.ellipse_vertex_shader,
+                    self.ellipse_fragment_shader,
+                    self.ellipse_index_buffer,
+                    self.ellipse_index_buffer_memory,
+                    self.ellipse_index_buffer_size,
+                    self.ellipse_vertex_buffer,
+                    self.ellipse_vertex_buffer_memory,
+                    self.ellipse_vertex_buffer_size,
+                    self.ellipse_uniform_buffer,
+                    self.ellipse_uniform_buffer_memory,
+                    self.ellipse_uniform_buffer_size,
+                    viewport,
+                    scissor,
+                    width,
+                    height,
+                ),
+                _ => {} // Elements::Clip(clip) => clip.render(
                         //     &self.instance,
                         //     &self.device,
                         //     self.physical_device,
