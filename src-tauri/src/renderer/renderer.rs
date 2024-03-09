@@ -159,7 +159,7 @@ impl Renderer {
             let color_attachment = *vk::AttachmentDescription::builder()
                 .format(vk::Format::R8G8B8A8_UNORM)
                 .samples(vk::SampleCountFlags::TYPE_1)
-                .load_op(vk::AttachmentLoadOp::CLEAR)
+                .load_op(vk::AttachmentLoadOp::LOAD)
                 .store_op(vk::AttachmentStoreOp::STORE)
                 .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
                 .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)

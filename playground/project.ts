@@ -9,7 +9,7 @@ function createRandomWithSeed(seed: number): () => number {
 }
 
 function* createStars() {
-	for (let i = 0; i < 1; i++) {
+	for (let i = 0; i < 200; i++) {
 		yield createStar(i + 200)
 		yield* seconds(0.02)
 	}
@@ -44,35 +44,27 @@ function* createStar(seed: number) {
 }
 
 clip(function* () {
-	// add(
-	// 	new Ellipse({
-	// 		color: new Vector4(166 / 255, 200 / 255, 255 / 255, 1),
-	// 	})
-	// )
-	// add(
-	// 	new Ellipse({
-	// 		position: new Vector2(200, 0),
-	// 		color: new Vector4(255 / 255, 231 / 255, 166 / 255, 1),
-	// 	})
-	// )
+	const background = add(
+		new Rect({
+			size: new Vector2(1920, 1080),
+			color: new Vector4(9 / 256, 10 / 256, 20 / 256, 1),
+			order: -100,
+		})
+	)
 
-	// const background = add(
-	// 	new Rect({
-	// 		size: new Vector2(1920, 1080),
-	// 		color: new Vector4(9 / 256, 10 / 256, 20 / 256, 1),
-	// 		order: -100,
-	// 	})
-	// )
-	// const clip = add(
-	// 	new Rect({
-	// 		// clip: 'test.ts',
-	// 		size: new Vector2(20, 20),
-	// 		order: 1,
-	// 		rotation: -Math.PI / 20,
-	// 	})
-	// )
+	const clip = add(
+		new Rect({
+			// clip: 'test.ts',
+			size: new Vector2(20, 20),
+			order: 1,
+			rotation: -Math.PI / 20,
+		})
+	)
+
 	yield createStars()
-	// yield* seconds(1)
-	// yield clip.size.to(new Vector2(1000, 700), 1, ease)
-	// yield clip.rotation.bounce(Math.PI / 20, 2, ease)
+
+	yield* seconds(1)
+
+	yield clip.size.to(new Vector2(1000, 700), 1, ease)
+	yield clip.rotation.bounce(Math.PI / 20, 2, ease)
 })
