@@ -115,7 +115,7 @@ fn main() {
                         }
                         Command::PlaygroundUpdate => clip_loader.invalidate(&String::from("project.ts")),
                         Command::Render => {
-                            for frame in 0..1 {
+                            for frame in 0..300 {
                                 let clip = clip_loader.get_new(&String::from("project.ts"), &renderer).unwrap();
 
                                 match clip {

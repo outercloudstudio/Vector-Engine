@@ -370,6 +370,44 @@ impl Renderer {
             self.device.queue_wait_idle(graphics_queue).unwrap();
         }
     }
+
+    pub fn create_descriptor_set_layout(&self, bindings: Vec<vk::DescriptorSetLayoutBinding>) -> vk::DescriptorSetLayout {
+        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings).build();
+
+        unsafe { self.device.create_descriptor_set_layout(&layout_info, None).unwrap() }
+    }
+
+    pub fn create_descriptor_pool(&self, pool_sizes: Vec<vk::DescriptorPoolSize>) -> vk::DescriptorPool {
+        unsafe {
+            let info = vk::DescriptorPoolCreateInfo::builder().pool_sizes(&pool_sizes).max_sets(1);
+
+            self.device.create_descriptor_pool(&info, None).unwrap()
+        }
+    }
+
+    pub fn create_descriptor_uniform_sets(&self, descriptor_set_layout: vk::DescriptorSetLayout, descriptor_pool: vk::DescriptorPool, uniform_buffer: vk::Buffer, size: u64) -> Vec<vk::DescriptorSet> {
+        unsafe {
+            let layouts = vec![descriptor_set_layout; 1];
+            let info = vk::DescriptorSetAllocateInfo::builder().descriptor_pool(descriptor_pool).set_layouts(&layouts);
+
+            let descriptor_sets = self.device.allocate_descriptor_sets(&info).unwrap();
+
+            // Range is the size of the RectDataStruct
+            let info = *vk::DescriptorBufferInfo::builder().buffer(uniform_buffer).offset(0).range(size);
+
+            let buffer_info = &[info];
+            let ubo_write = *vk::WriteDescriptorSet::builder()
+                .dst_set(descriptor_sets[0])
+                .dst_binding(0)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .buffer_info(buffer_info);
+
+            self.device.update_descriptor_sets(&[ubo_write], &[] as &[vk::CopyDescriptorSet]);
+
+            return descriptor_sets;
+        }
+    }
 }
 
 pub struct RenderTarget {

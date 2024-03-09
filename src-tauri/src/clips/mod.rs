@@ -201,8 +201,6 @@ impl ScriptClip {
 
             match element {
                 Elements::Rect(rect) => {
-                    warn!("Rendering rect");
-
                     let index_ptr = renderer.start_copy_data_to_buffer(self.rect_index_buffer_size, self.rect_index_buffer_memory);
 
                     unsafe {
@@ -257,7 +255,7 @@ impl ScriptClip {
 
                     renderer.end_copy_data_to_buffer(self.rect_uniform_buffer_memory);
 
-                    let descriptor_set_layouts = Rect::create_descriptor_set_layout(&renderer);
+                    let descriptor_set_layout = renderer.create_descriptor_set_layout(RectData::get_descriptor_set_layout_bindings());
                     let descriptor_set_layout_bindings = RectVertex::get_descriptor_set_layout_binding();
                     let attribute_descriptions = RectVertex::get_attribute_descriptions();
 
@@ -267,13 +265,14 @@ impl ScriptClip {
                         viewport,
                         scissor,
                         self.render_pass,
-                        descriptor_set_layouts,
+                        descriptor_set_layout,
                         descriptor_set_layout_bindings,
                         &attribute_descriptions,
                     );
 
-                    let descriptor_pools = Rect::create_descriptor_pool(&renderer);
-                    let descriptor_sets = Rect::create_descriptor_sets(&renderer, descriptor_set_layouts, descriptor_pools, self.rect_uniform_buffer);
+                    let descriptor_pool = renderer.create_descriptor_pool(vec![*vk::DescriptorPoolSize::builder().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1)]);
+
+                    let descriptor_sets = renderer.create_descriptor_uniform_sets(descriptor_set_layout, descriptor_pool, self.rect_uniform_buffer, RECT_DATA_SIZE);
 
                     let command_buffer = renderer.create_command_buffer(self.command_pool);
 
@@ -291,12 +290,12 @@ impl ScriptClip {
                     renderer.end_render_pass(command_buffer, self.graphics_queue);
 
                     unsafe {
-                        renderer.device.destroy_descriptor_pool(descriptor_pools, None);
+                        renderer.device.destroy_descriptor_pool(descriptor_pool, None);
 
                         renderer.device.destroy_pipeline(graphics_pipeline, None);
                         renderer.device.destroy_pipeline_layout(graphics_pipeline_layout, None);
 
-                        renderer.device.destroy_descriptor_set_layout(descriptor_set_layouts, None);
+                        renderer.device.destroy_descriptor_set_layout(descriptor_set_layout, None);
                     }
                 }
                 _ => {} // Elements::Ellipse(ellipse) => ellipse.render(
