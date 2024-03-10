@@ -256,21 +256,32 @@ impl ScriptClip {
     }
 
     pub fn render(&self, renderer: &Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32, mode: RenderMode) -> RenderTarget {
+        let elements = self.runtime.get_elements();
+
+        let mut ordered_elements = elements.clone();
+        ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
+
         let render_target = RenderTarget::new(width, height, renderer, mode);
 
-        let render_pass = renderer.create_render_pass(mode);
+        let mut render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
 
         let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
 
         let viewport = create_viewport(width, height);
         let scissor = create_scissor(width, height);
 
-        let elements = self.runtime.get_elements();
-
-        let mut ordered_elements = elements.clone();
-        ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
-
         for element_index in 0..ordered_elements.len() {
+            if element_index == elements.len() - 1 {
+                render_pass = renderer.create_render_pass(
+                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                    if let RenderMode::Raw = mode {
+                        vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+                    } else {
+                        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+                    },
+                )
+            }
+
             let element = &ordered_elements[element_index];
 
             match element {
@@ -344,6 +355,10 @@ impl ScriptClip {
                     clip_loader,
                     mode,
                 ),
+            }
+
+            if element_index == 0 {
+                render_pass = renderer.create_render_pass(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             }
         }
 

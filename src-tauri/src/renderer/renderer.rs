@@ -154,21 +154,21 @@ impl Renderer {
         }
     }
 
-    pub fn create_render_pass(&self, mode: RenderMode) -> vk::RenderPass {
+    pub fn create_render_pass(&self, initial_layout: vk::ImageLayout, final_layout: vk::ImageLayout) -> vk::RenderPass {
         unsafe {
             let color_attachment = *vk::AttachmentDescription::builder()
                 .format(vk::Format::R8G8B8A8_UNORM)
                 .samples(vk::SampleCountFlags::TYPE_1)
-                .load_op(vk::AttachmentLoadOp::LOAD)
+                .load_op(if let vk::ImageLayout::UNDEFINED = initial_layout {
+                    vk::AttachmentLoadOp::DONT_CARE
+                } else {
+                    vk::AttachmentLoadOp::LOAD
+                })
                 .store_op(vk::AttachmentStoreOp::STORE)
                 .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
                 .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-                .initial_layout(vk::ImageLayout::UNDEFINED)
-                .final_layout(if let RenderMode::Raw = mode {
-                    vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-                } else {
-                    vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-                });
+                .initial_layout(initial_layout)
+                .final_layout(final_layout);
 
             let color_attachment_ref = *vk::AttachmentReference::builder().attachment(0).layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
 
@@ -515,7 +515,7 @@ impl RenderTarget {
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .tiling(vk::ImageTiling::OPTIMAL)
                 .usage(if let RenderMode::Sample = mode {
-                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED
+                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST
                 } else {
                     vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC
                 })
