@@ -25,3 +25,5 @@ dist-ssr
 
 vault/*
 renders/
+/playground
+/playground/*

@@ -633,6 +633,8 @@ impl Clip {
         renderer.end_render_pass(command_buffer, graphics_queue);
 
         unsafe {
+            renderer.device.destroy_sampler(sampler, None);
+
             renderer.device.destroy_descriptor_pool(descriptor_pool, None);
 
             renderer.device.destroy_pipeline(graphics_pipeline, None);

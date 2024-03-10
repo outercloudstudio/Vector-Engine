@@ -1,49 +1,11 @@
-function createRandomWithSeed(seed: number): () => number {
-	return () => {
-		seed |= 0
-		seed = (seed + 0x6d2b79f5) | 0
-		let imul = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-		imul = (imul + Math.imul(imul ^ (imul >>> 7), 61 | imul)) ^ imul
-		return ((imul ^ (imul >>> 14)) >>> 0) / 4294967296
-	}
-}
-
-function* createStars() {
-	for (let i = 0; i < 200; i++) {
-		yield createStar(i + 200)
-		yield* seconds(0.02)
-	}
-}
-
-function* createStar(seed: number) {
-	const random = createRandomWithSeed(seed)
-
-	const colors = [
-		new Vector4(166 / 255, 200 / 255, 255 / 255, 1),
-		new Vector4(255 / 255, 231 / 255, 166 / 255, 1),
-		new Vector4(166 / 255, 255 / 255, 188 / 255, 1),
-		new Vector4(1, 1, 1, 1),
+clip(function* () {
+	const textSizes = [
+		new Vector2(102, 46),
+		new Vector2(285, 46),
+		new Vector2(230, 58),
+		new Vector2(15, 43),
 	]
 
-	let direction = random() * Math.PI * 2
-
-	const star = add(
-		new Ellipse({
-			position: new Vector2(Math.cos(direction) * 1200, Math.sin(direction) * 1200),
-			size: new Vector2(50, 50),
-			color: colors[Math.floor(random() * 4)],
-		})
-	)
-
-	const speed = 0.9 + random() * 0.2
-
-	yield star.size.to(new Vector2(0, 0), speed)
-	yield* star.position.to(new Vector2(0, 0), speed)
-
-	remove(star)
-}
-
-clip(function* () {
 	const background = add(
 		new Rect({
 			size: new Vector2(1920, 1080),
@@ -52,19 +14,41 @@ clip(function* () {
 		})
 	)
 
-	const clip = add(
-		new Clip({
-			clip: 'LogoTest.png',
-			size: new Vector2(0, 0),
-			order: 1,
-			rotation: -Math.PI / 20,
-		})
-	)
+	function* animateText(text: Clip) {
+		const originalSize = text.size.value
+		text.size = react(new Vector2(0, 0))
 
-	yield createStars()
+		yield text.size.to(originalSize, 0.5, ease)
+	}
 
-	yield* seconds(1)
+	let x = -700
+	let y = 200
 
-	yield clip.size.to(new Vector2(1000, 700), 1, ease)
-	yield clip.rotation.bounce(Math.PI / 20, 2, ease)
+	for (let index = 1; index <= textSizes.length; index++) {
+		const textSize = textSizes[index - 1]
+
+		let textNumberText = index.toString()
+		if (textNumberText.length === 1) textNumberText = '0' + textNumberText
+
+		let yOffset = 0
+
+		if (textSize.y == 58) yOffset = -12
+		if (textSize.y == 43) yOffset = -2
+
+		const text = add(
+			new Clip({
+				clip: `quote/quote_Text${textNumberText}.png`,
+				position: new Vector2(x, y + yOffset),
+				origin: new Vector2(0, 0),
+				size: textSize,
+				order: 1,
+			})
+		)
+
+		yield animateText(text)
+
+		yield* seconds(0.2)
+
+		x += textSize.x + 20
+	}
 })
