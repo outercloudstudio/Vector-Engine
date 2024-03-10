@@ -6,3 +6,6 @@ glslc.exe ellipse/shader.vert -o compiled/ellipse.vert.spv
 
 glslc.exe clip/shader.frag -o compiled/clip.frag.spv
 glslc.exe clip/shader.vert -o compiled/clip.vert.spv
+
+glslc.exe text/shader.frag -o compiled/text.frag.spv
+glslc.exe text/shader.vert -o compiled/text.vert.spv

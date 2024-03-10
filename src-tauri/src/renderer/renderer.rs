@@ -494,11 +494,11 @@ pub struct RenderTarget {
     pub image_view: vk::ImageView,
     pub image_memory: vk::DeviceMemory,
 
+    pub width: u32,
+    pub height: u32,
+
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
-
-    width: u32,
-    height: u32,
 
     device: Device,
 }

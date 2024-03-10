@@ -12,10 +12,13 @@ use std::{
     sync::Arc,
 };
 
-use crate::renderer::renderer::{RenderTarget, Renderer};
 use crate::renderer::utils::*;
 use crate::renderer::{
-    elements::{Elements, CLIP_DATA_SIZE, CLIP_VERTEX_SIZE, ELLIPSE_DATA_SIZE, ELLIPSE_VERTEX_SIZE, RECT_DATA_SIZE, RECT_VERTEX_SIZE},
+    elements::TEXT_DATA_SIZE,
+    renderer::{RenderTarget, Renderer},
+};
+use crate::renderer::{
+    elements::{Elements, CLIP_DATA_SIZE, ELLIPSE_DATA_SIZE, RECT_DATA_SIZE, UV_VERTEX_SIZE},
     renderer::RenderMode,
 };
 use crate::runtime::ScriptClipRuntime;
@@ -117,6 +120,19 @@ pub struct ScriptClip {
     clip_uniform_buffer: vk::Buffer,
     clip_uniform_buffer_memory: vk::DeviceMemory,
     clip_uniform_buffer_size: u64,
+
+    text_vertex_shader: ShaderModule,
+    text_fragment_shader: ShaderModule,
+
+    text_index_buffer: vk::Buffer,
+    text_index_buffer_memory: vk::DeviceMemory,
+    text_index_buffer_size: u64,
+    text_vertex_buffer: vk::Buffer,
+    text_vertex_buffer_memory: vk::DeviceMemory,
+    text_vertex_buffer_size: u64,
+    text_uniform_buffer: vk::Buffer,
+    text_uniform_buffer_memory: vk::DeviceMemory,
+    text_uniform_buffer_size: u64,
 }
 
 impl ScriptClip {
@@ -138,7 +154,7 @@ impl ScriptClip {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
         let (rect_vertex_buffer, rect_vertex_buffer_memory, rect_vertex_buffer_size) = renderer.create_buffer(
-            RECT_VERTEX_SIZE * 4,
+            UV_VERTEX_SIZE * 4,
             vk::BufferUsageFlags::VERTEX_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
@@ -157,7 +173,7 @@ impl ScriptClip {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
         let (ellipse_vertex_buffer, ellipse_vertex_buffer_memory, ellipse_vertex_buffer_size) = renderer.create_buffer(
-            ELLIPSE_VERTEX_SIZE * 4,
+            UV_VERTEX_SIZE * 4,
             vk::BufferUsageFlags::VERTEX_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
@@ -176,12 +192,31 @@ impl ScriptClip {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
         let (clip_vertex_buffer, clip_vertex_buffer_memory, clip_vertex_buffer_size) = renderer.create_buffer(
-            CLIP_VERTEX_SIZE * 4,
+            UV_VERTEX_SIZE * 4,
             vk::BufferUsageFlags::VERTEX_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
         let (clip_uniform_buffer, clip_uniform_buffer_memory, clip_uniform_buffer_size) = renderer.create_buffer(
             CLIP_DATA_SIZE,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+
+        let text_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/text.vert.spv").to_vec());
+        let text_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/text.frag.spv").to_vec());
+
+        let (text_index_buffer, text_index_buffer_memory, text_index_buffer_size) = renderer.create_buffer(
+            4 * 6 * 120,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (text_vertex_buffer, text_vertex_buffer_memory, text_vertex_buffer_size) = renderer.create_buffer(
+            UV_VERTEX_SIZE * 4 * 120,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (text_uniform_buffer, text_uniform_buffer_memory, text_uniform_buffer_size) = renderer.create_buffer(
+            TEXT_DATA_SIZE,
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
@@ -233,6 +268,19 @@ impl ScriptClip {
             clip_uniform_buffer,
             clip_uniform_buffer_memory,
             clip_uniform_buffer_size,
+
+            text_vertex_shader,
+            text_fragment_shader,
+
+            text_index_buffer,
+            text_index_buffer_memory,
+            text_index_buffer_size,
+            text_vertex_buffer,
+            text_vertex_buffer_memory,
+            text_vertex_buffer_size,
+            text_uniform_buffer,
+            text_uniform_buffer_memory,
+            text_uniform_buffer_size,
         }
     }
 
@@ -273,7 +321,11 @@ impl ScriptClip {
         for element_index in 0..ordered_elements.len() {
             if element_index == elements.len() - 1 {
                 render_pass = renderer.create_render_pass(
-                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                    if element_index == 0 {
+                        vk::ImageLayout::UNDEFINED
+                    } else {
+                        vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
+                    },
                     if let RenderMode::Raw = mode {
                         vk::ImageLayout::TRANSFER_SRC_OPTIMAL
                     } else {
@@ -348,6 +400,30 @@ impl ScriptClip {
                     self.clip_uniform_buffer,
                     self.clip_uniform_buffer_memory,
                     self.clip_uniform_buffer_size,
+                    viewport,
+                    scissor,
+                    width,
+                    height,
+                    clip_loader,
+                    mode,
+                ),
+                Elements::Text(text) => text.render(
+                    renderer,
+                    self.graphics_queue,
+                    render_pass,
+                    self.command_pool,
+                    frame_buffer,
+                    self.text_vertex_shader,
+                    self.text_fragment_shader,
+                    self.text_index_buffer,
+                    self.text_index_buffer_memory,
+                    self.text_index_buffer_size,
+                    self.text_vertex_buffer,
+                    self.text_vertex_buffer_memory,
+                    self.text_vertex_buffer_size,
+                    self.text_uniform_buffer,
+                    self.text_uniform_buffer_memory,
+                    self.text_uniform_buffer_size,
                     viewport,
                     scissor,
                     width,

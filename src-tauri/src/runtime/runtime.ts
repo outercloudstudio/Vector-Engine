@@ -209,6 +209,65 @@ class Clip {
 	}
 }
 
+class FontAtlas {
+	constructor(
+		public path: string,
+		public rows: number,
+		public columns: number,
+		public dropdown: number,
+		public spacing: number,
+		public characters: string,
+		public widthOverrides: Record<string, number>
+	) {}
+}
+
+class VectText {
+	public text: Reactive<string> = react('')
+	public font: FontAtlas = undefined!
+	public position: Reactive<Vector2> = react(new Vector2(0, 0))
+	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
+	public size: Reactive<number> = react(100)
+	public rotation: Reactive<number> = react(0)
+	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
+	public order: Reactive<number> = react(0)
+
+	constructor(options: {
+		text?: OptionallyReactable<string>
+		font?: FontAtlas
+		position?: OptionallyReactable<Vector2>
+		origin?: OptionallyReactable<Vector2>
+		size?: OptionallyReactable<number>
+		rotation?: OptionallyReactable<number>
+		color?: OptionallyReactable<Vector4>
+		order?: OptionallyReactable<number>
+	}) {
+		for (const key of Object.keys(options)) {
+			if (key === 'font' && options.font) {
+				this.font = options.font
+
+				continue
+			}
+
+			//@ts-ignore
+			this[key] = react(options[key])
+		}
+	}
+
+	public to_static() {
+		return {
+			type: 'Text',
+			text: this.text.value,
+			font: this.font,
+			position: this.position.value,
+			origin: this.origin.value,
+			size: this.size.value,
+			rotation: this.rotation.value,
+			color: this.color.value,
+			order: this.order.value,
+		}
+	}
+}
+
 const elements: any[] = []
 
 function add<T>(element: T): T {
@@ -239,6 +298,13 @@ function ease(x: number): number {
 	return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2
 }
 
+function easeOutBack(x: number): number {
+	const c1 = 1.70158
+	const c3 = c1 + 1
+
+	return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2)
+}
+
 function linear(x: number): number {
 	return x
 }
@@ -258,9 +324,13 @@ function* seconds(time: number) {
 for (const [key, value] of Object.entries({
 	Vector2,
 	Vector4,
+
+	FontAtlas,
+
 	Rect,
 	Ellipse,
 	Clip,
+	VectText,
 
 	react,
 
@@ -269,6 +339,7 @@ for (const [key, value] of Object.entries({
 	clip,
 
 	ease,
+	easeOutBack,
 	linear,
 
 	frame,

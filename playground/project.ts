@@ -1,54 +1,117 @@
 clip(function* () {
-	const textSizes = [
-		new Vector2(102, 46),
-		new Vector2(285, 46),
-		new Vector2(230, 58),
-		new Vector2(15, 43),
-	]
+	const mullishBoldItalic = new FontAtlas(
+		'fonts/Mullish Bold Italic.png',
+		7,
+		8,
+		0.25,
+		0.55,
+		'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. "-',
+		{
+			w: 0.8,
+			m: 0.74,
+			i: 0.24,
+			t: 0.35,
+			j: 0.4,
+			p: 0.6,
+			r: 0.4,
+			o: 0.5,
+			e: 0.45,
+			s: 0.45,
+			c: 0.45,
+			' ': 0.25,
+			F: 0.38,
+			A: 0.74,
+			I: 0.3,
+			L: 0.5,
+		}
+	)
 
 	const background = add(
-		new Rect({
+		new Clip({
+			clip: 'Background.png',
 			size: new Vector2(1920, 1080),
-			color: new Vector4(9 / 256, 10 / 256, 20 / 256, 1),
-			order: -100,
 		})
 	)
 
-	function* animateText(text: Clip) {
-		const originalSize = text.size.value
-		text.size = react(new Vector2(0, 0))
+	const quoteLine1 = add(
+		new VectText({
+			position: new Vector2(-700, 200),
+			text: 'The ambitious projects I had undertaken',
+			font: mullishBoldItalic,
+			size: 40,
+		})
+	)
 
-		yield text.size.to(originalSize, 0.5, ease)
-	}
+	const quoteLine2A = add(
+		new VectText({
+			position: new Vector2(-700, 100),
+			text: 'in the past',
+			font: mullishBoldItalic,
+			size: 40,
+		})
+	)
 
-	let x = -700
-	let y = 200
+	const quoteFailed = add(
+		new VectText({
+			position: new Vector2(-335, 100),
+			text: 'FAILED',
+			font: mullishBoldItalic,
+			size: 40,
+			color: new Vector4(1.0, 0.0, 0.0, 1.0),
+		})
+	)
 
-	for (let index = 1; index <= textSizes.length; index++) {
-		const textSize = textSizes[index - 1]
+	const quoteLine2B = add(
+		new VectText({
+			position: new Vector2(-80, 100),
+			text: 'because I had made the',
+			font: mullishBoldItalic,
+			size: 40,
+		})
+	)
 
-		let textNumberText = index.toString()
-		if (textNumberText.length === 1) textNumberText = '0' + textNumberText
+	const quoteLine3 = add(
+		new VectText({
+			position: new Vector2(-700, 0),
+			text: 'mistake of not proving out the core ideas',
+			font: mullishBoldItalic,
+			size: 40,
+		})
+	)
 
-		let yOffset = 0
+	const quoteLine4 = add(
+		new VectText({
+			position: new Vector2(-700, -100),
+			text: 'in prototypes.',
+			font: mullishBoldItalic,
+			size: 40,
+		})
+	)
 
-		if (textSize.y == 58) yOffset = -12
-		if (textSize.y == 43) yOffset = -2
+	const quoteA = add(
+		new VectText({
+			position: new Vector2(-800, 200),
+			text: '"',
+			font: mullishBoldItalic,
+			size: 100,
+		})
+	)
 
-		const text = add(
-			new Clip({
-				clip: `quote/quote_Text${textNumberText}.png`,
-				position: new Vector2(x, y + yOffset),
-				origin: new Vector2(0, 0),
-				size: textSize,
-				order: 1,
-			})
-		)
+	const quoteB = add(
+		new VectText({
+			position: new Vector2(640, -200),
+			text: '"',
+			font: mullishBoldItalic,
+			size: 100,
+		})
+	)
 
-		yield animateText(text)
-
-		yield* seconds(0.2)
-
-		x += textSize.x + 20
-	}
+	const attribution = add(
+		new VectText({
+			position: new Vector2(-700, -250),
+			text: '- Chris Hecker - Developer of Spore',
+			font: mullishBoldItalic,
+			size: 30,
+		})
+	)
 })
