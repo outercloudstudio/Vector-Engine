@@ -92,9 +92,48 @@ impl ScriptClipRuntime {
         self.update_frame();
     }
 
-    fn advance_contexts(&mut self) {
+    fn handle_context(&mut self, context: v8::Global<v8::Object>) {
         let mut scope = self.js_runtime.handle_scope();
 
+        let generator = v8::Local::new(&mut scope, context);
+
+        let key = v8::String::new(&mut scope, "next").unwrap();
+
+        let next = generator.get(&mut scope, key.into()).unwrap();
+
+        let next = v8::Local::<v8::Function>::try_from(next).unwrap();
+
+        let result = next.call(&mut scope, generator.into(), &[]);
+
+        if result.is_none() {
+            return;
+        }
+
+        let result = result.unwrap();
+
+        let result = v8::Local::<v8::Object>::try_from(result).unwrap();
+
+        let key = v8::String::new(&mut scope, "value").unwrap();
+
+        let result = result.get(&mut scope, key.into()).unwrap();
+
+        if result.is_generator_object() {
+            let mut state = self.state.lock().unwrap();
+
+            let result = v8::Local::<v8::Object>::try_from(result).unwrap();
+
+            let result = v8::Global::new(&mut scope, result);
+
+            state.contexts.push(result.clone());
+
+            drop(state);
+            drop(scope);
+
+            self.handle_context(result);
+        }
+    }
+
+    fn advance_contexts(&mut self) {
         let state = self.state.lock().unwrap();
 
         let contexts = state.contexts.clone();
@@ -102,37 +141,7 @@ impl ScriptClipRuntime {
         drop(state);
 
         for context in contexts {
-            let generator = v8::Local::new(&mut scope, context);
-
-            let key = v8::String::new(&mut scope, "next").unwrap();
-
-            let next = generator.get(&mut scope, key.into()).unwrap();
-
-            let next = v8::Local::<v8::Function>::try_from(next).unwrap();
-
-            let result = next.call(&mut scope, generator.into(), &[]);
-
-            if result.is_none() {
-                continue;
-            }
-
-            let result = result.unwrap();
-
-            let result = v8::Local::<v8::Object>::try_from(result).unwrap();
-
-            let key = v8::String::new(&mut scope, "value").unwrap();
-
-            let result = result.get(&mut scope, key.into()).unwrap();
-
-            if result.is_generator_object() {
-                let mut state = self.state.lock().unwrap();
-
-                let result = v8::Local::<v8::Object>::try_from(result).unwrap();
-
-                let result = v8::Global::new(&mut scope, result);
-
-                state.contexts.push(result);
-            }
+            self.handle_context(context);
         }
     }
 
