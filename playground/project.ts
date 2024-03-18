@@ -1,11 +1,11 @@
 clip(function* () {
 	const mullishBoldItalic = new FontAtlas(
 		'fonts/Mullish Bold Italic.png',
-		7,
+		8,
 		8,
 		0.25,
 		0.55,
-		'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. "-',
+		'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. "-123',
 		{
 			w: 0.8,
 			m: 0.74,
@@ -27,91 +27,101 @@ clip(function* () {
 	)
 
 	const background = add(
-		new Clip({
-			clip: 'Background.png',
+		new Rect({
+			color: new Vector4(0.05, 0.05, 0.05, 1),
 			size: new Vector2(1920, 1080),
 		})
 	)
 
-	const quoteLine1 = add(
-		new VectText({
-			position: new Vector2(-700, 200),
-			text: 'The ambitious projects I had undertaken',
-			font: mullishBoldItalic,
-			size: 40,
+	const flash = add(
+		new Rect({
+			color: new Vector4(1, 1, 1, 1),
+			size: new Vector2(1920, 0),
 		})
 	)
 
-	const quoteLine2A = add(
+	yield* flash.size.to(new Vector2(1920, 100), 0.2, ease)
+
+	yield flash.size.to(new Vector2(1920, 1080), 0.1, ease)
+
+	yield background.color.to(new Vector4(0.05, 0.08, 0.05, 1), 0.2, ease)
+
+	yield* flash.color.to(new Vector4(1, 1, 1, 0), 0.4, ease)
+
+	const number1 = add(
 		new VectText({
-			position: new Vector2(-700, 100),
-			text: 'in the past',
+			position: new Vector2(-600 - 100, 0 - 100),
+			text: '1',
 			font: mullishBoldItalic,
-			size: 40,
+			size: 200,
+			color: new Vector4(1, 1, 1, 0),
 		})
 	)
 
-	const quoteFailed = add(
+	yield* number1.color.to(new Vector4(1, 1, 1, 1), 0.2, ease)
+
+	const number2 = add(
 		new VectText({
-			position: new Vector2(-335, 100),
-			text: 'FAILED',
+			position: new Vector2(-100, 0 - 100),
+			text: '2',
 			font: mullishBoldItalic,
-			size: 40,
-			color: new Vector4(1.0, 0.0, 0.0, 1.0),
+			size: 200,
+			color: new Vector4(1, 1, 1, 0),
 		})
 	)
 
-	const quoteLine2B = add(
+	yield* number2.color.to(new Vector4(1, 1, 1, 1), 0.2, ease)
+
+	const number3 = add(
 		new VectText({
-			position: new Vector2(-80, 100),
-			text: 'because I had made the',
+			position: new Vector2(600 - 100, 0 - 100),
+			text: '3',
 			font: mullishBoldItalic,
-			size: 40,
+			size: 200,
+			color: new Vector4(1, 1, 1, 0),
 		})
 	)
 
-	const quoteLine3 = add(
-		new VectText({
-			position: new Vector2(-700, 0),
-			text: 'mistake of not proving out the core ideas',
-			font: mullishBoldItalic,
-			size: 40,
+	yield* number3.color.to(new Vector4(1, 1, 1, 1), 0.2, ease)
+
+	yield* seconds(1)
+
+	const outerWilds = add(
+		new Clip({
+			clip: 'OuterWilds.png',
+			size: new Vector2(0, 0),
+			position: new Vector2(-600, 0),
+			color: new Vector4(1, 1, 1, 0),
 		})
 	)
 
-	const quoteLine4 = add(
-		new VectText({
-			position: new Vector2(-700, -100),
-			text: 'in prototypes.',
-			font: mullishBoldItalic,
-			size: 40,
+	yield outerWilds.color.to(new Vector4(1, 1, 1, 1), 0.2, ease)
+	yield number1.color.to(new Vector4(1, 1, 1, 0), 0.2, ease)
+	yield* outerWilds.size.to(new Vector2(500, 500), 0.2, easeOutBack)
+
+	const spelunky = add(
+		new Clip({
+			clip: 'Spelunky.png',
+			size: new Vector2(0, 0),
+			position: new Vector2(0, 0),
+			color: new Vector4(1, 1, 1, 0),
 		})
 	)
 
-	const quoteA = add(
-		new VectText({
-			position: new Vector2(-800, 200),
-			text: '"',
-			font: mullishBoldItalic,
-			size: 100,
+	yield spelunky.color.to(new Vector4(1, 1, 1, 1), 0.2, ease)
+	yield number2.color.to(new Vector4(1, 1, 1, 0), 0.2, ease)
+	yield* spelunky.size.to(new Vector2(400, 500), 0.2, easeOutBack)
+
+	const spore = add(
+		new Clip({
+			clip: 'Spore.png',
+			size: new Vector2(0, 0),
+			position: new Vector2(600, 0),
+			color: new Vector4(1, 1, 1, 0),
 		})
 	)
 
-	const quoteB = add(
-		new VectText({
-			position: new Vector2(640, -200),
-			text: '"',
-			font: mullishBoldItalic,
-			size: 100,
-		})
-	)
-
-	const attribution = add(
-		new VectText({
-			position: new Vector2(-700, -250),
-			text: '- Chris Hecker - Developer of Spore',
-			font: mullishBoldItalic,
-			size: 30,
-		})
-	)
+	yield spore.color.to(new Vector4(1, 1, 1, 1), 0.2, ease)
+	yield number3.color.to(new Vector4(1, 1, 1, 0), 0.2, ease)
+	yield* spore.size.to(new Vector2(500, 500), 0.2, easeOutBack)
 })

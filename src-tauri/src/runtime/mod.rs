@@ -1,3 +1,4 @@
+use anyhow::Result;
 use cgmath::vec2;
 use cgmath::vec4;
 use cgmath::Vector2;
@@ -61,7 +62,7 @@ impl ScriptClipRuntime {
         ScriptClipRuntime { js_runtime, state }
     }
 
-    pub fn initialize_clip(&mut self, script: &String) {
+    pub fn initialize_clip(&mut self, script: &String) -> Result<()> {
         let mut state = self.state.lock().unwrap();
 
         state.elements = Vec::new();
@@ -69,18 +70,17 @@ impl ScriptClipRuntime {
 
         drop(state);
 
-        self.js_runtime
-            .execute_script(
-                "vector-engine/runtime.ts",
-                deno_core::FastString::from(transpile_ts(format!(";(globalThis => {{{}}})(globalThis)", String::from(include_str!("./runtime.ts"))))),
-            )
-            .unwrap();
+        let transpiled = transpile_ts(format!(";(globalThis => {{{}}})(globalThis)", String::from(include_str!("./runtime.ts"))))?;
+        self.js_runtime.execute_script("vector-engine/runtime.ts", deno_core::FastString::from(transpiled)).unwrap();
 
-        self.js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpile_ts(script.clone()))).unwrap();
+        let transpiled = transpile_ts(script.clone())?;
+        self.js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpiled)).unwrap();
 
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
 
         runtime.block_on(self.js_runtime.run_event_loop(false)).unwrap();
+
+        Ok(())
     }
 
     pub fn advance(&mut self) {
@@ -175,7 +175,7 @@ impl ScriptClipRuntime {
     }
 }
 
-fn transpile_ts(code: String) -> String {
+fn transpile_ts(code: String) -> Result<String> {
     let parsed = deno_ast::parse_module(ParseParams {
         specifier: String::from(""),
         text_info: SourceTextInfo::from_string(code),
@@ -183,10 +183,9 @@ fn transpile_ts(code: String) -> String {
         capture_tokens: false,
         scope_analysis: false,
         maybe_syntax: None,
-    })
-    .unwrap();
+    })?;
 
-    parsed.transpile(&Default::default()).unwrap().text
+    Ok(parsed.transpile(&Default::default()).unwrap().text)
 }
 
 pub fn deserialize_number(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> f32 {

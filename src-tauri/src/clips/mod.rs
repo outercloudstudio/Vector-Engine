@@ -139,8 +139,11 @@ impl ScriptClip {
     pub fn new(script: String, renderer: &Renderer) -> ScriptClip {
         let mut runtime = ScriptClipRuntime::new();
 
-        runtime.initialize_clip(&script);
-        runtime.advance();
+        let initialized = runtime.initialize_clip(&script);
+
+        if initialized.is_ok() {
+            runtime.advance();
+        }
 
         let graphics_queue = create_graphics_queue(&renderer.device, renderer.queue_family_index);
         let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
@@ -292,8 +295,11 @@ impl ScriptClip {
         if self.internal_frame > frame {
             self.internal_frame = 0;
 
-            self.runtime.initialize_clip(&self.script);
-            self.runtime.advance();
+            let intialized = self.runtime.initialize_clip(&self.script);
+
+            if intialized.is_ok() {
+                self.runtime.advance();
+            }
         }
 
         for _ in (self.internal_frame + 1)..=frame {
