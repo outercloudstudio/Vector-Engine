@@ -2,6 +2,8 @@
 import { invoke } from '@tauri-apps/api'
 import { onMounted, ref } from 'vue'
 
+let frames: string[] = []
+
 let imageSrc = ref('')
 let frameRate = ref(0)
 
@@ -24,11 +26,19 @@ async function preview() {
 		frameRate.value = (1 / (now - lastFrameTime)) * 1000
 		lastFrameTime = now
 
-		const arrayBuffer = await (await fetch(`https://preview.localhost/?frame=${frame}`)).arrayBuffer()
-		const blob = new Blob([arrayBuffer], { type: 'image/bmp' })
-		const src = window.URL.createObjectURL(blob)
+		if (frames[frame] !== undefined) {
+			imageSrc.value = frames[frame]
+		} else {
+			const arrayBuffer = await (
+				await fetch(`https://preview.localhost/?frame=${frame}`)
+			).arrayBuffer()
+			const blob = new Blob([arrayBuffer], { type: 'image/bmp' })
+			const src = window.URL.createObjectURL(blob)
 
-		imageSrc.value = src
+			// frames[frame] = src    Disabled untill better support on rust for reload
+
+			imageSrc.value = src
+		}
 	}
 
 	lastFrame = frame
