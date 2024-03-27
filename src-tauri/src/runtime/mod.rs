@@ -46,7 +46,7 @@ impl ScriptClipRuntime {
         let state_arc = state.clone();
 
         let runtime_extension = Extension::builder("runtime_extension")
-            .ops(vec![op_reset_frame::DECL, op_add_frame_element::DECL, op_add_context::DECL, op_calculate_tect_size::DECL])
+            .ops(vec![op_reset_frame::DECL, op_add_frame_element::DECL, op_add_context::DECL])
             .state(|extension_state| {
                 extension_state.put::<Arc<Mutex<ClipRuntimeState>>>(state_arc);
             })
@@ -491,18 +491,6 @@ fn op_add_context(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::L
     state.contexts.push(generator);
 
     Ok(())
-}
-
-#[op2]
-#[serde]
-fn op_calculate_tect_size(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Result<Vec<f32>, AnyError> {
-    // let state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
-    // let mut state = state_mutex.lock().unwrap();
-
-    let text = Text::deserialize(scope, value);
-    let size = text.calculate_size();
-
-    Ok(vec![size.x, size.y])
 }
 
 struct TsModuleLoader;

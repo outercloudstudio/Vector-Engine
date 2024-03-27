@@ -665,15 +665,6 @@ impl Text {
 
         renderer.end_copy_data_to_buffer(index_buffer_memory);
 
-        let cell_size = atlas.width as f32 / self.font.columns as f32;
-        let character_width = cell_size * self.font.spacing;
-        let scale_factor = self.size / character_width;
-
-        let cell_drop_vertex = cell_size * self.font.dropdown * scale_factor;
-        let cell_drop_uv = self.font.dropdown * 1.0 / self.font.rows as f32;
-
-        let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
-
         let mut vertex_positions: Vec<Vector2<f32>> = Vec::new();
 
         let mut calculated_width: f32 = 0.0;
@@ -682,31 +673,36 @@ impl Text {
 
         for index in 0..self.text.len() as u32 {
             if self.font.width_overrides.contains_key(&chars[index as usize]) {
-                calculated_width += cell_size * self.font.width_overrides.get(&chars[index as usize]).unwrap() * scale_factor;
+                calculated_width += self.size * self.font.width_overrides.get(&chars[index as usize]).unwrap();
             } else {
-                calculated_width += character_width * scale_factor;
+                calculated_width += self.size * self.font.spacing;
             }
         }
 
         let mut character_x: f32 = 0.0;
 
         let offsetted_x = self.position.x - calculated_width * self.origin.x;
-        let offsetted_y = self.position.y - (character_width * scale_factor) * self.origin.y;
+        let offsetted_y = self.position.y - self.size * (1.0 - self.font.dropdown) * self.origin.y;
+
+        let character_drop = self.size * self.font.dropdown;
+        let character_drop_uv = self.font.dropdown * 1.0 / self.font.rows as f32;
 
         for index in 0..self.text.len() as u32 {
             vertex_positions.extend_from_slice(&[
-                vec2(offsetted_x + character_x as f32, offsetted_y - cell_drop_vertex),
-                vec2(offsetted_x + character_x as f32, offsetted_y + cell_size * scale_factor - cell_drop_vertex),
-                vec2(offsetted_x + character_x as f32 + cell_size * scale_factor, offsetted_y + cell_size * scale_factor - cell_drop_vertex),
-                vec2(offsetted_x + character_x as f32 + cell_size * scale_factor, offsetted_y - cell_drop_vertex),
+                vec2(offsetted_x + character_x as f32, offsetted_y - character_drop),
+                vec2(offsetted_x + character_x as f32, offsetted_y + self.size - character_drop),
+                vec2(offsetted_x + character_x as f32 + self.size, offsetted_y + self.size - character_drop),
+                vec2(offsetted_x + character_x as f32 + self.size, offsetted_y - character_drop),
             ]);
 
             if self.font.width_overrides.contains_key(&chars[index as usize]) {
-                character_x += cell_size * self.font.width_overrides.get(&chars[index as usize]).unwrap() * scale_factor;
+                character_x += self.size * self.font.width_overrides.get(&chars[index as usize]).unwrap();
             } else {
-                character_x += character_width * scale_factor;
+                character_x += self.size * self.font.spacing;
             }
         }
+
+        let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
         for vertex_position_index in 0..vertex_positions.len() {
             vertex_positions[vertex_position_index] = flip_vertically(divide(rotate(vertex_positions[vertex_position_index], self.position, self.rotation), normalize_scale));
@@ -726,7 +722,7 @@ impl Text {
 
             vertices.push(UvVertex {
                 position: vertex_positions[index],
-                uv: vec2(start_u + u_size * UVS[index % 4].x, start_v + v_size * UVS[index % 4].y + cell_drop_uv),
+                uv: vec2(start_u + u_size * UVS[index % 4].x, start_v + v_size * UVS[index % 4].y + character_drop_uv),
             });
         }
 
@@ -793,9 +789,5 @@ impl Text {
 
             renderer.device.destroy_descriptor_set_layout(descriptor_set_layout, None);
         }
-    }
-
-    pub fn calculate_size(&self) -> Vector2<f32> {
-        vec2(200.0, 200.0)
     }
 }
