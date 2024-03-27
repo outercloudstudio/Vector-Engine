@@ -35,6 +35,10 @@ async function preview() {
 			const blob = new Blob([arrayBuffer], { type: 'image/bmp' })
 			const src = window.URL.createObjectURL(blob)
 
+			setTimeout(() => {
+				URL.revokeObjectURL(src)
+			}, 10)
+
 			// frames[frame] = src    Disabled untill better support on rust for reload
 
 			imageSrc.value = src
