@@ -226,17 +226,19 @@ class VectText {
 	public font: FontAtlas = undefined!
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
 	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
-	public size: Reactive<number> = react(100)
+	public character_size: Reactive<number> = react(100)
 	public rotation: Reactive<number> = react(0)
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 	public order: Reactive<number> = react(0)
+
+	// public size: Rea
 
 	constructor(options: {
 		text?: OptionallyReactable<string>
 		font?: FontAtlas
 		position?: OptionallyReactable<Vector2>
 		origin?: OptionallyReactable<Vector2>
-		size?: OptionallyReactable<number>
+		character_size?: OptionallyReactable<number>
 		rotation?: OptionallyReactable<number>
 		color?: OptionallyReactable<Vector4>
 		order?: OptionallyReactable<number>
@@ -260,7 +262,7 @@ class VectText {
 			font: this.font,
 			position: this.position.value,
 			origin: this.origin.value,
-			size: this.size.value,
+			size: this.character_size.value,
 			rotation: this.rotation.value,
 			color: this.color.value,
 			order: this.order.value,

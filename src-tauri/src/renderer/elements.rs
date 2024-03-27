@@ -674,30 +674,37 @@ impl Text {
 
         let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
-        // let offsetted_x = self.position.x - self.origin.x * self.size;
-        // let offsetted_y = self.position.y - self.origin.y * self.size;
-
-        let offsetted_x = self.position.x;
-        let offsetted_y = self.position.y;
-
         let mut vertex_positions: Vec<Vector2<f32>> = Vec::new();
 
-        let mut offset: f32 = 0.0;
+        let mut calculated_width: f32 = 0.0;
 
         let chars = self.text.chars().collect::<Vec<char>>();
 
         for index in 0..self.text.len() as u32 {
+            if self.font.width_overrides.contains_key(&chars[index as usize]) {
+                calculated_width += cell_size * self.font.width_overrides.get(&chars[index as usize]).unwrap() * scale_factor;
+            } else {
+                calculated_width += character_width * scale_factor;
+            }
+        }
+
+        let mut character_x: f32 = 0.0;
+
+        let offsetted_x = self.position.x - calculated_width * self.origin.x;
+        let offsetted_y = self.position.y - (character_width * scale_factor) * self.origin.y;
+
+        for index in 0..self.text.len() as u32 {
             vertex_positions.extend_from_slice(&[
-                vec2(offsetted_x + offset as f32, offsetted_y - cell_drop_vertex),
-                vec2(offsetted_x + offset as f32, offsetted_y + cell_size * scale_factor - cell_drop_vertex),
-                vec2(offsetted_x + offset as f32 + cell_size * scale_factor, offsetted_y + cell_size * scale_factor - cell_drop_vertex),
-                vec2(offsetted_x + offset as f32 + cell_size * scale_factor, offsetted_y - cell_drop_vertex),
+                vec2(offsetted_x + character_x as f32, offsetted_y - cell_drop_vertex),
+                vec2(offsetted_x + character_x as f32, offsetted_y + cell_size * scale_factor - cell_drop_vertex),
+                vec2(offsetted_x + character_x as f32 + cell_size * scale_factor, offsetted_y + cell_size * scale_factor - cell_drop_vertex),
+                vec2(offsetted_x + character_x as f32 + cell_size * scale_factor, offsetted_y - cell_drop_vertex),
             ]);
 
             if self.font.width_overrides.contains_key(&chars[index as usize]) {
-                offset += cell_size * self.font.width_overrides.get(&chars[index as usize]).unwrap() * scale_factor;
+                character_x += cell_size * self.font.width_overrides.get(&chars[index as usize]).unwrap() * scale_factor;
             } else {
-                offset += character_width * scale_factor;
+                character_x += character_width * scale_factor;
             }
         }
 
