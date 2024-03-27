@@ -4,6 +4,7 @@ use cgmath::vec4;
 use cgmath::Vector2;
 use cgmath::Vector4;
 use deno_ast::MediaType;
+use deno_ast::ModuleSpecifier;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
 use deno_core::error::AnyError;
@@ -70,13 +71,22 @@ impl ScriptClipRuntime {
 
         drop(state);
 
+        self.js_runtime.clear_modules();
+
         let transpiled = transpile_ts(format!(";(globalThis => {{{}}})(globalThis)", String::from(include_str!("./runtime.ts"))))?;
         self.js_runtime.execute_script("vector-engine/runtime.ts", deno_core::FastString::from(transpiled)).unwrap();
 
-        let transpiled = transpile_ts(script.clone())?;
-        self.js_runtime.execute_script("project/clip.ts", deno_core::FastString::from(transpiled)).unwrap();
-
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+
+        let transpiled = transpile_ts(script.clone())?;
+        let clip_module = runtime
+            .block_on(self.js_runtime.load_main_module(
+                &ModuleSpecifier::from_file_path("D:/Vector Engine/playground/project.ts").unwrap(),
+                Some(deno_core::FastString::from(transpiled)),
+            ))
+            .unwrap();
+
+        let _ = self.js_runtime.mod_evaluate(clip_module);
 
         runtime.block_on(self.js_runtime.run_event_loop(false)).unwrap();
 
@@ -495,7 +505,7 @@ impl deno_core::ModuleLoader for TsModuleLoader {
     fn load(&self, module_specifier: &deno_core::ModuleSpecifier, _maybe_referrer: Option<&deno_core::ModuleSpecifier>, _is_dyn_import: bool) -> std::pin::Pin<Box<deno_core::ModuleSourceFuture>> {
         let module_specifier = module_specifier.clone();
         async move {
-            let path = module_specifier.to_file_path().unwrap();
+            let mut path = module_specifier.to_file_path().unwrap();
 
             let media_type = MediaType::from_path(&path);
             let (module_type, should_transpile) = match media_type {
@@ -503,7 +513,11 @@ impl deno_core::ModuleLoader for TsModuleLoader {
                 MediaType::Jsx => (deno_core::ModuleType::JavaScript, true),
                 MediaType::TypeScript | MediaType::Mts | MediaType::Cts | MediaType::Dts | MediaType::Dmts | MediaType::Dcts | MediaType::Tsx => (deno_core::ModuleType::JavaScript, true),
                 MediaType::Json => (deno_core::ModuleType::Json, false),
-                _ => panic!("Unknown extension {:?}", path.extension()),
+                _ => {
+                    path.set_extension("ts");
+
+                    (deno_core::ModuleType::JavaScript, true)
+                }
             };
 
             let code = std::fs::read_to_string(&path)?;
