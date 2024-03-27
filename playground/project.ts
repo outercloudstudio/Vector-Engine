@@ -13,9 +13,8 @@ clip(function* () {
 			font: mullishBoldItalic,
 			text: 'Technique 1',
 			character_size: 100,
-			origin: new Vector2(0.5, 0),
 		})
 	)
 
-	add(new Rect({ size: new Vector2(1920, 8) }))
+	add(new Rect({ origin: new Vector2(0, 0.5), position: new Vector2(title.size.value.x, 0) }))
 })

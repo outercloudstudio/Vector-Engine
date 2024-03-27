@@ -794,4 +794,8 @@ impl Text {
             renderer.device.destroy_descriptor_set_layout(descriptor_set_layout, None);
         }
     }
+
+    pub fn calculate_size(&self) -> Vector2<f32> {
+        vec2(200.0, 200.0)
+    }
 }

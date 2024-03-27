@@ -231,7 +231,11 @@ class VectText {
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 	public order: Reactive<number> = react(0)
 
-	// public size: Rea
+	public size: Reactive<Vector2> = react(() => {
+		let data = Deno.core.ops.op_calculate_tect_size(this.to_static())
+
+		return new Vector2(data[0], data[1])
+	})
 
 	constructor(options: {
 		text?: OptionallyReactable<string>
