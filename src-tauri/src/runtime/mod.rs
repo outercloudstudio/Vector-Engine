@@ -16,6 +16,7 @@ use deno_core::v8::Object;
 use deno_core::Extension;
 use deno_core::Op;
 use deno_core::{FastString, OpState};
+use log::info;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -106,7 +107,7 @@ impl ScriptClipRuntime {
     fn handle_context(&mut self, context: v8::Global<v8::Object>) {
         let mut scope = self.js_runtime.handle_scope();
 
-        let generator = v8::Local::new(&mut scope, context);
+        let generator = v8::Local::new(&mut scope, context.clone());
 
         let key = v8::String::new(&mut scope, "next").unwrap();
 
@@ -141,6 +142,8 @@ impl ScriptClipRuntime {
             drop(scope);
 
             self.handle_context(result);
+
+            self.handle_context(context);
         }
     }
 

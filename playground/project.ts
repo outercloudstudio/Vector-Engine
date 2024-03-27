@@ -8,33 +8,28 @@ clip(function* () {
 		})
 	)
 
-	const title = add(
-		new VectText({
-			font: mullishBoldItalic,
-			text: 'Technique 1',
-			character_size: 100,
-			origin: new Vector2(0.5, 0.3),
-		})
-	)
+	let x = -220
 
-	// add(
-	// 	new VectText({
-	// 		font: mullishBoldItalic,
-	// 		text: 'Technique 1',
-	// 		character_size: 100,
-	// 		origin: new Vector2(0, 0),
-	// 	})
-	// )
+	const text = 'Technique 1'
 
-	add(
-		new Rect({
-			origin: new Vector2(0, 0),
-			position: new Vector2(
-				title.size.value.x * title.origin.value.x,
-				title.size.value.y * title.origin.value.y
-			),
-		})
-	)
+	for (const character of text) {
+		const text = add(
+			new VectText({
+				font: mullishBoldItalic,
+				text: character,
+				character_size: 100,
+				origin: new Vector2(0, 0.3),
+				position: new Vector2(x, 0),
+			})
+		)
 
-	// add(new Rect({ origin: new Vector2(0.5, 0.5), size: new Vector2(1920, 4) }))
+		x += text.size.value.x
+
+		text.character_size.value = 0
+		text.color.value = new Vector4(1, 1, 1, 0)
+		yield text.character_size.to(100, 0.5, easeOutBack)
+		yield text.color.to(new Vector4(1, 1, 1, 1), 0.5, ease)
+
+		yield* seconds(0.05)
+	}
 })
