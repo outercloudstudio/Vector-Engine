@@ -21,19 +21,19 @@ use renderer::renderer::Renderer;
 struct Timeline {}
 
 #[tauri::command]
-fn render(sender: State<Sender<Command>>) {
-    sender.send(Command::Render).unwrap();
+fn render(sender: State<Sender<Command>>, length: f32) {
+    sender.send(Command::Render(length as u32)).unwrap();
 }
 
 pub enum Command {
     Preview(u32, Sender<Vec<u8>>),
-    Render,
+    Render(u32),
     PlaygroundUpdate,
 }
 
 fn main() {
     env::set_var("RUST_LOG", "info");
-    // env::set_var("RUST_BACKTRACE", "1");
+    env::set_var("RUST_BACKTRACE", "1");
 
     pretty_env_logger::init();
 
@@ -114,8 +114,8 @@ fn main() {
                             }
                         }
                         Command::PlaygroundUpdate => clip_loader.invalidate(&String::from("project.ts")),
-                        Command::Render => {
-                            for frame in 0..300 {
+                        Command::Render(length) => {
+                            for frame in 0..length {
                                 let clip = clip_loader.get_new(&String::from("project.ts"), &renderer).unwrap();
 
                                 match clip {

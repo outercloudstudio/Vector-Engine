@@ -316,7 +316,7 @@ impl Ellipse {
         ];
 
         for vertex_position_index in 0..vertex_positions.len() {
-            vertex_positions[vertex_position_index] = divide(vertex_positions[vertex_position_index], normalize_scale);
+            vertex_positions[vertex_position_index] = flip_vertically(divide(vertex_positions[vertex_position_index], normalize_scale));
         }
 
         let mut vertices: Vec<UvVertex> = Vec::new();
@@ -671,7 +671,7 @@ impl Text {
 
         let chars = self.text.chars().collect::<Vec<char>>();
 
-        for index in 0..self.text.len() as u32 {
+        for index in 0..chars.len() as u32 {
             if self.font.width_overrides.contains_key(&chars[index as usize]) {
                 calculated_width += self.size * self.font.width_overrides.get(&chars[index as usize]).unwrap();
             } else {
@@ -687,7 +687,7 @@ impl Text {
         let character_drop = self.size * self.font.dropdown;
         let character_drop_uv = self.font.dropdown * 1.0 / self.font.rows as f32;
 
-        for index in 0..self.text.len() as u32 {
+        for index in 0..chars.len() as u32 {
             vertex_positions.extend_from_slice(&[
                 vec2(offsetted_x + character_x as f32, offsetted_y - character_drop),
                 vec2(offsetted_x + character_x as f32, offsetted_y + self.size - character_drop),
@@ -712,7 +712,13 @@ impl Text {
         for index in 0..vertex_positions.len() {
             let face_index = index / 4;
 
-            let character_index = self.font.characters.find(chars[face_index]).unwrap() as u32;
+            let character_index = self.font.characters.find(chars[face_index]);
+
+            if character_index.is_none() {
+                continue;
+            }
+
+            let character_index = character_index.unwrap() as u32;
 
             let start_u = (character_index % self.font.columns) as f32 / self.font.columns as f32;
             let start_v = (character_index / self.font.columns) as f32 / self.font.rows as f32;

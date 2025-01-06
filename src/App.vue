@@ -12,11 +12,13 @@ let animationStart = Date.now()
 let lastFrameTime = Date.now()
 let lastFrame = -1
 
+const length = ref(100)
+
 async function preview() {
 	const now = Date.now()
 	let frame = Math.floor(((now - animationStart) / 1000) * 60)
 
-	if (frame >= 300) {
+	if (frame >= length.value) {
 		frame = 0
 
 		animationStart = now
@@ -58,7 +60,8 @@ onMounted(() => {
 <template>
 	<p>{{ Math.floor(frameRate) }}</p>
 	<img class="preview" :src="imageSrc" />
-	<button @click="invoke('render')">Render</button>
+	<button @click="invoke('render', { length })">Render</button>
+	<input type="number" v-model="length" />
 </template>
 
 <style scoped>

@@ -55,6 +55,8 @@ class Reactive<T> {
 
 			yield* frame()
 		}
+
+		this.value = final
 	}
 
 	public *bounce(final: T, speed: number, ease?: (t: number) => number, times?: number): Generator {
@@ -92,6 +94,10 @@ function react<T>(value: OptionallyReactable<T>): Reactive<T> {
 
 class Vector2 {
 	constructor(public x: number, public y: number) {}
+
+	public add(b: Vector2) {
+		return new Vector2(this.x + b.x, this.y + b.y)
+	}
 }
 
 class Vector4 {
@@ -226,7 +232,7 @@ class VectText {
 	public font: FontAtlas = undefined!
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
 	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
-	public character_size: Reactive<number> = react(100)
+	public characterSize: Reactive<number> = react(100)
 	public rotation: Reactive<number> = react(0)
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 	public order: Reactive<number> = react(0)
@@ -236,7 +242,7 @@ class VectText {
 		font?: FontAtlas
 		position?: OptionallyReactable<Vector2>
 		origin?: OptionallyReactable<Vector2>
-		character_size?: OptionallyReactable<number>
+		characterSize?: OptionallyReactable<number>
 		rotation?: OptionallyReactable<number>
 		color?: OptionallyReactable<Vector4>
 		order?: OptionallyReactable<number>
@@ -258,13 +264,13 @@ class VectText {
 
 		for (const character of this.text.value) {
 			if (this.font.widthOverrides[character] !== undefined) {
-				width += this.character_size.value * this.font.widthOverrides[character]
+				width += this.characterSize.value * this.font.widthOverrides[character]
 			} else {
-				width += this.character_size.value * this.font.spacing
+				width += this.characterSize.value * this.font.spacing
 			}
 		}
 
-		return new Vector2(width, this.character_size.value)
+		return new Vector2(width, this.characterSize.value)
 	})
 
 	public to_static() {
@@ -274,7 +280,7 @@ class VectText {
 			font: this.font,
 			position: this.position.value,
 			origin: this.origin.value,
-			size: this.character_size.value,
+			size: this.characterSize.value,
 			rotation: this.rotation.value,
 			color: this.color.value,
 			order: this.order.value,
@@ -312,6 +318,18 @@ function ease(x: number): number {
 	return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2
 }
 
+function easeIn(x: number): number {
+	return x * x * x
+}
+
+function easeOut(x: number): number {
+	return 1 - Math.pow(1 - x, 3)
+}
+
+function easeOutQuint(x: number): number {
+	return 1 - Math.pow(1 - x, 5)
+}
+
 function easeOutBack(x: number): number {
 	const c1 = 1.70158
 	const c3 = c1 + 1
@@ -335,6 +353,10 @@ function* seconds(time: number) {
 	}
 }
 
+function rgba(r: number, g: number, b: number, a: number): Vector4 {
+	return new Vector4(r / 255, g / 255, b / 255, a)
+}
+
 for (const [key, value] of Object.entries({
 	Vector2,
 	Vector4,
@@ -353,11 +375,16 @@ for (const [key, value] of Object.entries({
 	clip,
 
 	ease,
+	easeIn,
+	easeOut,
 	easeOutBack,
 	linear,
+	easeOutQuint,
 
 	frame,
 	seconds,
+
+	rgba,
 
 	_updateFrame,
 })) {
