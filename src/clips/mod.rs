@@ -453,6 +453,101 @@ impl ScriptClip {
         return render_target;
     }
 
+    pub fn render_elements(&self, elements: &Vec<Elements>, renderer: &Renderer, width: u32, height: u32, mode: RenderMode) -> RenderTarget {
+        let mut ordered_elements = elements.clone();
+        ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
+
+        let render_target = RenderTarget::new(width, height, renderer, mode);
+
+        let mut render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+
+        let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
+
+        let viewport = renderer.create_viewport(width, height);
+        let scissor = renderer.create_scissor(width, height);
+
+        for element_index in 0..ordered_elements.len() {
+            if element_index == elements.len() - 1 {
+                render_pass = renderer.create_render_pass(
+                    if element_index == 0 {
+                        vk::ImageLayout::UNDEFINED
+                    } else {
+                        vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
+                    },
+                    if let RenderMode::Raw = mode {
+                        vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+                    } else {
+                        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+                    },
+                )
+            }
+
+            let element = &ordered_elements[element_index];
+
+            match element {
+                Elements::Rect(rect) => rect.render(
+                    renderer,
+                    self.graphics_queue,
+                    render_pass,
+                    self.command_pool,
+                    frame_buffer,
+                    self.rect_vertex_shader,
+                    self.rect_fragment_shader,
+                    self.rect_index_buffer,
+                    self.rect_index_buffer_memory,
+                    self.rect_index_buffer_size,
+                    self.rect_vertex_buffer,
+                    self.rect_vertex_buffer_memory,
+                    self.rect_vertex_buffer_size,
+                    self.rect_uniform_buffer,
+                    self.rect_uniform_buffer_memory,
+                    self.rect_uniform_buffer_size,
+                    viewport,
+                    scissor,
+                    width,
+                    height,
+                    mode,
+                ),
+                Elements::Ellipse(ellipse) => ellipse.render(
+                    renderer,
+                    self.graphics_queue,
+                    render_pass,
+                    self.command_pool,
+                    frame_buffer,
+                    self.ellipse_vertex_shader,
+                    self.ellipse_fragment_shader,
+                    self.ellipse_index_buffer,
+                    self.ellipse_index_buffer_memory,
+                    self.ellipse_index_buffer_size,
+                    self.ellipse_vertex_buffer,
+                    self.ellipse_vertex_buffer_memory,
+                    self.ellipse_vertex_buffer_size,
+                    self.ellipse_uniform_buffer,
+                    self.ellipse_uniform_buffer_memory,
+                    self.ellipse_uniform_buffer_size,
+                    viewport,
+                    scissor,
+                    width,
+                    height,
+                    mode,
+                ),
+                _ => {}
+            }
+
+            if element_index == 0 {
+                render_pass = renderer.create_render_pass(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            }
+        }
+
+        unsafe {
+            renderer.device.destroy_framebuffer(frame_buffer, None);
+
+            self.device.destroy_render_pass(render_pass, None);
+        }
+
+        return render_target;
+    }
+
     pub fn render_to_raw(&self, renderer: &mut Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32) -> Vec<u8> {
         let render_target = self.render(renderer, clip_loader, width, height, RenderMode::Raw);
 

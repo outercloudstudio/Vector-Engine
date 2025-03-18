@@ -334,7 +334,7 @@ impl Renderer {
     ) {
         unsafe {
             let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 0.0] },
+                color: vk::ClearColorValue { float32: [0.0, 1.0, 0.0, 1.0] },
             }];
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()

@@ -4,10 +4,16 @@ mod runtime;
 
 use std::{env, fs::File, io::BufWriter};
 
+use ash::vk;
+use cgmath::{vec2, vec4};
+use clips::ScriptClip;
 use image::ImageEncoder;
 use log::info;
 
-use renderer::renderer::{RenderTarget, Renderer};
+use renderer::{
+    elements::{Elements, Rect},
+    renderer::{RenderTarget, Renderer},
+};
 
 fn main() {
     env::set_var("RUST_LOG", "info");
@@ -17,14 +23,24 @@ fn main() {
 
     let renderer = Renderer::new();
 
-    let render_target = RenderTarget::new(3, 3, &renderer, renderer::renderer::RenderMode::Raw);
+    let rect = Rect {
+        position: vec2(0f32, 0f32),
+        origin: vec2(0.5f32, 0.5f32),
+        color: vec4(1f32, 1f32, 1f32, 1f32),
+        order: 0f32,
+        radius: 0f32,
+        rotation: 0f32,
+        size: vec2(300f32, 300f32),
+    };
+
+    let clip = ScriptClip::new(String::from("console.log()"), &renderer);
+    let render_target = clip.render_elements(&vec![Elements::Rect(rect)], &renderer, 1920, 1080, renderer::renderer::RenderMode::Raw);
+
     let bytes = render_target.to_raw(&renderer);
 
-    log::info!("{:?}", bytes);
+    let file = File::create("./renders/render.png").unwrap();
+    let mut file_writer = BufWriter::new(file);
 
-    // let file = File::create("./renders/render.png").unwrap();
-    // let mut file_writer = BufWriter::new(file);
-
-    // let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
-    // encoder.write_image(&bytes, 5, 5, image::ColorType::Rgba8).unwrap();
+    let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
+    encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
 }
