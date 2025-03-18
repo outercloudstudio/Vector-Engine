@@ -12,13 +12,10 @@ use std::{
     sync::Arc,
 };
 
+use crate::renderer::renderer::{RenderTarget, Renderer};
 use crate::renderer::utils::*;
 use crate::renderer::{
-    elements::TEXT_DATA_SIZE,
-    renderer::{RenderTarget, Renderer},
-};
-use crate::renderer::{
-    elements::{Elements, CLIP_DATA_SIZE, ELLIPSE_DATA_SIZE, RECT_DATA_SIZE, UV_VERTEX_SIZE},
+    elements::{Elements, RECT_DATA_SIZE, UV_VERTEX_SIZE},
     renderer::RenderMode,
 };
 use crate::runtime::ScriptClipRuntime;
@@ -94,45 +91,6 @@ pub struct ScriptClip {
     rect_uniform_buffer: vk::Buffer,
     rect_uniform_buffer_memory: vk::DeviceMemory,
     rect_uniform_buffer_size: u64,
-
-    ellipse_vertex_shader: ShaderModule,
-    ellipse_fragment_shader: ShaderModule,
-
-    ellipse_index_buffer: vk::Buffer,
-    ellipse_index_buffer_memory: vk::DeviceMemory,
-    ellipse_index_buffer_size: u64,
-    ellipse_vertex_buffer: vk::Buffer,
-    ellipse_vertex_buffer_memory: vk::DeviceMemory,
-    ellipse_vertex_buffer_size: u64,
-    ellipse_uniform_buffer: vk::Buffer,
-    ellipse_uniform_buffer_memory: vk::DeviceMemory,
-    ellipse_uniform_buffer_size: u64,
-
-    clip_vertex_shader: ShaderModule,
-    clip_fragment_shader: ShaderModule,
-
-    clip_index_buffer: vk::Buffer,
-    clip_index_buffer_memory: vk::DeviceMemory,
-    clip_index_buffer_size: u64,
-    clip_vertex_buffer: vk::Buffer,
-    clip_vertex_buffer_memory: vk::DeviceMemory,
-    clip_vertex_buffer_size: u64,
-    clip_uniform_buffer: vk::Buffer,
-    clip_uniform_buffer_memory: vk::DeviceMemory,
-    clip_uniform_buffer_size: u64,
-
-    text_vertex_shader: ShaderModule,
-    text_fragment_shader: ShaderModule,
-
-    text_index_buffer: vk::Buffer,
-    text_index_buffer_memory: vk::DeviceMemory,
-    text_index_buffer_size: u64,
-    text_vertex_buffer: vk::Buffer,
-    text_vertex_buffer_memory: vk::DeviceMemory,
-    text_vertex_buffer_size: u64,
-    text_uniform_buffer: vk::Buffer,
-    text_uniform_buffer_memory: vk::DeviceMemory,
-    text_uniform_buffer_size: u64,
 }
 
 impl ScriptClip {
@@ -167,63 +125,6 @@ impl ScriptClip {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
 
-        let ellipse_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/ellipse.vert.spv").to_vec());
-        let ellipse_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/ellipse.frag.spv").to_vec());
-
-        let (ellipse_index_buffer, ellipse_index_buffer_memory, ellipse_index_buffer_size) = renderer.create_buffer(
-            4 * 6,
-            vk::BufferUsageFlags::INDEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (ellipse_vertex_buffer, ellipse_vertex_buffer_memory, ellipse_vertex_buffer_size) = renderer.create_buffer(
-            UV_VERTEX_SIZE * 4,
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (ellipse_uniform_buffer, ellipse_uniform_buffer_memory, ellipse_uniform_buffer_size) = renderer.create_buffer(
-            ELLIPSE_DATA_SIZE,
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-
-        let clip_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/clip.vert.spv").to_vec());
-        let clip_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/clip.frag.spv").to_vec());
-
-        let (clip_index_buffer, clip_index_buffer_memory, clip_index_buffer_size) = renderer.create_buffer(
-            4 * 6,
-            vk::BufferUsageFlags::INDEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (clip_vertex_buffer, clip_vertex_buffer_memory, clip_vertex_buffer_size) = renderer.create_buffer(
-            UV_VERTEX_SIZE * 4,
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (clip_uniform_buffer, clip_uniform_buffer_memory, clip_uniform_buffer_size) = renderer.create_buffer(
-            CLIP_DATA_SIZE,
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-
-        let text_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/text.vert.spv").to_vec());
-        let text_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/text.frag.spv").to_vec());
-
-        let (text_index_buffer, text_index_buffer_memory, text_index_buffer_size) = renderer.create_buffer(
-            4 * 6 * 120,
-            vk::BufferUsageFlags::INDEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (text_vertex_buffer, text_vertex_buffer_memory, text_vertex_buffer_size) = renderer.create_buffer(
-            UV_VERTEX_SIZE * 4 * 120,
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (text_uniform_buffer, text_uniform_buffer_memory, text_uniform_buffer_size) = renderer.create_buffer(
-            TEXT_DATA_SIZE,
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-
         ScriptClip {
             runtime,
             script,
@@ -245,45 +146,6 @@ impl ScriptClip {
             rect_uniform_buffer,
             rect_uniform_buffer_memory,
             rect_uniform_buffer_size,
-
-            ellipse_vertex_shader,
-            ellipse_fragment_shader,
-
-            ellipse_index_buffer,
-            ellipse_index_buffer_memory,
-            ellipse_index_buffer_size,
-            ellipse_vertex_buffer,
-            ellipse_vertex_buffer_memory,
-            ellipse_vertex_buffer_size,
-            ellipse_uniform_buffer,
-            ellipse_uniform_buffer_memory,
-            ellipse_uniform_buffer_size,
-
-            clip_vertex_shader,
-            clip_fragment_shader,
-
-            clip_index_buffer,
-            clip_index_buffer_memory,
-            clip_index_buffer_size,
-            clip_vertex_buffer,
-            clip_vertex_buffer_memory,
-            clip_vertex_buffer_size,
-            clip_uniform_buffer,
-            clip_uniform_buffer_memory,
-            clip_uniform_buffer_size,
-
-            text_vertex_shader,
-            text_fragment_shader,
-
-            text_index_buffer,
-            text_index_buffer_memory,
-            text_index_buffer_size,
-            text_vertex_buffer,
-            text_vertex_buffer_memory,
-            text_vertex_buffer_size,
-            text_uniform_buffer,
-            text_uniform_buffer_memory,
-            text_uniform_buffer_size,
         }
     }
 
@@ -366,77 +228,6 @@ impl ScriptClip {
                     height,
                     mode,
                 ),
-                Elements::Ellipse(ellipse) => ellipse.render(
-                    renderer,
-                    self.graphics_queue,
-                    render_pass,
-                    self.command_pool,
-                    frame_buffer,
-                    self.ellipse_vertex_shader,
-                    self.ellipse_fragment_shader,
-                    self.ellipse_index_buffer,
-                    self.ellipse_index_buffer_memory,
-                    self.ellipse_index_buffer_size,
-                    self.ellipse_vertex_buffer,
-                    self.ellipse_vertex_buffer_memory,
-                    self.ellipse_vertex_buffer_size,
-                    self.ellipse_uniform_buffer,
-                    self.ellipse_uniform_buffer_memory,
-                    self.ellipse_uniform_buffer_size,
-                    viewport,
-                    scissor,
-                    width,
-                    height,
-                    mode,
-                ),
-                Elements::Clip(clip) => clip.render(
-                    renderer,
-                    self.graphics_queue,
-                    render_pass,
-                    self.command_pool,
-                    frame_buffer,
-                    self.clip_vertex_shader,
-                    self.clip_fragment_shader,
-                    self.clip_index_buffer,
-                    self.clip_index_buffer_memory,
-                    self.clip_index_buffer_size,
-                    self.clip_vertex_buffer,
-                    self.clip_vertex_buffer_memory,
-                    self.clip_vertex_buffer_size,
-                    self.clip_uniform_buffer,
-                    self.clip_uniform_buffer_memory,
-                    self.clip_uniform_buffer_size,
-                    viewport,
-                    scissor,
-                    width,
-                    height,
-                    clip_loader,
-                    mode,
-                ),
-                Elements::Text(text) => text.render(
-                    renderer,
-                    self.graphics_queue,
-                    render_pass,
-                    self.command_pool,
-                    frame_buffer,
-                    self.text_vertex_shader,
-                    self.text_fragment_shader,
-                    self.text_index_buffer,
-                    self.text_index_buffer_memory,
-                    self.text_index_buffer_size,
-                    self.text_vertex_buffer,
-                    self.text_vertex_buffer_memory,
-                    self.text_vertex_buffer_size,
-                    self.text_uniform_buffer,
-                    self.text_uniform_buffer_memory,
-                    self.text_uniform_buffer_size,
-                    viewport,
-                    scissor,
-                    width,
-                    height,
-                    clip_loader,
-                    mode,
-                ),
             }
 
             if element_index == 0 {
@@ -502,29 +293,6 @@ impl ScriptClip {
                     self.rect_uniform_buffer,
                     self.rect_uniform_buffer_memory,
                     self.rect_uniform_buffer_size,
-                    viewport,
-                    scissor,
-                    width,
-                    height,
-                    mode,
-                ),
-                Elements::Ellipse(ellipse) => ellipse.render(
-                    renderer,
-                    self.graphics_queue,
-                    render_pass,
-                    self.command_pool,
-                    frame_buffer,
-                    self.ellipse_vertex_shader,
-                    self.ellipse_fragment_shader,
-                    self.ellipse_index_buffer,
-                    self.ellipse_index_buffer_memory,
-                    self.ellipse_index_buffer_size,
-                    self.ellipse_vertex_buffer,
-                    self.ellipse_vertex_buffer_memory,
-                    self.ellipse_vertex_buffer_size,
-                    self.ellipse_uniform_buffer,
-                    self.ellipse_uniform_buffer_memory,
-                    self.ellipse_uniform_buffer_size,
                     viewport,
                     scissor,
                     width,
