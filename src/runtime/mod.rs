@@ -23,9 +23,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
 
-use crate::renderer::elements::FontAtlas;
-use crate::renderer::elements::Text;
-use crate::renderer::elements::{Clip, Elements, Ellipse, Rect};
+use crate::renderer::elements::{Elements, Rect};
 
 struct ClipRuntimeState {
     elements: Vec<Elements>,
@@ -279,169 +277,6 @@ impl Rect {
     }
 }
 
-impl Ellipse {
-    pub fn deserialize(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Ellipse {
-        let object = v8::Local::<v8::Object>::try_from(value).unwrap();
-
-        let position_key = v8::String::new(scope, "position").unwrap().into();
-        let position_value = object.get(scope, position_key).unwrap();
-
-        let origin_key = v8::String::new(scope, "origin").unwrap().into();
-        let origin_value = object.get(scope, origin_key).unwrap();
-
-        let size_key = v8::String::new(scope, "size").unwrap().into();
-        let size_value = object.get(scope, size_key).unwrap();
-
-        let color_key = v8::String::new(scope, "color").unwrap().into();
-        let color_value = object.get(scope, color_key).unwrap();
-
-        let order_key = v8::String::new(scope, "order").unwrap().into();
-        let order_value = object.get(scope, order_key).unwrap();
-
-        Ellipse {
-            position: deserialize_vector2(scope, position_value),
-            origin: deserialize_vector2(scope, origin_value),
-            size: deserialize_vector2(scope, size_value),
-            color: deserialize_vector4(scope, color_value),
-            order: deserialize_number(scope, order_value),
-        }
-    }
-}
-
-impl Clip {
-    pub fn deserialize(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Clip {
-        let object = v8::Local::<v8::Object>::try_from(value).unwrap();
-
-        let position_key = v8::String::new(scope, "position").unwrap().into();
-        let position_value = object.get(scope, position_key).unwrap();
-
-        let origin_key = v8::String::new(scope, "origin").unwrap().into();
-        let origin_value = object.get(scope, origin_key).unwrap();
-
-        let size_key = v8::String::new(scope, "size").unwrap().into();
-        let size_value = object.get(scope, size_key).unwrap();
-
-        let rotation_key = v8::String::new(scope, "rotation").unwrap().into();
-        let rotation_value = object.get(scope, rotation_key).unwrap();
-
-        let color_key = v8::String::new(scope, "color").unwrap().into();
-        let color_value = object.get(scope, color_key).unwrap();
-
-        let clip_key = v8::String::new(scope, "clip").unwrap().into();
-        let clip_value = object.get(scope, clip_key).unwrap();
-
-        let frame_key = v8::String::new(scope, "frame").unwrap().into();
-        let frame_value = object.get(scope, frame_key).unwrap();
-
-        let order_key = v8::String::new(scope, "order").unwrap().into();
-        let order_value = object.get(scope, order_key).unwrap();
-
-        Clip {
-            clip: deserialize_string(scope, clip_value),
-            frame: deserialize_number(scope, frame_value) as u32,
-            position: deserialize_vector2(scope, position_value),
-            origin: deserialize_vector2(scope, origin_value),
-            rotation: deserialize_number(scope, rotation_value),
-            size: deserialize_vector2(scope, size_value),
-            color: deserialize_vector4(scope, color_value),
-            order: deserialize_number(scope, order_value),
-        }
-    }
-}
-
-impl FontAtlas {
-    pub fn deserialize(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> FontAtlas {
-        let object = v8::Local::<v8::Object>::try_from(value).unwrap();
-
-        let path_key = v8::String::new(scope, "path").unwrap().into();
-        let path_value = object.get(scope, path_key).unwrap();
-
-        let rows_key = v8::String::new(scope, "rows").unwrap().into();
-        let rows_value = object.get(scope, rows_key).unwrap();
-
-        let columns_key = v8::String::new(scope, "columns").unwrap().into();
-        let columns_value = object.get(scope, columns_key).unwrap();
-
-        let dropdown_key = v8::String::new(scope, "dropdown").unwrap().into();
-        let dropdown_value = object.get(scope, dropdown_key).unwrap();
-
-        let spacing_key = v8::String::new(scope, "spacing").unwrap().into();
-        let spacing_value = object.get(scope, spacing_key).unwrap();
-
-        let characters_key = v8::String::new(scope, "characters").unwrap().into();
-        let characters_value = object.get(scope, characters_key).unwrap();
-
-        let width_overrides_key = v8::String::new(scope, "widthOverrides").unwrap().into();
-        let width_overrides_value = object.get(scope, width_overrides_key).unwrap();
-
-        let mut width_overrides: HashMap<char, f32> = HashMap::new();
-
-        {
-            let width_overrides_value = v8::Local::<v8::Object>::try_from(width_overrides_value).unwrap();
-
-            let key_names = width_overrides_value.get_property_names(scope, GetPropertyNamesArgs::default()).unwrap();
-
-            for key_index in 0..key_names.length() {
-                let key = key_names.get_index(scope, key_index).unwrap();
-                let value = width_overrides_value.get(scope, key).unwrap();
-
-                width_overrides.insert(key.to_rust_string_lossy(scope).chars().next().unwrap(), deserialize_number(scope, value));
-            }
-        }
-
-        FontAtlas {
-            path: deserialize_string(scope, path_value),
-            rows: deserialize_number(scope, rows_value) as u32,
-            columns: deserialize_number(scope, columns_value) as u32,
-            dropdown: deserialize_number(scope, dropdown_value),
-            spacing: deserialize_number(scope, spacing_value),
-            characters: deserialize_string(scope, characters_value),
-            width_overrides,
-        }
-    }
-}
-
-impl Text {
-    pub fn deserialize(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Text {
-        let object = v8::Local::<v8::Object>::try_from(value).unwrap();
-
-        let position_key = v8::String::new(scope, "position").unwrap().into();
-        let position_value = object.get(scope, position_key).unwrap();
-
-        let origin_key = v8::String::new(scope, "origin").unwrap().into();
-        let origin_value = object.get(scope, origin_key).unwrap();
-
-        let size_key = v8::String::new(scope, "size").unwrap().into();
-        let size_value = object.get(scope, size_key).unwrap();
-
-        let rotation_key = v8::String::new(scope, "rotation").unwrap().into();
-        let rotation_value = object.get(scope, rotation_key).unwrap();
-
-        let color_key = v8::String::new(scope, "color").unwrap().into();
-        let color_value = object.get(scope, color_key).unwrap();
-
-        let text_key = v8::String::new(scope, "text").unwrap().into();
-        let text_value = object.get(scope, text_key).unwrap();
-
-        let font_key = v8::String::new(scope, "font").unwrap().into();
-        let font_value = object.get(scope, font_key).unwrap();
-
-        let order_key = v8::String::new(scope, "order").unwrap().into();
-        let order_value = object.get(scope, order_key).unwrap();
-
-        Text {
-            text: deserialize_string(scope, text_value),
-            font: FontAtlas::deserialize(scope, font_value),
-            position: deserialize_vector2(scope, position_value),
-            origin: deserialize_vector2(scope, origin_value),
-            rotation: deserialize_number(scope, rotation_value),
-            size: deserialize_number(scope, size_value),
-            color: deserialize_vector4(scope, color_value),
-            order: deserialize_number(scope, order_value),
-        }
-    }
-}
-
 #[op2]
 fn op_reset_frame(state: &mut OpState, scope: &mut v8::HandleScope) -> Result<(), AnyError> {
     let state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
@@ -465,18 +300,6 @@ fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value:
 
     if type_string == "Rect" {
         state.elements.push(Elements::Rect(Rect::deserialize(scope, value)));
-    }
-
-    if type_string == "Ellipse" {
-        state.elements.push(Elements::Ellipse(Ellipse::deserialize(scope, value)));
-    }
-
-    if type_string == "Clip" {
-        state.elements.push(Elements::Clip(Clip::deserialize(scope, value)));
-    }
-
-    if type_string == "Text" {
-        state.elements.push(Elements::Text(Text::deserialize(scope, value)));
     }
 
     Ok(())
