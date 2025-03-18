@@ -1,5 +1,4 @@
-use vulkanalia::prelude::v1_0::*;
-use vulkanalia::{vk, Device, Instance};
+use ash::{vk, Device, Instance};
 
 pub unsafe fn get_memory_type_index(instance: &Instance, physical_device: vk::PhysicalDevice, properties: vk::MemoryPropertyFlags, requirements: vk::MemoryRequirements) -> u32 {
     let memory = instance.get_physical_device_memory_properties(physical_device);

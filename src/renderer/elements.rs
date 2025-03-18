@@ -1,11 +1,10 @@
+use ash::vk;
+use ash::vk::ShaderModule;
 use cgmath::{vec2, Vector2, Vector4};
 use log::info;
 use std::collections::HashMap;
 use std::mem::align_of;
 use std::ptr::copy_nonoverlapping;
-use vulkanalia::prelude::v1_0::*;
-use vulkanalia::vk;
-use vulkanalia::vk::ShaderModule;
 
 use super::renderer::RenderMode;
 use crate::clips::{ClipLoader, Clips};
@@ -181,7 +180,7 @@ impl Rect {
         let uniform_ptr = renderer.start_copy_data_to_buffer(uniform_buffer_size, uniform_buffer_memory);
 
         unsafe {
-            let mut align = vulkanalia::util::Align::new(uniform_ptr, align_of::<f32>() as u64, RECT_DATA_SIZE);
+            let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, RECT_DATA_SIZE);
             align.copy_from_slice(&[RectData {
                 color: self.color,
                 radius: self.radius,

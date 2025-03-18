@@ -4,6 +4,7 @@ mod runtime;
 
 use std::{env, fs::File, io::BufWriter};
 
+use ash::vk;
 use cgmath::{vec2, vec4};
 use clips::ScriptClip;
 use image::ImageEncoder;
@@ -11,7 +12,7 @@ use log::info;
 
 use renderer::{
     elements::{Elements, Rect},
-    renderer::Renderer,
+    renderer::{RenderTarget, Renderer},
 };
 
 fn main() {
