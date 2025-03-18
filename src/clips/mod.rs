@@ -1,7 +1,3 @@
-use ash::{
-    vk::{self, ShaderModule},
-    Device,
-};
 use image::ImageDecoder;
 use std::{
     cell::RefCell,
@@ -10,6 +6,11 @@ use std::{
     ptr::copy_nonoverlapping,
     rc::Rc,
     sync::Arc,
+};
+use vulkanalia::prelude::v1_0::*;
+use vulkanalia::{
+    vk::{self, ShaderModule},
+    Device,
 };
 
 use crate::renderer::renderer::{RenderTarget, Renderer};

@@ -3,11 +3,12 @@ use std::io::Cursor;
 use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
-use ash::extensions::ext::DebugUtils;
-use ash::util::read_spv;
-use ash::vk::ShaderModule;
-use ash::{vk, Device, Entry, Instance};
 use log::info;
+use vulkanalia::extensions::ext::DebugUtils;
+use vulkanalia::prelude::v1_0::*;
+use vulkanalia::util::read_spv;
+use vulkanalia::vk::ShaderModule;
+use vulkanalia::{vk, Device, Entry, Instance};
 
 use super::utils::*;
 
