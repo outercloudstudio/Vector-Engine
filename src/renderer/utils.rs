@@ -1,5 +1,4 @@
-use ash::{util::Align, vk, Device, Instance};
-use std::{ffi::CStr, mem};
+use ash::{vk, Device, Instance};
 
 pub unsafe fn get_memory_type_index(instance: &Instance, physical_device: vk::PhysicalDevice, properties: vk::MemoryPropertyFlags, requirements: vk::MemoryRequirements) -> u32 {
     let memory = instance.get_physical_device_memory_properties(physical_device);
