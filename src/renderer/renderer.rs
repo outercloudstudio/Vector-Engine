@@ -480,6 +480,35 @@ impl Renderer {
             self.device.create_sampler(&info, None).unwrap()
         }
     }
+
+    pub fn create_viewport(&self, width: u32, height: u32) -> vk::Viewport {
+        vk::Viewport {
+            x: 0.0,
+            y: 0.0,
+            width: width as f32,
+            height: height as f32,
+            min_depth: 0.0,
+            max_depth: 1.0,
+        }
+    }
+
+    pub fn create_scissor(&self, width: u32, height: u32) -> vk::Rect2D {
+        *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(width).height(height))
+    }
+
+    pub fn create_graphics_queue(&self) -> vk::Queue {
+        unsafe { self.device.get_device_queue(self.queue_family_index, 0) }
+    }
+
+    pub fn create_command_pool(&self) -> vk::CommandPool {
+        unsafe {
+            let pool_create_info = vk::CommandPoolCreateInfo::builder()
+                .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+                .queue_family_index(self.queue_family_index);
+
+            self.device.create_command_pool(&pool_create_info, None).unwrap()
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -552,9 +581,9 @@ impl RenderTarget {
 
             let target_image_view = renderer.device.create_image_view(&target_image_view_create_info, None).unwrap();
 
-            let graphics_queue = create_graphics_queue(&renderer.device, renderer.queue_family_index);
+            let graphics_queue = renderer.create_graphics_queue();
 
-            let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
+            let command_pool = renderer.create_command_pool();
 
             RenderTarget {
                 image: target_image,

@@ -145,8 +145,8 @@ impl ScriptClip {
             runtime.advance();
         }
 
-        let graphics_queue = create_graphics_queue(&renderer.device, renderer.queue_family_index);
-        let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
+        let graphics_queue = renderer.create_graphics_queue();
+        let command_pool = renderer.create_command_pool();
 
         let rect_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.vert.spv").to_vec());
         let rect_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.frag.spv").to_vec());
@@ -321,8 +321,8 @@ impl ScriptClip {
 
         let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
 
-        let viewport = create_viewport(width, height);
-        let scissor = create_scissor(width, height);
+        let viewport = renderer.create_viewport(width, height);
+        let scissor = renderer.create_scissor(width, height);
 
         for element_index in 0..ordered_elements.len() {
             if element_index == elements.len() - 1 {
@@ -492,8 +492,8 @@ pub struct ImageClip {
 
 impl ImageClip {
     pub fn new(bytes: Vec<u8>, width: u32, height: u32, renderer: &Renderer) -> ImageClip {
-        let graphics_queue = create_graphics_queue(&renderer.device, renderer.queue_family_index);
-        let command_pool = create_command_pool(&renderer.device, renderer.queue_family_index);
+        let graphics_queue = renderer.create_graphics_queue();
+        let command_pool = renderer.create_command_pool();
 
         let render_target = RenderTarget::new(width, height, renderer, RenderMode::Sample);
 
