@@ -15,14 +15,14 @@ pub unsafe fn get_memory_type_index(instance: &Instance, physical_device: vk::Ph
 
 fn begin_single_time_commands(device: &Device, command_pool: vk::CommandPool) -> vk::CommandBuffer {
     unsafe {
-        let info = vk::CommandBufferAllocateInfo::builder()
+        let info = vk::CommandBufferAllocateInfo::default()
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_pool(command_pool)
             .command_buffer_count(1);
 
         let command_buffer = device.allocate_command_buffers(&info).unwrap()[0];
 
-        let info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        let info = vk::CommandBufferBeginInfo::default().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
         device.begin_command_buffer(command_buffer, &info).unwrap();
 
@@ -35,7 +35,7 @@ fn end_single_time_commands(device: &Device, command_buffer: vk::CommandBuffer, 
         device.end_command_buffer(command_buffer).unwrap();
 
         let command_buffers = &[command_buffer];
-        let info = *vk::SubmitInfo::builder().command_buffers(command_buffers);
+        let info = vk::SubmitInfo::default().command_buffers(command_buffers);
 
         device.queue_submit(graphics_queue, &[info], vk::Fence::null()).unwrap();
         device.queue_wait_idle(graphics_queue).unwrap();
@@ -74,14 +74,14 @@ pub fn transition_image_layout(
 
         let command_buffer = begin_single_time_commands(device, command_pool);
 
-        let subresource = *vk::ImageSubresourceRange::builder()
+        let subresource = vk::ImageSubresourceRange::default()
             .aspect_mask(vk::ImageAspectFlags::COLOR)
             .base_mip_level(0)
             .level_count(1)
             .base_array_layer(0)
             .layer_count(1);
 
-        let barrier = *vk::ImageMemoryBarrier::builder()
+        let barrier = vk::ImageMemoryBarrier::default()
             .old_layout(old_layout)
             .new_layout(new_layout)
             .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
@@ -109,13 +109,13 @@ pub fn copy_buffer_to_image(device: &Device, buffer: vk::Buffer, image: vk::Imag
     unsafe {
         let command_buffer = begin_single_time_commands(device, command_pool);
 
-        let subresource = *vk::ImageSubresourceLayers::builder()
+        let subresource = vk::ImageSubresourceLayers::default()
             .aspect_mask(vk::ImageAspectFlags::COLOR)
             .mip_level(0)
             .base_array_layer(0)
             .layer_count(1);
 
-        let region = *vk::BufferImageCopy::builder()
+        let region = vk::BufferImageCopy::default()
             .buffer_offset(0)
             .buffer_row_length(0)
             .buffer_image_height(0)

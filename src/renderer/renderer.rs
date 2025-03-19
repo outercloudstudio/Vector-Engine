@@ -3,8 +3,7 @@ use std::io::Cursor;
 use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
-use ash::extensions::ext::DebugUtils;
-use ash::khr::VK_KHR_video_decode_h264;
+use ash::ext::debug_utils;
 use ash::util::read_spv;
 use ash::vk::ShaderModule;
 use ash::{vk, Device, Entry, Instance};
@@ -25,7 +24,7 @@ pub struct Renderer {
     pub queue_family_index: u32,
 
     pub debug_call_back: vk::DebugUtilsMessengerEXT,
-    pub debug_utils: DebugUtils,
+    pub debug_utils: debug_utils::Instance,
 }
 
 impl Renderer {
@@ -36,28 +35,28 @@ impl Renderer {
             let layer_names = [CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0")];
             let layers_names_raw: Vec<*const c_char> = layer_names.iter().map(|raw_name| raw_name.as_ptr()).collect();
 
-            let extension_names = vec![DebugUtils::name().as_ptr()];
+            let extension_names = vec![vk::EXT_DEBUG_UTILS_NAME.as_ptr()];
 
-            let appinfo = vk::ApplicationInfo::builder()
+            let appinfo = vk::ApplicationInfo::default()
                 .application_name(CStr::from_bytes_with_nul_unchecked(b"VulkanTriangle\0"))
                 .application_version(0)
                 .engine_name(CStr::from_bytes_with_nul_unchecked(b"VulkanTriangle\0"))
                 .engine_version(0)
                 .api_version(vk::make_api_version(0, 1, 0, 0));
 
-            let create_info = vk::InstanceCreateInfo::builder()
+            let create_info = vk::InstanceCreateInfo::default()
                 .application_info(&appinfo)
                 .enabled_layer_names(&layers_names_raw)
                 .enabled_extension_names(&extension_names);
 
             let instance: Instance = entry.create_instance(&create_info, None).expect("Instance creation error");
 
-            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
+            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
                 .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::ERROR | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::INFO)
                 .message_type(vk::DebugUtilsMessageTypeFlagsEXT::GENERAL | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE)
                 .pfn_user_callback(Some(vulkan_debug_callback));
 
-            let debug_utils = DebugUtils::new(&entry, &instance);
+            let debug_utils = debug_utils::Instance::new(&entry, &instance);
 
             let debug_call_back = debug_utils.create_debug_utils_messenger(&debug_info, None).unwrap();
 
@@ -84,9 +83,9 @@ impl Renderer {
             };
             let priorities = [1.0];
 
-            let queue_info = vk::DeviceQueueCreateInfo::builder().queue_family_index(queue_family_index).queue_priorities(&priorities);
+            let queue_info = vk::DeviceQueueCreateInfo::default().queue_family_index(queue_family_index).queue_priorities(&priorities);
 
-            let device_create_info = vk::DeviceCreateInfo::builder().queue_create_infos(std::slice::from_ref(&queue_info)).enabled_features(&features);
+            let device_create_info = vk::DeviceCreateInfo::default().queue_create_infos(std::slice::from_ref(&queue_info)).enabled_features(&features);
 
             let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
 
@@ -120,7 +119,7 @@ impl Renderer {
             let mut spv_file = Cursor::new(spv);
 
             let code = read_spv(&mut spv_file).expect("Failed to read shader spv file");
-            let shader_info = vk::ShaderModuleCreateInfo::builder().code(&code);
+            let shader_info = vk::ShaderModuleCreateInfo::default().code(&code);
 
             self.device.create_shader_module(&shader_info, None).expect("Shader module error")
         }
@@ -128,14 +127,14 @@ impl Renderer {
 
     pub fn create_buffer(&self, size: u64, usage: vk::BufferUsageFlags, memory_property_flags: vk::MemoryPropertyFlags) -> (vk::Buffer, vk::DeviceMemory, u64) {
         unsafe {
-            let buffer_info = *vk::BufferCreateInfo::builder().size(size).usage(usage).sharing_mode(vk::SharingMode::EXCLUSIVE);
+            let buffer_info = vk::BufferCreateInfo::default().size(size).usage(usage).sharing_mode(vk::SharingMode::EXCLUSIVE);
 
             let buffer = self.device.create_buffer(&buffer_info, None).unwrap();
 
             let memory_requirements = self.device.get_buffer_memory_requirements(buffer);
             let memory_index = get_memory_type_index(&self.instance, self.physical_device, memory_property_flags, memory_requirements);
 
-            let allocate_info = *vk::MemoryAllocateInfo::builder().allocation_size(memory_requirements.size).memory_type_index(memory_index);
+            let allocate_info = vk::MemoryAllocateInfo::default().allocation_size(memory_requirements.size).memory_type_index(memory_index);
 
             let memory = self.device.allocate_memory(&allocate_info, None).unwrap();
 
@@ -157,7 +156,7 @@ impl Renderer {
 
     pub fn create_render_pass(&self, initial_layout: vk::ImageLayout, final_layout: vk::ImageLayout) -> vk::RenderPass {
         unsafe {
-            let color_attachment = *vk::AttachmentDescription::builder()
+            let color_attachment = vk::AttachmentDescription::default()
                 .format(vk::Format::R8G8B8A8_UNORM)
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .load_op(if let vk::ImageLayout::UNDEFINED = initial_layout {
@@ -171,13 +170,14 @@ impl Renderer {
                 .initial_layout(initial_layout)
                 .final_layout(final_layout);
 
-            let color_attachment_ref = *vk::AttachmentReference::builder().attachment(0).layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+            let color_attachment_ref = vk::AttachmentReference::default().attachment(0).layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+            let color_attachments = &[color_attachment_ref];
 
-            let subpass = *vk::SubpassDescription::builder()
+            let subpass = vk::SubpassDescription::default()
                 .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-                .color_attachments(&[color_attachment_ref]);
+                .color_attachments(color_attachments);
 
-            let dependency = *vk::SubpassDependency::builder()
+            let dependency = vk::SubpassDependency::default()
                 .src_subpass(vk::SUBPASS_EXTERNAL)
                 .dst_subpass(0)
                 .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
@@ -189,7 +189,7 @@ impl Renderer {
             let subpasses = &[subpass];
             let dependencies = &[dependency];
 
-            let render_pass_create_info = vk::RenderPassCreateInfo::builder().attachments(render_pass_attachments).subpasses(subpasses).dependencies(dependencies);
+            let render_pass_create_info = vk::RenderPassCreateInfo::default().attachments(render_pass_attachments).subpasses(subpasses).dependencies(dependencies);
 
             self.device.create_render_pass(&render_pass_create_info, None).unwrap()
         }
@@ -199,7 +199,7 @@ impl Renderer {
         unsafe {
             let frame_buffer_attachments = &[render_target.image_view];
 
-            let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
+            let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
                 .render_pass(render_pass)
                 .attachments(frame_buffer_attachments)
                 .width(width)
@@ -223,7 +223,7 @@ impl Renderer {
     ) -> (vk::Pipeline, vk::PipelineLayout) {
         unsafe {
             let layouts = [descriptor_set_layout];
-            let layout_create_info = vk::PipelineLayoutCreateInfo::builder().set_layouts(&layouts);
+            let layout_create_info = vk::PipelineLayoutCreateInfo::default().set_layouts(&layouts);
 
             let pipeline_layout = self.device.create_pipeline_layout(&layout_create_info, None).unwrap();
 
@@ -244,11 +244,11 @@ impl Renderer {
             ];
 
             let binding_descriptions = &[binding_description];
-            let vertex_input_state = *vk::PipelineVertexInputStateCreateInfo::builder()
+            let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::default()
                 .vertex_binding_descriptions(binding_descriptions)
                 .vertex_attribute_descriptions(attribute_description);
 
-            let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
+            let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::default()
                 .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
                 .primitive_restart_enable(false);
 
@@ -256,7 +256,7 @@ impl Renderer {
 
             let scissors = &[scissor];
 
-            let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder().scissors(scissors).viewports(viewports);
+            let viewport_state_info = vk::PipelineViewportStateCreateInfo::default().scissors(scissors).viewports(viewports);
 
             let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
                 front_face: vk::FrontFace::CLOCKWISE,
@@ -281,14 +281,14 @@ impl Renderer {
                 color_write_mask: vk::ColorComponentFlags::RGBA,
             }];
 
-            let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
+            let color_blend_state = vk::PipelineColorBlendStateCreateInfo::default()
                 .logic_op(vk::LogicOp::CLEAR)
                 .attachments(&color_blend_attachment_states);
 
             let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
-            let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
+            let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
 
-            let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+            let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::default()
                 .stages(&shader_stage_create_infos)
                 .vertex_input_state(&vertex_input_state)
                 .input_assembly_state(&input_assembly_state)
@@ -302,7 +302,7 @@ impl Renderer {
 
             let graphics_pipelines = self
                 .device
-                .create_graphics_pipelines(vk::PipelineCache::null(), &[graphic_pipeline_info.build()], None)
+                .create_graphics_pipelines(vk::PipelineCache::null(), &[graphic_pipeline_info], None)
                 .expect("Unable to create graphics pipeline");
 
             (graphics_pipelines[0], pipeline_layout)
@@ -311,7 +311,7 @@ impl Renderer {
 
     pub fn create_command_buffer(&self, command_pool: vk::CommandPool) -> vk::CommandBuffer {
         unsafe {
-            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::default()
                 .command_buffer_count(1)
                 .command_pool(command_pool)
                 .level(vk::CommandBufferLevel::PRIMARY);
@@ -338,15 +338,15 @@ impl Renderer {
                 color: vk::ClearColorValue { float32: [0.0, 0.0, 0.0, 0.0] },
             }];
 
-            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+            let render_pass_begin_info = vk::RenderPassBeginInfo::default()
                 .render_pass(render_pass)
                 .framebuffer(frame_buffer)
-                .render_area(*vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(width).height(height)))
+                .render_area(vk::Rect2D::default().extent(vk::Extent2D::default().width(width).height(height)))
                 .clear_values(&clear_values);
 
             self.device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).unwrap();
 
-            let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+            let command_buffer_begin_info = vk::CommandBufferBeginInfo::default().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
             self.device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Begin commandbuffer");
 
@@ -365,26 +365,26 @@ impl Renderer {
 
             let command_buffers = vec![command_buffer];
 
-            let mut submit_info = vk::SubmitInfo::builder()
+            let mut submit_info = vk::SubmitInfo::default()
                 .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
                 .command_buffers(&command_buffers);
             submit_info.wait_semaphore_count = 0;
 
-            self.device.queue_submit(graphics_queue, &[submit_info.build()], vk::Fence::null()).expect("queue submit failed.");
+            self.device.queue_submit(graphics_queue, &[submit_info], vk::Fence::null()).expect("queue submit failed.");
 
             self.device.queue_wait_idle(graphics_queue).unwrap();
         }
     }
 
     pub fn create_descriptor_set_layout(&self, bindings: Vec<vk::DescriptorSetLayoutBinding>) -> vk::DescriptorSetLayout {
-        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings).build();
+        let layout_info = vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings);
 
         unsafe { self.device.create_descriptor_set_layout(&layout_info, None).unwrap() }
     }
 
     pub fn create_descriptor_pool(&self, pool_sizes: Vec<vk::DescriptorPoolSize>) -> vk::DescriptorPool {
         unsafe {
-            let info = vk::DescriptorPoolCreateInfo::builder().pool_sizes(&pool_sizes).max_sets(1);
+            let info = vk::DescriptorPoolCreateInfo::default().pool_sizes(&pool_sizes).max_sets(1);
 
             self.device.create_descriptor_pool(&info, None).unwrap()
         }
@@ -393,15 +393,15 @@ impl Renderer {
     pub fn create_descriptor_uniform_sets(&self, descriptor_set_layout: vk::DescriptorSetLayout, descriptor_pool: vk::DescriptorPool, uniform_buffer: vk::Buffer, size: u64) -> Vec<vk::DescriptorSet> {
         unsafe {
             let layouts = vec![descriptor_set_layout; 1];
-            let info = vk::DescriptorSetAllocateInfo::builder().descriptor_pool(descriptor_pool).set_layouts(&layouts);
+            let info = vk::DescriptorSetAllocateInfo::default().descriptor_pool(descriptor_pool).set_layouts(&layouts);
 
             let descriptor_sets = self.device.allocate_descriptor_sets(&info).unwrap();
 
             // Range is the size of the RectDataStruct
-            let info = *vk::DescriptorBufferInfo::builder().buffer(uniform_buffer).offset(0).range(size);
+            let info = vk::DescriptorBufferInfo::default().buffer(uniform_buffer).offset(0).range(size);
 
             let buffer_info = &[info];
-            let ubo_write = *vk::WriteDescriptorSet::builder()
+            let ubo_write = vk::WriteDescriptorSet::default()
                 .dst_set(descriptor_sets[0])
                 .dst_binding(0)
                 .dst_array_element(0)
@@ -425,28 +425,28 @@ impl Renderer {
     ) -> Vec<vk::DescriptorSet> {
         unsafe {
             let layouts = vec![descriptor_set_layout; 1];
-            let info = vk::DescriptorSetAllocateInfo::builder().descriptor_pool(descriptor_pool).set_layouts(&layouts);
+            let info = vk::DescriptorSetAllocateInfo::default().descriptor_pool(descriptor_pool).set_layouts(&layouts);
 
             let descriptor_sets = self.device.allocate_descriptor_sets(&info).unwrap();
 
             // Range is the size of the RectDataStruct
-            let info = *vk::DescriptorBufferInfo::builder().buffer(uniform_buffer).offset(0).range(size);
+            let info = vk::DescriptorBufferInfo::default().buffer(uniform_buffer).offset(0).range(size);
 
             let buffer_info = &[info];
-            let ubo_write = *vk::WriteDescriptorSet::builder()
+            let ubo_write = vk::WriteDescriptorSet::default()
                 .dst_set(descriptor_sets[0])
                 .dst_binding(0)
                 .dst_array_element(0)
                 .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
                 .buffer_info(buffer_info);
 
-            let info = *vk::DescriptorImageInfo::builder()
+            let info = vk::DescriptorImageInfo::default()
                 .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
                 .image_view(texture_image_view)
                 .sampler(texture_sampler);
 
             let image_info = &[info];
-            let sampler_write = *vk::WriteDescriptorSet::builder()
+            let sampler_write = vk::WriteDescriptorSet::default()
                 .dst_set(descriptor_sets[0])
                 .dst_binding(1)
                 .dst_array_element(0)
@@ -461,7 +461,7 @@ impl Renderer {
 
     pub fn create_sampler(&self) -> vk::Sampler {
         unsafe {
-            let info = vk::SamplerCreateInfo::builder()
+            let info = vk::SamplerCreateInfo::default()
                 .mag_filter(vk::Filter::NEAREST)
                 .min_filter(vk::Filter::NEAREST)
                 .address_mode_u(vk::SamplerAddressMode::REPEAT)
@@ -494,7 +494,7 @@ impl Renderer {
     }
 
     pub fn create_scissor(&self, width: u32, height: u32) -> vk::Rect2D {
-        *vk::Rect2D::builder().extent(*vk::Extent2D::builder().width(width).height(height))
+        vk::Rect2D::default().extent(vk::Extent2D::default().width(width).height(height))
     }
 
     pub fn create_graphics_queue(&self) -> vk::Queue {
@@ -503,7 +503,7 @@ impl Renderer {
 
     pub fn create_command_pool(&self) -> vk::CommandPool {
         unsafe {
-            let pool_create_info = vk::CommandPoolCreateInfo::builder()
+            let pool_create_info = vk::CommandPoolCreateInfo::default()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
                 .queue_family_index(self.queue_family_index);
 
@@ -536,10 +536,10 @@ pub struct RenderTarget {
 impl RenderTarget {
     pub fn new(width: u32, height: u32, renderer: &Renderer, mode: RenderMode) -> RenderTarget {
         unsafe {
-            let target_image_create_info = vk::ImageCreateInfo::builder()
+            let target_image_create_info = vk::ImageCreateInfo::default()
                 .image_type(vk::ImageType::TYPE_2D)
                 .format(vk::Format::R8G8B8A8_UNORM)
-                .extent(*vk::Extent3D::builder().width(width).height(height).depth(1))
+                .extent(vk::Extent3D::default().width(width).height(height).depth(1))
                 .mip_levels(1)
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
@@ -553,22 +553,22 @@ impl RenderTarget {
 
             let target_image = renderer.device.create_image(&target_image_create_info, None).unwrap();
 
-            let subresource_range = vk::ImageSubresourceRange::builder()
+            let subresource_range = vk::ImageSubresourceRange::default()
                 .aspect_mask(vk::ImageAspectFlags::COLOR)
                 .base_mip_level(0)
                 .level_count(1)
                 .base_array_layer(0)
                 .layer_count(1);
 
-            let target_image_view_create_info = vk::ImageViewCreateInfo::builder()
+            let target_image_view_create_info = vk::ImageViewCreateInfo::default()
                 .image(target_image)
                 .view_type(vk::ImageViewType::TYPE_2D)
                 .format(vk::Format::R8G8B8A8_UNORM)
-                .subresource_range(*subresource_range);
+                .subresource_range(subresource_range);
 
             let target_image_requirements = renderer.device.get_image_memory_requirements(target_image);
 
-            let target_image_memory_info = vk::MemoryAllocateInfo::builder()
+            let target_image_memory_info = vk::MemoryAllocateInfo::default()
                 .allocation_size(target_image_requirements.size)
                 .memory_type_index(get_memory_type_index(
                     &renderer.instance,
@@ -606,7 +606,7 @@ impl RenderTarget {
         unsafe {
             let size = self.width as u64 * self.height as u64 * 4;
 
-            let save_buffer_info = vk::BufferCreateInfo::builder()
+            let save_buffer_info = vk::BufferCreateInfo::default()
                 .size(size)
                 .usage(vk::BufferUsageFlags::TRANSFER_DST)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
@@ -621,7 +621,7 @@ impl RenderTarget {
                 save_buffer_memory_req,
             );
 
-            let index_allocate_info = *vk::MemoryAllocateInfo::builder()
+            let index_allocate_info = vk::MemoryAllocateInfo::default()
                 .allocation_size(save_buffer_memory_req.size)
                 .memory_type_index(save_buffer_memory_index);
 
@@ -629,24 +629,24 @@ impl RenderTarget {
 
             renderer.device.bind_buffer_memory(save_buffer, save_buffer_memory, 0).unwrap();
 
-            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::default()
                 .level(vk::CommandBufferLevel::PRIMARY)
                 .command_pool(self.command_pool)
                 .command_buffer_count(1);
 
             let command_buffer = renderer.device.allocate_command_buffers(&command_buffer_allocate_info).unwrap()[0];
 
-            let info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+            let info = vk::CommandBufferBeginInfo::default().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
             renderer.device.begin_command_buffer(command_buffer, &info).unwrap();
 
-            let subresource = *vk::ImageSubresourceLayers::builder()
+            let subresource = vk::ImageSubresourceLayers::default()
                 .aspect_mask(vk::ImageAspectFlags::COLOR)
                 .mip_level(0)
                 .base_array_layer(0)
                 .layer_count(1);
 
-            let region = *vk::BufferImageCopy::builder()
+            let region = vk::BufferImageCopy::default()
                 .buffer_offset(0)
                 .buffer_row_length(0)
                 .buffer_image_height(0)
@@ -665,7 +665,7 @@ impl RenderTarget {
             renderer.device.end_command_buffer(command_buffer).unwrap();
 
             let command_buffers = &[command_buffer];
-            let info = *vk::SubmitInfo::builder().command_buffers(command_buffers);
+            let info = vk::SubmitInfo::default().command_buffers(command_buffers);
 
             renderer.device.queue_submit(self.graphics_queue, &[info], vk::Fence::null()).unwrap();
             renderer.device.queue_wait_idle(self.graphics_queue).unwrap();

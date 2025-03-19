@@ -51,27 +51,16 @@ pub const UV_VERTEX_SIZE: u64 = 8 + 8;
 
 impl UvVertex {
     pub fn get_descriptor_set_layout_binding() -> vk::VertexInputBindingDescription {
-        vk::VertexInputBindingDescription::builder()
+        vk::VertexInputBindingDescription::default()
             .binding(0)
             .stride(UV_VERTEX_SIZE as u32)
             .input_rate(vk::VertexInputRate::VERTEX)
-            .build()
     }
 
     pub fn get_attribute_descriptions() -> [vk::VertexInputAttributeDescription; 2] {
-        let position = vk::VertexInputAttributeDescription::builder()
-            .binding(0)
-            .location(0)
-            .format(vk::Format::R32G32_SFLOAT)
-            .offset(0)
-            .build();
+        let position = vk::VertexInputAttributeDescription::default().binding(0).location(0).format(vk::Format::R32G32_SFLOAT).offset(0);
 
-        let uv = vk::VertexInputAttributeDescription::builder()
-            .binding(0)
-            .location(1)
-            .format(vk::Format::R32G32_SFLOAT)
-            .offset(8)
-            .build();
+        let uv = vk::VertexInputAttributeDescription::default().binding(0).location(1).format(vk::Format::R32G32_SFLOAT).offset(8);
 
         [position, uv]
     }
@@ -100,13 +89,12 @@ pub struct RectData {
 pub const RECT_DATA_SIZE: u64 = 64;
 
 impl RectData {
-    pub fn get_descriptor_set_layout_bindings() -> Vec<vk::DescriptorSetLayoutBinding> {
-        let layout_binding = vk::DescriptorSetLayoutBinding::builder()
+    pub fn get_descriptor_set_layout_bindings() -> Vec<vk::DescriptorSetLayoutBinding<'static>> {
+        let layout_binding = vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::FRAGMENT)
-            .build();
+            .stage_flags(vk::ShaderStageFlags::FRAGMENT);
         vec![layout_binding]
     }
 }
@@ -205,7 +193,7 @@ impl Rect {
             &attribute_descriptions,
         );
 
-        let descriptor_pool = renderer.create_descriptor_pool(vec![*vk::DescriptorPoolSize::builder().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1)]);
+        let descriptor_pool = renderer.create_descriptor_pool(vec![vk::DescriptorPoolSize::default().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1)]);
 
         let descriptor_sets = renderer.create_descriptor_uniform_sets(descriptor_set_layout, descriptor_pool, uniform_buffer, RECT_DATA_SIZE);
 
