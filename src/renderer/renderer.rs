@@ -35,7 +35,12 @@ impl Renderer {
             let layer_names = [CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0")];
             let layers_names_raw: Vec<*const c_char> = layer_names.iter().map(|raw_name| raw_name.as_ptr()).collect();
 
-            let extension_names = vec![vk::EXT_DEBUG_UTILS_NAME.as_ptr()];
+            let extension_names = vec![
+                vk::EXT_DEBUG_UTILS_NAME.as_ptr(),
+                // vk::KHR_VIDEO_QUEUE_NAME.as_ptr(),
+                // vk::KHR_VIDEO_ENCODE_QUEUE_NAME.as_ptr(),
+                // vk::KHR_VIDEO_ENCODE_H264_NAME.as_ptr(),
+            ];
 
             let appinfo = vk::ApplicationInfo::default()
                 .application_name(CStr::from_bytes_with_nul_unchecked(b"VulkanTriangle\0"))
