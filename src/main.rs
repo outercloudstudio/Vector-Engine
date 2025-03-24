@@ -5,7 +5,7 @@ mod runtime;
 use std::{env, io::Write, thread, time::Instant};
 
 use cgmath::{vec2, vec4};
-use clips::ScriptClip;
+use clips::{ClipLoader, ScriptClip};
 use ffmpeg_sidecar::{
     command::FfmpegCommand,
     event::{FfmpegEvent, LogLevel},
@@ -25,27 +25,7 @@ fn main() {
 
     ffmpeg_sidecar::download::auto_download().unwrap();
 
-    let renderer = Renderer::new();
-
-    let rect = Rect {
-        position: vec2(0f32, 0f32),
-        origin: vec2(0.5f32, 0.5f32),
-        color: vec4(1f32, 1f32, 1f32, 1f32),
-        order: 0f32,
-        radius: 0f32,
-        rotation: 0f32,
-        size: vec2(300f32, 300f32),
-    };
-
-    let clip = ScriptClip::new(String::from("console.log()"), &renderer);
-
     let now = Instant::now();
-
-    let render_target = clip.render_elements(&vec![Elements::Rect(rect)], &renderer, 1920, 1080, renderer::renderer::RenderMode::Raw);
-
-    let bytes = render_target.to_raw(&renderer);
-
-    println!("Render to target at {}ms", now.elapsed().as_millis());
 
     let mut output = FfmpegCommand::new()
         .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "30"])
@@ -57,7 +37,31 @@ fn main() {
 
     let mut stdin = output.take_stdin().unwrap();
     thread::spawn(move || {
-        for _ in 0..60 {
+        let mut renderer = Renderer::new();
+        let mut clip = ScriptClip::new(
+            String::from(
+                "clip(function* () {
+	const rect = add(
+		new Rect({
+			size: new Vector2(400, 400),
+			color: new Vector4(0.5, 0.5, 0, 1),
+		})
+	)
+
+	yield* rect.color.to(new Vector4(0, 0.5, 0.5, 1), 1, linear)
+	yield* rect.color.to(new Vector4(0.5, 0, 0.5, 1), 1, linear)
+	yield* rect.color.to(new Vector4(0.5, 0.5, 0, 1), 1, linear)
+})",
+            ),
+            &renderer,
+        );
+        let mut clip_loader = &mut ClipLoader::new();
+
+        for i in 0..60 {
+            clip.set_frame(i);
+
+            let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
+
             stdin.write_all(&bytes).ok();
         }
     });
