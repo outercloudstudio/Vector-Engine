@@ -2,11 +2,21 @@ mod clips;
 mod renderer;
 mod runtime;
 
-use std::{env, fs::File, io::BufWriter};
+use std::{
+    env,
+    fs::File,
+    io::{BufWriter, Write},
+    thread,
+    time::Instant,
+};
 
 use ash::vk;
 use cgmath::{vec2, vec4};
 use clips::ScriptClip;
+use ffmpeg_sidecar::{
+    command::FfmpegCommand,
+    event::{FfmpegEvent, LogLevel},
+};
 use image::ImageEncoder;
 use log::info;
 
@@ -21,6 +31,8 @@ fn main() {
 
     pretty_env_logger::init();
 
+    ffmpeg_sidecar::download::auto_download().unwrap();
+
     let renderer = Renderer::new();
 
     let rect = Rect {
@@ -34,13 +46,35 @@ fn main() {
     };
 
     let clip = ScriptClip::new(String::from("console.log()"), &renderer);
+
+    let now = Instant::now();
+
     let render_target = clip.render_elements(&vec![Elements::Rect(rect)], &renderer, 1920, 1080, renderer::renderer::RenderMode::Raw);
 
     let bytes = render_target.to_raw(&renderer);
 
-    let file = File::create("./renders/render.png").unwrap();
-    let mut file_writer = BufWriter::new(file);
+    println!("Render to target at {}ms", now.elapsed().as_millis());
 
-    let encoder = image::codecs::png::PngEncoder::new(&mut file_writer);
-    encoder.write_image(&bytes, 1920, 1080, image::ColorType::Rgba8).unwrap();
+    let mut output = FfmpegCommand::new()
+        .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "30"])
+        .input("-")
+        .args(["-c:v", "libx265", "-pix_fmt", "yuva420p"])
+        .args(["-y", "renders/render.mp4"])
+        .spawn()
+        .unwrap();
+
+    let mut stdin = output.take_stdin().unwrap();
+    thread::spawn(move || {
+        for _ in 0..60 {
+            stdin.write_all(&bytes).ok();
+        }
+    });
+
+    output.iter().unwrap().for_each(|e| match e {
+        FfmpegEvent::Log(LogLevel::Error, e) => println!("Error: {}", e),
+        FfmpegEvent::Progress(p) => println!("Progress: {} / 00:00:15", p.time),
+        _ => {}
+    });
+
+    println!("Render fully at {}ms", now.elapsed().as_millis());
 }
