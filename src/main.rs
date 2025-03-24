@@ -2,27 +2,19 @@ mod clips;
 mod renderer;
 mod runtime;
 
-use std::{
-    env,
-    fs::File,
-    io::{BufWriter, Write},
-    thread,
-    time::Instant,
-};
+use std::{env, io::Write, thread, time::Instant};
 
-use ash::vk;
 use cgmath::{vec2, vec4};
 use clips::ScriptClip;
 use ffmpeg_sidecar::{
     command::FfmpegCommand,
     event::{FfmpegEvent, LogLevel},
 };
-use image::ImageEncoder;
 use log::info;
 
 use renderer::{
     elements::{Elements, Rect},
-    renderer::{RenderTarget, Renderer},
+    renderer::Renderer,
 };
 
 fn main() {
