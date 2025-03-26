@@ -23,7 +23,11 @@ fn main() {
 
     pretty_env_logger::init();
 
+    println!("Downloading...");
+
     ffmpeg_sidecar::download::auto_download().unwrap();
+
+    println!("Downloaded...");
 
     let now = Instant::now();
 
