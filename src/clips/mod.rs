@@ -12,17 +12,11 @@ use std::{
     sync::Arc,
 };
 
-use crate::renderer::{
-    elements::RectRenderContext,
-    renderer::{RenderTarget, Renderer},
-};
+use crate::renderer::renderer::{RenderTarget, Renderer};
+use crate::renderer::{elements::Elements, renderer::RenderMode};
 use crate::renderer::{
     elements::{ElementRenderContext, PatchRenderContext},
     utils::*,
-};
-use crate::renderer::{
-    elements::{Elements, RECT_DATA_SIZE, UV_VERTEX_SIZE},
-    renderer::RenderMode,
 };
 use crate::runtime::ScriptClipRuntime;
 

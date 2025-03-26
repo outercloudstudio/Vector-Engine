@@ -47,13 +47,12 @@ pub struct UvVertex {
     pub position: Vector2<f32>,
     pub uv: Vector2<f32>,
 }
-pub const UV_VERTEX_SIZE: u64 = 8 + 8;
 
 impl UvVertex {
     pub fn get_descriptor_set_layout_binding() -> vk::VertexInputBindingDescription {
         vk::VertexInputBindingDescription::default()
             .binding(0)
-            .stride(UV_VERTEX_SIZE as u32)
+            .stride(size_of::<UvVertex>() as u32)
             .input_rate(vk::VertexInputRate::VERTEX)
     }
 
@@ -163,12 +162,12 @@ impl RectRenderContext {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
         let (vertex_buffer, vertex_buffer_memory, vertex_buffer_size) = renderer.create_buffer(
-            UV_VERTEX_SIZE * 4,
+            size_of::<UvVertex>() as u64 * 4,
             vk::BufferUsageFlags::VERTEX_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
         let (uniform_buffer, uniform_buffer_memory, uniform_buffer_size) = renderer.create_buffer(
-            RECT_DATA_SIZE,
+            size_of::<RectData>() as u64,
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
@@ -223,12 +222,12 @@ pub struct Rect {
 #[allow(dead_code)]
 pub struct RectData {
     pub color: Vector4<f32>,
+    pub position: Vector2<f32>,
+    pub origin: Vector2<f32>,
     pub size: Vector2<f32>,
     pub radius: f32,
+    pub rotation: f32,
 }
-
-// pub const RECT_DATA_SIZE: u64 = 16 + 4 + 8;
-pub const RECT_DATA_SIZE: u64 = 64;
 
 impl RectData {
     pub fn get_descriptor_set_layout_bindings() -> Vec<vk::DescriptorSetLayoutBinding<'static>> {
@@ -241,6 +240,7 @@ impl RectData {
     }
 }
 
+// TODO: Look at push constants
 impl Rect {
     pub fn render(&self, renderer: &Renderer, element_render_context: &ElementRenderContext, patch_render_context: &PatchRenderContext, first: bool, last: bool) {
         let render_pass = renderer.create_render_pass(
@@ -311,11 +311,14 @@ impl Rect {
         );
 
         unsafe {
-            let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, RECT_DATA_SIZE);
+            let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, size_of::<RectData>() as u64);
             align.copy_from_slice(&[RectData {
                 color: self.color,
+                position: self.position,
+                origin: self.origin,
                 radius: self.radius,
                 size: self.size,
+                rotation: self.rotation,
             }]);
         }
 
@@ -338,7 +341,12 @@ impl Rect {
 
         let descriptor_pool = renderer.create_descriptor_pool(vec![vk::DescriptorPoolSize::default().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1)]);
 
-        let descriptor_sets = renderer.create_descriptor_uniform_sets(descriptor_set_layout, descriptor_pool, element_render_context.rect_render_context.uniform_buffer, RECT_DATA_SIZE);
+        let descriptor_sets = renderer.create_descriptor_uniform_sets(
+            descriptor_set_layout,
+            descriptor_pool,
+            element_render_context.rect_render_context.uniform_buffer,
+            size_of::<RectData>() as u64,
+        );
 
         let command_buffer = renderer.create_command_buffer(element_render_context.command_pool);
 
