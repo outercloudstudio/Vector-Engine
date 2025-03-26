@@ -172,6 +172,14 @@ impl RectRenderContext {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
 
+        let index_ptr = renderer.start_copy_data_to_buffer(index_buffer_size, index_buffer_memory);
+
+        unsafe {
+            copy_nonoverlapping(vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
+        }
+
+        renderer.end_copy_data_to_buffer(index_buffer_memory);
+
         return RectRenderContext {
             device,
             vertex_shader,
@@ -257,17 +265,6 @@ impl Rect {
         );
 
         let frame_buffer = renderer.create_framebuffer(&patch_render_context.render_target, render_pass, patch_render_context.width, patch_render_context.height);
-
-        let index_ptr = renderer.start_copy_data_to_buffer(
-            element_render_context.rect_render_context.index_buffer_size,
-            element_render_context.rect_render_context.index_buffer_memory,
-        );
-
-        unsafe {
-            copy_nonoverlapping(vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
-        }
-
-        renderer.end_copy_data_to_buffer(element_render_context.rect_render_context.index_buffer_memory);
 
         let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
