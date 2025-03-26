@@ -12,8 +12,14 @@ use std::{
     sync::Arc,
 };
 
-use crate::renderer::renderer::{RenderTarget, Renderer};
-use crate::renderer::utils::*;
+use crate::renderer::{
+    elements::RectRenderContext,
+    renderer::{RenderTarget, Renderer},
+};
+use crate::renderer::{
+    elements::{ElementRenderContext, PatchRenderContext},
+    utils::*,
+};
 use crate::renderer::{
     elements::{Elements, RECT_DATA_SIZE, UV_VERTEX_SIZE},
     renderer::RenderMode,
@@ -75,78 +81,34 @@ pub struct ScriptClip {
     script: String,
     internal_frame: u32,
 
-    device: Device,
-    graphics_queue: vk::Queue,
-    command_pool: vk::CommandPool,
-
-    rect_vertex_shader: ShaderModule,
-    rect_fragment_shader: ShaderModule,
-
-    rect_index_buffer: vk::Buffer,
-    rect_index_buffer_memory: vk::DeviceMemory,
-    rect_index_buffer_size: u64,
-    rect_vertex_buffer: vk::Buffer,
-    rect_vertex_buffer_memory: vk::DeviceMemory,
-    rect_vertex_buffer_size: u64,
-    rect_uniform_buffer: vk::Buffer,
-    rect_uniform_buffer_memory: vk::DeviceMemory,
-    rect_uniform_buffer_size: u64,
+    element_render_context: ElementRenderContext,
 }
 
 impl ScriptClip {
     pub fn new(script: String, renderer: &Renderer) -> ScriptClip {
-        let mut runtime = ScriptClipRuntime::new();
+        let runtime = Self::initialize_runtime(&script);
 
-        let initialized = runtime.initialize_clip(&script);
-
-        if initialized.is_ok() {
-            runtime.advance();
-        }
-
-        let graphics_queue = renderer.create_graphics_queue();
-        let command_pool = renderer.create_command_pool();
-
-        let rect_vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.vert.spv").to_vec());
-        let rect_fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/rect.frag.spv").to_vec());
-
-        let (rect_index_buffer, rect_index_buffer_memory, rect_index_buffer_size) = renderer.create_buffer(
-            4 * 6,
-            vk::BufferUsageFlags::INDEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (rect_vertex_buffer, rect_vertex_buffer_memory, rect_vertex_buffer_size) = renderer.create_buffer(
-            UV_VERTEX_SIZE * 4,
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let (rect_uniform_buffer, rect_uniform_buffer_memory, rect_uniform_buffer_size) = renderer.create_buffer(
-            RECT_DATA_SIZE,
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
+        let element_render_context = ElementRenderContext::new(renderer);
 
         ScriptClip {
             runtime,
             script,
             internal_frame: 0,
 
-            graphics_queue,
-            command_pool,
-            device: renderer.device.clone(),
-
-            rect_vertex_shader,
-            rect_fragment_shader,
-
-            rect_index_buffer,
-            rect_index_buffer_memory,
-            rect_index_buffer_size,
-            rect_vertex_buffer,
-            rect_vertex_buffer_memory,
-            rect_vertex_buffer_size,
-            rect_uniform_buffer,
-            rect_uniform_buffer_memory,
-            rect_uniform_buffer_size,
+            element_render_context,
         }
+    }
+
+    fn initialize_runtime(script: &String) -> ScriptClipRuntime {
+        let mut runtime = ScriptClipRuntime::new();
+
+        let initialized = runtime.initialize_clip(script);
+
+        if initialized.is_ok() {
+            runtime.advance();
+        }
+
+        return runtime;
     }
 
     pub fn set_frame(&mut self, frame: u32) {
@@ -172,148 +134,28 @@ impl ScriptClip {
     }
 
     pub fn render(&self, renderer: &Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32, mode: RenderMode) -> RenderTarget {
+        let patch_render_context = PatchRenderContext::new(renderer, width, height, mode);
+
         let elements = self.runtime.get_elements();
 
         let mut ordered_elements = elements.clone();
         ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
 
-        let render_target = RenderTarget::new(width, height, renderer, mode);
-
-        let mut render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
-
-        let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
-
-        let viewport = renderer.create_viewport(width, height);
-        let scissor = renderer.create_scissor(width, height);
-
         for element_index in 0..ordered_elements.len() {
-            if element_index == elements.len() - 1 {
-                render_pass = renderer.create_render_pass(
-                    if element_index == 0 {
-                        vk::ImageLayout::UNDEFINED
-                    } else {
-                        vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
-                    },
-                    if let RenderMode::Raw = mode {
-                        vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-                    } else {
-                        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-                    },
-                )
-            }
-
             let element = &ordered_elements[element_index];
 
             match element {
                 Elements::Rect(rect) => rect.render(
                     renderer,
-                    self.graphics_queue,
-                    render_pass,
-                    self.command_pool,
-                    frame_buffer,
-                    self.rect_vertex_shader,
-                    self.rect_fragment_shader,
-                    self.rect_index_buffer,
-                    self.rect_index_buffer_memory,
-                    self.rect_index_buffer_size,
-                    self.rect_vertex_buffer,
-                    self.rect_vertex_buffer_memory,
-                    self.rect_vertex_buffer_size,
-                    self.rect_uniform_buffer,
-                    self.rect_uniform_buffer_memory,
-                    self.rect_uniform_buffer_size,
-                    viewport,
-                    scissor,
-                    width,
-                    height,
-                    mode,
+                    &self.element_render_context,
+                    &patch_render_context,
+                    element_index == 0,
+                    element_index == ordered_elements.len() - 1,
                 ),
             }
-
-            if element_index == 0 {
-                render_pass = renderer.create_render_pass(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            }
         }
 
-        unsafe {
-            renderer.device.destroy_framebuffer(frame_buffer, None);
-
-            self.device.destroy_render_pass(render_pass, None);
-        }
-
-        return render_target;
-    }
-
-    pub fn render_elements(&self, elements: &Vec<Elements>, renderer: &Renderer, width: u32, height: u32, mode: RenderMode) -> RenderTarget {
-        let mut ordered_elements = elements.clone();
-        ordered_elements.sort_by(|a, b| a.get_order().partial_cmp(&b.get_order()).unwrap());
-
-        let render_target = RenderTarget::new(width, height, renderer, mode);
-
-        let mut render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
-
-        let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
-
-        let viewport = renderer.create_viewport(width, height);
-        let scissor = renderer.create_scissor(width, height);
-
-        for element_index in 0..ordered_elements.len() {
-            if element_index == elements.len() - 1 {
-                render_pass = renderer.create_render_pass(
-                    if element_index == 0 {
-                        vk::ImageLayout::UNDEFINED
-                    } else {
-                        vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
-                    },
-                    if let RenderMode::Raw = mode {
-                        vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-                    } else {
-                        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-                    },
-                )
-            }
-
-            let element = &ordered_elements[element_index];
-
-            match element {
-                Elements::Rect(rect) => rect.render(
-                    renderer,
-                    self.graphics_queue,
-                    render_pass,
-                    self.command_pool,
-                    frame_buffer,
-                    self.rect_vertex_shader,
-                    self.rect_fragment_shader,
-                    self.rect_index_buffer,
-                    self.rect_index_buffer_memory,
-                    self.rect_index_buffer_size,
-                    self.rect_vertex_buffer,
-                    self.rect_vertex_buffer_memory,
-                    self.rect_vertex_buffer_size,
-                    self.rect_uniform_buffer,
-                    self.rect_uniform_buffer_memory,
-                    self.rect_uniform_buffer_size,
-                    viewport,
-                    scissor,
-                    width,
-                    height,
-                    mode,
-                ),
-                _ => {}
-            }
-
-            if element_index == 0 {
-                render_pass = renderer.create_render_pass(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            }
-        }
-
-        unsafe {
-            renderer.device.destroy_framebuffer(frame_buffer, None);
-
-            self.device.destroy_render_pass(render_pass, None);
-        }
-
-        return render_target;
+        return patch_render_context.complete();
     }
 
     pub fn render_to_raw(&self, renderer: &mut Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32) -> Vec<u8> {
@@ -322,26 +164,6 @@ impl ScriptClip {
         let bytes = render_target.to_raw(&renderer);
 
         return bytes;
-    }
-}
-
-impl Drop for ScriptClip {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.destroy_shader_module(self.rect_vertex_shader, None);
-            self.device.destroy_shader_module(self.rect_fragment_shader, None);
-
-            self.device.destroy_buffer(self.rect_index_buffer, None);
-            self.device.free_memory(self.rect_index_buffer_memory, None);
-
-            self.device.destroy_buffer(self.rect_vertex_buffer, None);
-            self.device.free_memory(self.rect_vertex_buffer_memory, None);
-
-            self.device.destroy_buffer(self.rect_uniform_buffer, None);
-            self.device.free_memory(self.rect_uniform_buffer_memory, None);
-
-            self.device.destroy_command_pool(self.command_pool, None);
-        }
     }
 }
 

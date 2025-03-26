@@ -23,11 +23,7 @@ fn main() {
 
     pretty_env_logger::init();
 
-    println!("Downloading...");
-
     ffmpeg_sidecar::download::auto_download().unwrap();
-
-    println!("Downloaded...");
 
     let now = Instant::now();
 
@@ -61,13 +57,21 @@ fn main() {
         );
         let mut clip_loader = &mut ClipLoader::new();
 
+        let mut total_frame_time = 0;
+        let mut total_frames = 0;
+
         for i in 0..60 {
             clip.set_frame(i);
 
+            let frame_now = Instant::now();
             let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
+            total_frame_time += frame_now.elapsed().as_millis();
+            total_frames += 1;
 
             stdin.write_all(&bytes).ok();
         }
+
+        info!("Average frame time {}ms", total_frame_time / total_frames)
     });
 
     output.iter().unwrap().for_each(|e| match e {
