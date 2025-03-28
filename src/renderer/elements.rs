@@ -205,6 +205,25 @@ impl RectRenderContext {
 
         renderer.end_copy_data_to_buffer(index_buffer_memory);
 
+        let vertex_positions: Vec<Vector2<f32>> = vec![vec2(0_f32, 0_f32), vec2(0_f32, 1_f32), vec2(1_f32, 1_f32), vec2(1_f32, 0_f32)];
+
+        let mut vertices: Vec<UvVertex> = Vec::new();
+
+        for index in 0..vertex_positions.len() {
+            vertices.push(UvVertex {
+                position: vertex_positions[index],
+                uv: UVS[index],
+            });
+        }
+
+        let vertex_ptr = renderer.start_copy_data_to_buffer(vertex_buffer_size, vertex_buffer_memory);
+
+        unsafe {
+            copy_nonoverlapping(vertices.as_ptr(), vertex_ptr.cast(), vertices.len());
+        }
+
+        renderer.end_copy_data_to_buffer(vertex_buffer_memory);
+
         return RectRenderContext {
             device,
             vertex_shader,
@@ -276,33 +295,6 @@ impl RectData {
 // TODO: Look at push constants
 impl Rect {
     pub fn render(&self, renderer: &Renderer, element_render_context: &ElementRenderContext, patch_render_context: &PatchRenderContext) {
-        let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
-
-        let offsetted_x = self.position.x - self.origin.x * self.size.x;
-        let offsetted_y = self.position.y - self.origin.y * self.size.y;
-
-        let vertex_positions: Vec<Vector2<f32>> = vec![vec2(0_f32, 0_f32), vec2(0_f32, 1_f32), vec2(1_f32, 1_f32), vec2(1_f32, 0_f32)];
-
-        let mut vertices: Vec<UvVertex> = Vec::new();
-
-        for index in 0..vertex_positions.len() {
-            vertices.push(UvVertex {
-                position: vertex_positions[index],
-                uv: UVS[index],
-            });
-        }
-
-        let vertex_ptr = renderer.start_copy_data_to_buffer(
-            element_render_context.rect_render_context.vertex_buffer_size,
-            element_render_context.rect_render_context.vertex_buffer_memory,
-        );
-
-        unsafe {
-            copy_nonoverlapping(vertices.as_ptr(), vertex_ptr.cast(), vertices.len());
-        }
-
-        renderer.end_copy_data_to_buffer(element_render_context.rect_render_context.vertex_buffer_memory);
-
         let uniform_ptr = renderer.start_copy_data_to_buffer(
             element_render_context.rect_render_context.uniform_buffer_size,
             element_render_context.rect_render_context.uniform_buffer_memory,
