@@ -5,7 +5,7 @@ mod runtime;
 use std::{env, io::Write, thread, time::Instant};
 
 use cgmath::{vec2, vec4};
-use clips::{ClipLoader, ScriptClip};
+use clips::{ClipLoader, Clips, ScriptClip};
 use ffmpeg_sidecar::{
     command::FfmpegCommand,
     event::{FfmpegEvent, LogLevel},
@@ -38,54 +38,28 @@ fn main() {
     let mut stdin = output.take_stdin().unwrap();
     thread::spawn(move || {
         let mut renderer = Renderer::new();
-        let mut clip = ScriptClip::new(
-            String::from(
-                "clip(function* () {
-	const rect = add(
-		new Rect({
-			size: new Vector2(400, 400),
-			color: new Vector4(0.5, 0.5, 0, 1),
-            rotation: Math.PI / 4,
-		})
-	)
 
-    // const rect2 = add(
-	// 	new Rect({
-    //         position: new Vector2(200, 200),
-	// 		size: new Vector2(300, 300),
-	// 		color: new Vector4(0.5, 0.5, 1, 0.5),
-	// 	})
-	// )
-
-    // const rect3 = add(
-	// 	new Rect({
-    //         position: new Vector2(300, 0),
-	// 		size: new Vector2(300, 300),
-	// 		color: new Vector4(1, 0, 0, 0.5),
-	// 	})
-	// )
-
-	yield* rect.color.to(new Vector4(0, 0.5, 0.5, 1), 1, linear)
-	yield* rect.color.to(new Vector4(0.5, 0, 0.5, 1), 1, linear)
-	yield* rect.color.to(new Vector4(0.5, 0.5, 0, 1), 1, linear)
-})",
-            ),
-            &renderer,
-        );
-        let mut clip_loader = &mut ClipLoader::new();
+        let mut clip_loader = ClipLoader::new();
+        let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
+        let mut clip = &mut *clip.borrow_mut();
 
         let mut total_frame_time = 0;
         let mut total_frames = 0;
 
         for i in 0..60 {
-            clip.set_frame(i);
+            match &mut clip {
+                Clips::ScriptClip(ref mut clip) => {
+                    clip.set_frame(i);
 
-            let frame_now = Instant::now();
-            let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
-            total_frame_time += frame_now.elapsed().as_millis();
-            total_frames += 1;
+                    let frame_now = Instant::now();
+                    let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
+                    total_frame_time += frame_now.elapsed().as_millis();
+                    total_frames += 1;
 
-            stdin.write_all(&bytes).ok();
+                    stdin.write_all(&bytes).ok();
+                }
+                _ => {}
+            }
         }
 
         info!("Average frame time {}ms", total_frame_time / total_frames)
