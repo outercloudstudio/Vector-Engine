@@ -99,12 +99,19 @@ impl Drop for ElementRenderContext {
 
 pub struct PatchRenderContext {
     device: Device,
+
     viewport: vk::Viewport,
     scissor: vk::Rect2D,
+
     render_target: RenderTarget,
+
     width: u32,
     height: u32,
+
     mode: RenderMode,
+
+    render_pass: RenderPass,
+    frame_buffer: Framebuffer,
 }
 
 impl PatchRenderContext {
@@ -114,6 +121,17 @@ impl PatchRenderContext {
 
         let render_target = RenderTarget::new(width, height, renderer, mode);
 
+        let render_pass = renderer.create_render_pass(
+            vk::ImageLayout::UNDEFINED,
+            if let RenderMode::Raw = mode {
+                vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+            } else {
+                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+            },
+        );
+
+        let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
+
         PatchRenderContext {
             device: renderer.device.clone(),
             viewport,
@@ -122,10 +140,17 @@ impl PatchRenderContext {
             width,
             height,
             mode,
+            render_pass,
+            frame_buffer,
         }
     }
 
     pub fn complete(self: PatchRenderContext) -> RenderTarget {
+        unsafe {
+            self.device.destroy_render_pass(self.render_pass, None);
+            self.device.destroy_framebuffer(self.frame_buffer, None);
+        }
+
         return self.render_target;
     }
 }
@@ -216,47 +241,6 @@ impl Drop for RectRenderContext {
 }
 
 #[derive(Clone)]
-#[allow(dead_code)]
-pub struct PassRenderContext {
-    device: Device,
-
-    render_pass: RenderPass,
-    frame_buffer: Framebuffer,
-}
-
-impl PassRenderContext {
-    pub fn new(renderer: &Renderer, patch_render_context: &PatchRenderContext, first: bool, last: bool) -> PassRenderContext {
-        let device = renderer.device.clone();
-
-        let render_pass = renderer.create_render_pass(
-            if first { vk::ImageLayout::UNDEFINED } else { vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL },
-            if last {
-                if let RenderMode::Raw = patch_render_context.mode {
-                    vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-                } else {
-                    vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-                }
-            } else {
-                vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
-            },
-        );
-
-        let frame_buffer = renderer.create_framebuffer(&patch_render_context.render_target, render_pass, patch_render_context.width, patch_render_context.height);
-
-        return PassRenderContext { device, render_pass, frame_buffer };
-    }
-}
-
-impl Drop for PassRenderContext {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.destroy_render_pass(self.render_pass, None);
-            self.device.destroy_framebuffer(self.frame_buffer, None);
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct Rect {
     pub position: Vector2<f32>,
     pub origin: Vector2<f32>,
@@ -291,7 +275,7 @@ impl RectData {
 
 // TODO: Look at push constants
 impl Rect {
-    pub fn render(&self, renderer: &Renderer, element_render_context: &ElementRenderContext, patch_render_context: &PatchRenderContext, pass_render_context: &PassRenderContext) {
+    pub fn render(&self, renderer: &Renderer, element_render_context: &ElementRenderContext, patch_render_context: &PatchRenderContext) {
         let normalize_scale = vec2(1920.0 / 2.0, 1080.0 / 2.0);
 
         let offsetted_x = self.position.x - self.origin.x * self.size.x;
@@ -356,7 +340,7 @@ impl Rect {
             element_render_context.rect_render_context.fragment_shader,
             patch_render_context.viewport,
             patch_render_context.scissor,
-            pass_render_context.render_pass,
+            patch_render_context.render_pass,
             descriptor_set_layout,
             descriptor_set_layout_bindings,
             &attribute_descriptions,
@@ -374,8 +358,8 @@ impl Rect {
         let command_buffer = renderer.create_command_buffer(element_render_context.command_pool);
 
         renderer.begin_render_pass(
-            pass_render_context.render_pass,
-            pass_render_context.frame_buffer,
+            patch_render_context.render_pass,
+            patch_render_context.frame_buffer,
             command_buffer,
             graphics_pipeline,
             patch_render_context.viewport,

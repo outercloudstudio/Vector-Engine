@@ -12,11 +12,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::renderer::renderer::{RenderTarget, Renderer};
 use crate::renderer::{elements::Elements, renderer::RenderMode};
-use crate::renderer::{
-    elements::PassRenderContext,
-    renderer::{RenderTarget, Renderer},
-};
 use crate::renderer::{
     elements::{ElementRenderContext, PatchRenderContext},
     utils::*,
@@ -141,10 +138,8 @@ impl ScriptClip {
         for element_index in 0..ordered_elements.len() {
             let element = &ordered_elements[element_index];
 
-            let pass_render_context = PassRenderContext::new(renderer, &patch_render_context, element_index == 0, element_index == ordered_elements.len() - 1);
-
             match element {
-                Elements::Rect(rect) => rect.render(renderer, &self.element_render_context, &patch_render_context, &pass_render_context),
+                Elements::Rect(rect) => rect.render(renderer, &self.element_render_context, &patch_render_context),
             }
         }
 
