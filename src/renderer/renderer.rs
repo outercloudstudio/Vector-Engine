@@ -362,7 +362,11 @@ impl Renderer {
             self.device.cmd_end_render_pass(command_buffer);
 
             self.device.end_command_buffer(command_buffer).expect("End commandbuffer");
+        }
+    }
 
+    pub fn execute_render_pass(&self, command_buffer: vk::CommandBuffer, graphics_queue: vk::Queue) {
+        unsafe {
             let command_buffers = vec![command_buffer];
 
             let mut submit_info = vk::SubmitInfo::default()

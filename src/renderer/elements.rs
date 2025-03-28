@@ -365,6 +365,7 @@ impl Rect {
         }
 
         renderer.end_render_pass(command_buffer, element_render_context.graphics_queue);
+        renderer.execute_render_pass(command_buffer, element_render_context.graphics_queue);
 
         unsafe {
             renderer.device.destroy_descriptor_pool(descriptor_pool, None);
