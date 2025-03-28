@@ -268,7 +268,7 @@ impl RectData {
             .binding(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::FRAGMENT);
+            .stage_flags(vk::ShaderStageFlags::ALL_GRAPHICS);
         vec![layout_binding]
     }
 }
@@ -281,16 +281,7 @@ impl Rect {
         let offsetted_x = self.position.x - self.origin.x * self.size.x;
         let offsetted_y = self.position.y - self.origin.y * self.size.y;
 
-        let mut vertex_positions: Vec<Vector2<f32>> = vec![
-            vec2(offsetted_x, offsetted_y),
-            vec2(offsetted_x, offsetted_y + self.size.y),
-            vec2(offsetted_x + self.size.x, offsetted_y + self.size.y),
-            vec2(offsetted_x + self.size.x, offsetted_y),
-        ];
-
-        for vertex_position_index in 0..vertex_positions.len() {
-            vertex_positions[vertex_position_index] = flip_vertically(divide(rotate(vertex_positions[vertex_position_index], self.position, self.rotation), normalize_scale));
-        }
+        let vertex_positions: Vec<Vector2<f32>> = vec![vec2(0_f32, 0_f32), vec2(0_f32, 1_f32), vec2(1_f32, 1_f32), vec2(1_f32, 0_f32)];
 
         let mut vertices: Vec<UvVertex> = Vec::new();
 

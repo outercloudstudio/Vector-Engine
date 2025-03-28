@@ -45,24 +45,25 @@ fn main() {
 		new Rect({
 			size: new Vector2(400, 400),
 			color: new Vector4(0.5, 0.5, 0, 1),
+            rotation: Math.PI / 4,
 		})
 	)
 
-    const rect2 = add(
-		new Rect({
-            position: new Vector2(200, 200),
-			size: new Vector2(300, 300),
-			color: new Vector4(0.5, 0.5, 1, 0.5),
-		})
-	)
+    // const rect2 = add(
+	// 	new Rect({
+    //         position: new Vector2(200, 200),
+	// 		size: new Vector2(300, 300),
+	// 		color: new Vector4(0.5, 0.5, 1, 0.5),
+	// 	})
+	// )
 
-    const rect3 = add(
-		new Rect({
-            position: new Vector2(300, 0),
-			size: new Vector2(300, 300),
-			color: new Vector4(1, 0, 0, 0.5),
-		})
-	)
+    // const rect3 = add(
+	// 	new Rect({
+    //         position: new Vector2(300, 0),
+	// 		size: new Vector2(300, 300),
+	// 		color: new Vector4(1, 0, 0, 0.5),
+	// 	})
+	// )
 
 	yield* rect.color.to(new Vector4(0, 0.5, 0.5, 1), 1, linear)
 	yield* rect.color.to(new Vector4(0.5, 0, 0.5, 1), 1, linear)
