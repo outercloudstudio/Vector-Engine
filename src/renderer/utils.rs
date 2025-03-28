@@ -37,8 +37,15 @@ fn end_single_time_commands(device: &Device, command_buffer: vk::CommandBuffer, 
         let command_buffers = &[command_buffer];
         let info = vk::SubmitInfo::default().command_buffers(command_buffers);
 
-        device.queue_submit(graphics_queue, &[info], vk::Fence::null()).unwrap();
-        device.queue_wait_idle(graphics_queue).unwrap();
+        let fence_create_info = vk::FenceCreateInfo::default();
+
+        let fence = device.create_fence(&fence_create_info, None).unwrap();
+
+        device.queue_submit(graphics_queue, &[info], fence).unwrap();
+
+        device.wait_for_fences(&[fence], true, u64::MAX).unwrap();
+
+        device.destroy_fence(fence, None);
 
         device.free_command_buffers(command_pool, &[command_buffer]);
     }

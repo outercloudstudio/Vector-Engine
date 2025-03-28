@@ -3,6 +3,7 @@ use ash::{
     Device,
 };
 use image::ImageDecoder;
+use log::info;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -10,6 +11,7 @@ use std::{
     ptr::copy_nonoverlapping,
     rc::Rc,
     sync::Arc,
+    time::Instant,
 };
 
 use crate::renderer::renderer::{RenderTarget, Renderer};
@@ -147,9 +149,17 @@ impl ScriptClip {
     }
 
     pub fn render_to_raw(&self, renderer: &mut Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32) -> Vec<u8> {
+        let now = Instant::now();
+
         let render_target = self.render(renderer, clip_loader, width, height, RenderMode::Raw);
 
+        info!("Render clip in {}ms", now.elapsed().as_millis());
+
+        let now = Instant::now();
+
         let bytes = render_target.to_raw(&renderer);
+
+        info!("To bytes in {}ms", now.elapsed().as_millis());
 
         return bytes;
     }

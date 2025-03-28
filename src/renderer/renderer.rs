@@ -370,9 +370,13 @@ impl Renderer {
                 .command_buffers(&command_buffers);
             submit_info.wait_semaphore_count = 0;
 
-            self.device.queue_submit(graphics_queue, &[submit_info], vk::Fence::null()).expect("queue submit failed.");
+            let fence = self.create_fence();
 
-            self.device.queue_wait_idle(graphics_queue).unwrap();
+            self.device.queue_submit(graphics_queue, &[submit_info], fence).expect("queue submit failed.");
+
+            self.device.wait_for_fences(&[fence], true, u64::MAX).unwrap();
+
+            self.device.destroy_fence(fence, None);
         }
     }
 
@@ -508,6 +512,14 @@ impl Renderer {
                 .queue_family_index(self.queue_family_index);
 
             self.device.create_command_pool(&pool_create_info, None).unwrap()
+        }
+    }
+
+    pub fn create_fence(&self) -> vk::Fence {
+        unsafe {
+            let fence_create_info = vk::FenceCreateInfo::default();
+
+            self.device.create_fence(&fence_create_info, None).unwrap()
         }
     }
 }
@@ -667,8 +679,11 @@ impl RenderTarget {
             let command_buffers = &[command_buffer];
             let info = vk::SubmitInfo::default().command_buffers(command_buffers);
 
-            renderer.device.queue_submit(self.graphics_queue, &[info], vk::Fence::null()).unwrap();
-            renderer.device.queue_wait_idle(self.graphics_queue).unwrap();
+            let fence = renderer.create_fence();
+
+            renderer.device.queue_submit(self.graphics_queue, &[info], fence).unwrap();
+
+            renderer.device.wait_for_fences(&[fence], true, u64::MAX).unwrap();
 
             renderer.device.free_command_buffers(self.command_pool, &[command_buffer]);
 
@@ -677,6 +692,8 @@ impl RenderTarget {
             let mut pixels = vec![0; size as usize];
 
             copy_nonoverlapping(memory.cast(), pixels.as_mut_ptr(), size as usize);
+
+            renderer.device.destroy_fence(fence, None);
 
             renderer.device.unmap_memory(save_buffer_memory);
 
