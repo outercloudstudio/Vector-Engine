@@ -14,8 +14,8 @@ use std::{
     time::Instant,
 };
 
+use crate::renderer::elements::Elements;
 use crate::renderer::renderer::{RenderTarget, Renderer};
-use crate::renderer::{elements::Elements, renderer::RenderMode};
 use crate::renderer::{
     elements::{ElementRenderContext, PatchRenderContext},
     utils::*,
@@ -129,8 +129,8 @@ impl ScriptClip {
         self.internal_frame = frame;
     }
 
-    pub fn render(&self, renderer: &Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32, mode: RenderMode) -> RenderTarget {
-        let patch_render_context = PatchRenderContext::new(renderer, width, height, mode);
+    pub fn render(&self, renderer: &Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32) -> RenderTarget {
+        let patch_render_context = PatchRenderContext::new(renderer, width, height);
 
         let elements = self.runtime.get_elements();
 
@@ -149,7 +149,7 @@ impl ScriptClip {
     }
 
     pub fn render_to_raw(&self, renderer: &mut Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32) -> Vec<u8> {
-        let render_target = self.render(renderer, clip_loader, width, height, RenderMode::Raw);
+        let render_target = self.render(renderer, clip_loader, width, height);
 
         let bytes = render_target.to_raw(&renderer);
 
@@ -170,7 +170,7 @@ impl ImageClip {
         let graphics_queue = renderer.create_graphics_queue();
         let command_pool = renderer.create_command_pool();
 
-        let render_target = RenderTarget::new(width, height, renderer, RenderMode::Sample);
+        let render_target = RenderTarget::new(width, height, renderer);
 
         let (staging_buffer, staging_buffer_memory, staging_buffer_size) = renderer.create_buffer(
             bytes.len() as u64,

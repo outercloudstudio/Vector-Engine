@@ -751,12 +751,6 @@ impl Renderer {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum RenderMode {
-    Raw,
-    Sample,
-}
-
 #[derive(Clone)]
 pub struct RenderTarget {
     pub image: vk::Image,
@@ -773,7 +767,7 @@ pub struct RenderTarget {
 }
 
 impl RenderTarget {
-    pub fn new(width: u32, height: u32, renderer: &Renderer, mode: RenderMode) -> RenderTarget {
+    pub fn new(width: u32, height: u32, renderer: &Renderer) -> RenderTarget {
         unsafe {
             let target_image_create_info = vk::ImageCreateInfo::default()
                 .image_type(vk::ImageType::TYPE_2D)
@@ -783,11 +777,7 @@ impl RenderTarget {
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .tiling(vk::ImageTiling::OPTIMAL)
-                .usage(if let RenderMode::Sample = mode {
-                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST
-                } else {
-                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC
-                })
+                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
             let target_image = renderer.device.create_image(&target_image_create_info, None).unwrap();

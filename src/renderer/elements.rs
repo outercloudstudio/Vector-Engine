@@ -2,11 +2,10 @@ use ash::vk::{Framebuffer, RenderPass, ShaderModule};
 use ash::{vk, Device};
 use cgmath::{vec2, Vector2, Vector4};
 use log::info;
-use std::collections::HashMap;
 use std::mem::align_of;
 use std::ptr::copy_nonoverlapping;
 
-use super::renderer::{RenderMode, RenderTarget};
+use super::renderer::RenderTarget;
 use crate::clips::{ClipLoader, Clips};
 use crate::renderer::renderer::Renderer;
 
@@ -108,27 +107,18 @@ pub struct PatchRenderContext {
     width: u32,
     height: u32,
 
-    mode: RenderMode,
-
     render_pass: RenderPass,
     frame_buffer: Framebuffer,
 }
 
 impl PatchRenderContext {
-    pub fn new(renderer: &Renderer, width: u32, height: u32, mode: RenderMode) -> PatchRenderContext {
+    pub fn new(renderer: &Renderer, width: u32, height: u32) -> PatchRenderContext {
         let viewport = renderer.create_viewport(width, height);
         let scissor = renderer.create_scissor(width, height);
 
-        let render_target = RenderTarget::new(width, height, renderer, mode);
+        let render_target = RenderTarget::new(width, height, renderer);
 
-        let render_pass = renderer.create_render_pass(
-            vk::ImageLayout::UNDEFINED,
-            if let RenderMode::Raw = mode {
-                vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-            } else {
-                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-            },
-        );
+        let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
 
         let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
 
@@ -139,7 +129,6 @@ impl PatchRenderContext {
             render_target,
             width,
             height,
-            mode,
             render_pass,
             frame_buffer,
         }
