@@ -6,7 +6,7 @@ use std::{borrow::Cow, default::Default};
 use ash::ext::debug_utils;
 use ash::khr::{surface, swapchain};
 use ash::util::read_spv;
-use ash::vk::{Image, ImageView, ShaderModule, SurfaceFormatKHR, SurfaceKHR, SwapchainKHR};
+use ash::vk::{Framebuffer, Image, ImageView, ShaderModule, SurfaceFormatKHR, SurfaceKHR, SwapchainKHR};
 use ash::{vk, Device, Entry, Instance};
 use log::info;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
@@ -39,17 +39,26 @@ pub struct SurfaceData {
     swapchain_loader: swapchain::Device,
     present_images: Vec<Image>,
     present_image_views: Vec<ImageView>,
+    frame_buffers: Vec<Framebuffer>,
 }
 
 impl Renderer {
     pub fn new() -> Renderer {
+        return Renderer::create(Some(vec![]));
+    }
+
+    pub fn create(additional_extension_names: Option<Vec<*const i8>>) -> Renderer {
         unsafe {
             let entry = Entry::linked();
 
             let layer_names = [CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0")];
             let layers_names_raw: Vec<*const c_char> = layer_names.iter().map(|raw_name| raw_name.as_ptr()).collect();
 
-            let extension_names = vec![vk::EXT_DEBUG_UTILS_NAME.as_ptr()];
+            let mut extension_names = vec![vk::EXT_DEBUG_UTILS_NAME.as_ptr()];
+
+            if let Some(additional_extension_names) = additional_extension_names {
+                extension_names.extend(additional_extension_names)
+            }
 
             let appinfo = vk::ApplicationInfo::default()
                 .application_name(CStr::from_bytes_with_nul_unchecked(b"VulkanTriangle\0"))
@@ -687,6 +696,21 @@ impl Renderer {
                         })
                         .image(image);
                     device.create_image_view(&create_view_info, None).unwrap()
+                })
+                .collect();
+
+            let framebuffers: Vec<vk::Framebuffer> = present_image_views
+                .iter()
+                .map(|&present_image_view| {
+                    let framebuffer_attachments = [present_image_view];
+                    let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
+                        .render_pass(renderpass)
+                        .attachments(&framebuffer_attachments)
+                        .width(base.surface_resolution.width)
+                        .height(base.surface_resolution.height)
+                        .layers(1);
+
+                    base.device.create_framebuffer(&frame_buffer_create_info, None).unwrap()
                 })
                 .collect();
 
