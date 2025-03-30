@@ -192,6 +192,8 @@ impl Editor {
             let clip = self.clip_loader.get(&String::from("project.ts"), &self.renderer).unwrap();
             let mut clip = &mut *clip.borrow_mut();
 
+            info!("Ellapsed {}ms", self.start.elapsed().as_millis());
+
             match clip {
                 Clips::ScriptClip(script_clip) => {
                     script_clip.set_frame((self.start.elapsed().as_millis() as f64 / 1000_f64 * 60_f64) as u32 % 180);

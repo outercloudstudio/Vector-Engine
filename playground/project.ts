@@ -65,6 +65,8 @@ clip(function* () {
 		new Rect({
 			size: new Vector2(400, 400),
 			color: new Vector4(0.5, 0.5, 0, 1),
+			position: new Vector2(100, 100),
+			rotation: 1,
 		})
 	)
 

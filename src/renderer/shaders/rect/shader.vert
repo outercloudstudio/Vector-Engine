@@ -16,8 +16,9 @@ layout(location = 1) out vec2 outUv;
 
 void main() {
     vec2 pixel_position = vertex_position * size - origin * size;
-    vec2 offset = pixel_position - position;
+    vec2 offset = pixel_position;
     vec2 rotated_position = position + vec2(offset.x * cos(rotation) - offset.y * sin(rotation), offset.y * cos(rotation) + offset.x * sin(rotation));
+    // vec2 rotated_position = position + pixel_position;
     vec2 scaled_position = rotated_position / vec2(1920.0 / 2.0, 1080.0 / 2.0);
     vec2 flipped_position = vec2(scaled_position.x, -scaled_position.y);
 
