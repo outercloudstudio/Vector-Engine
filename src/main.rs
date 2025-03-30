@@ -2,7 +2,14 @@ mod clips;
 mod renderer;
 mod runtime;
 
-use std::{env, io::Write, path::Path, sync::mpsc::channel, thread, time::Instant};
+use std::{
+    env,
+    io::Write,
+    path::Path,
+    sync::mpsc::channel,
+    thread,
+    time::{Duration, Instant},
+};
 
 use ash::{khr::swapchain, vk};
 use cgmath::{vec2, vec4};
@@ -37,7 +44,7 @@ struct Editor {
 
     present_queue: vk::Queue,
 
-    render_finished_semaphore: vk::Semaphore,
+    present_finished_semaphore: vk::Semaphore,
 
     render_pass: vk::RenderPass,
     frame_buffers: Vec<vk::Framebuffer>,
@@ -106,6 +113,7 @@ impl Editor {
 
             let present_queue = renderer.create_graphics_queue();
 
+            let present_finished_semaphore = renderer.create_semaphore();
             let render_finished_semaphore = renderer.create_semaphore();
 
             let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
@@ -157,7 +165,7 @@ impl Editor {
                 swapchain,
                 swapchain_loader,
                 present_queue,
-                render_finished_semaphore,
+                present_finished_semaphore,
                 render_pass,
                 frame_buffers,
                 clip_loader,
@@ -168,7 +176,10 @@ impl Editor {
 
     pub fn render(&mut self, window: &Window) {
         unsafe {
-            let (present_index, _) = self.swapchain_loader.acquire_next_image(self.swapchain, u64::MAX, vk::Semaphore::null(), vk::Fence::null()).unwrap();
+            let (present_index, _) = self
+                .swapchain_loader
+                .acquire_next_image(self.swapchain, u64::MAX, self.present_finished_semaphore, vk::Fence::null())
+                .unwrap();
 
             let render_target = RenderTarget::from(
                 &self.renderer,
@@ -189,7 +200,7 @@ impl Editor {
                 _ => {}
             }
 
-            let wait_semaphors = [self.render_finished_semaphore];
+            let wait_semaphors = [self.present_finished_semaphore];
             let swapchains = [self.swapchain];
             let image_indices = [present_index];
             let present_info = vk::PresentInfoKHR::default().wait_semaphores(&wait_semaphors).swapchains(&swapchains).image_indices(&image_indices);
@@ -239,7 +250,15 @@ impl ApplicationHandler for App {
                 }
 
                 match self.editor.as_mut() {
-                    Some(editor) => editor.render(self.window.as_ref().unwrap()),
+                    Some(editor) => {
+                        editor.render(self.window.as_ref().unwrap());
+
+                        println!("\n\n\n\n\n\n\n\n\n\n");
+
+                        thread::sleep(Duration::from_millis(5000));
+
+                        self.window.as_ref().unwrap().request_redraw();
+                    }
                     None => {
                         self.window.as_ref().unwrap().request_redraw();
                     }
