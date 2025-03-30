@@ -42,7 +42,7 @@ impl Editor {
     pub fn open(mut self) {
         let event_loop = EventLoop::new().unwrap();
 
-        event_loop.run_app(&mut self);
+        event_loop.run_app(&mut self).unwrap();
 
         // let window = WindowBuilder::new().with_title("Vector Engine").with_inner_size(LogicalSize::new(800, 600)).build(&event_loop).unwrap();
 
@@ -70,6 +70,10 @@ impl Editor {
 
 impl ApplicationHandler for Editor {
     fn new_events(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, cause: winit::event::StartCause) {
+        if self.window.is_some() {
+            return;
+        }
+
         let window_attributes = Window::default_attributes().with_title("Vector Engine").with_inner_size(LogicalSize::new(960.0, 540.0));
 
         self.window = Some(event_loop.create_window(window_attributes).unwrap());
