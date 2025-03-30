@@ -668,6 +668,8 @@ pub struct RenderTarget {
     pub frame_buffer: Framebuffer,
 
     device: Device,
+
+    owns_objects: bool,
 }
 
 impl RenderTarget {
@@ -739,6 +741,8 @@ impl RenderTarget {
                 frame_buffer,
 
                 device: renderer.device.clone(),
+
+                owns_objects: true,
             };
         }
     }
@@ -760,6 +764,8 @@ impl RenderTarget {
             frame_buffer,
 
             device: renderer.device.clone(),
+
+            owns_objects: false,
         };
     }
 
@@ -871,8 +877,10 @@ impl Drop for RenderTarget {
                 self.device.destroy_image(image_data.image, None);
             }
 
-            self.device.destroy_render_pass(self.render_pass, None);
-            self.device.destroy_framebuffer(self.frame_buffer, None);
+            if self.owns_objects {
+                self.device.destroy_render_pass(self.render_pass, None);
+                self.device.destroy_framebuffer(self.frame_buffer, None);
+            }
         }
     }
 }

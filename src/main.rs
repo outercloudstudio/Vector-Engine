@@ -194,7 +194,7 @@ impl Editor {
 
             match clip {
                 Clips::ScriptClip(script_clip) => {
-                    script_clip.set_frame((self.start.elapsed().as_millis() as f64 / 1000_f64 * 60_f64) as u32 % 60);
+                    script_clip.set_frame((self.start.elapsed().as_millis() as f64 / 1000_f64 * 60_f64) as u32 % 180);
                     script_clip.render(&self.renderer, &mut self.clip_loader, window.inner_size().width, window.inner_size().height, &render_target);
                 }
                 _ => {}
@@ -254,8 +254,6 @@ impl ApplicationHandler for App {
                         editor.render(self.window.as_ref().unwrap());
 
                         println!("\n\n\n\n\n\n\n\n\n\n");
-
-                        thread::sleep(Duration::from_millis(5000));
 
                         self.window.as_ref().unwrap().request_redraw();
                     }
