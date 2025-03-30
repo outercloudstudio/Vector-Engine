@@ -44,13 +44,12 @@ struct Editor {
 
     present_queue: vk::Queue,
 
-    present_finished_semaphore: vk::Semaphore,
-
     render_pass: vk::RenderPass,
     frame_buffers: Vec<vk::Framebuffer>,
 
     clip_loader: ClipLoader,
     start: Instant,
+    last_frame: Instant,
 }
 
 impl Editor {
@@ -113,9 +112,6 @@ impl Editor {
 
             let present_queue = renderer.create_graphics_queue();
 
-            let present_finished_semaphore = renderer.create_semaphore();
-            let render_finished_semaphore = renderer.create_semaphore();
-
             let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
             let present_image_views: Vec<vk::ImageView> = present_images
                 .iter()
@@ -165,20 +161,22 @@ impl Editor {
                 swapchain,
                 swapchain_loader,
                 present_queue,
-                present_finished_semaphore,
                 render_pass,
                 frame_buffers,
                 clip_loader,
                 start: Instant::now(),
+                last_frame: Instant::now(),
             };
         }
     }
 
     pub fn render(&mut self, window: &Window) {
         unsafe {
+            let present_finished_semaphore = self.renderer.create_semaphore();
+
             let (present_index, _) = self
                 .swapchain_loader
-                .acquire_next_image(self.swapchain, u64::MAX, self.present_finished_semaphore, vk::Fence::null())
+                .acquire_next_image(self.swapchain, u64::MAX, present_finished_semaphore, vk::Fence::null())
                 .unwrap();
 
             let render_target = RenderTarget::from(
@@ -192,8 +190,6 @@ impl Editor {
             let clip = self.clip_loader.get(&String::from("project.ts"), &self.renderer).unwrap();
             let mut clip = &mut *clip.borrow_mut();
 
-            info!("Ellapsed {}ms", self.start.elapsed().as_millis());
-
             match clip {
                 Clips::ScriptClip(script_clip) => {
                     script_clip.set_frame((self.start.elapsed().as_millis() as f64 / 1000_f64 * 60_f64) as u32 % 180);
@@ -202,12 +198,24 @@ impl Editor {
                 _ => {}
             }
 
-            let wait_semaphors = [self.present_finished_semaphore];
+            let wait_semaphors = [present_finished_semaphore];
             let swapchains = [self.swapchain];
             let image_indices = [present_index];
             let present_info = vk::PresentInfoKHR::default().wait_semaphores(&wait_semaphors).swapchains(&swapchains).image_indices(&image_indices);
 
             self.swapchain_loader.queue_present(self.present_queue, &present_info).unwrap();
+
+            let now = Instant::now();
+
+            let difference = self.last_frame.elapsed().as_millis() - now.elapsed().as_millis();
+
+            if difference > 0 {
+                info!("FPS {}", 1000 / difference);
+            } else {
+                info!("FPS too high!");
+            }
+
+            self.last_frame = now;
         }
     }
 }
@@ -254,8 +262,6 @@ impl ApplicationHandler for App {
                 match self.editor.as_mut() {
                     Some(editor) => {
                         editor.render(self.window.as_ref().unwrap());
-
-                        println!("\n\n\n\n\n\n\n\n\n\n");
 
                         self.window.as_ref().unwrap().request_redraw();
                     }
