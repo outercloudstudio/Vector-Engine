@@ -16,7 +16,7 @@ use log::info;
 use notify::{RecursiveMode, Watcher};
 use renderer::{
     elements::{Elements, Rect},
-    renderer::Renderer,
+    renderer::{RenderTarget, Renderer},
 };
 use winit::{
     application::ApplicationHandler,
@@ -38,6 +38,12 @@ struct Editor {
     present_queue: vk::Queue,
 
     render_finished_semaphore: vk::Semaphore,
+
+    render_pass: vk::RenderPass,
+    frame_buffers: Vec<vk::Framebuffer>,
+
+    clip_loader: ClipLoader,
+    start: Instant,
 }
 
 impl Editor {
@@ -127,9 +133,9 @@ impl Editor {
                 })
                 .collect();
 
-            let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::PRESENT_SRC_KHR);
+            let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::PRESENT_SRC_KHR, vk::Format::B8G8R8A8_UNORM);
 
-            let framebuffers: Vec<vk::Framebuffer> = present_image_views
+            let frame_buffers: Vec<vk::Framebuffer> = present_image_views
                 .iter()
                 .map(|&present_image_view| {
                     let framebuffer_attachments = [present_image_view];
@@ -144,21 +150,44 @@ impl Editor {
                 })
                 .collect();
 
+            let mut clip_loader = ClipLoader::new();
+
             return Editor {
                 renderer,
                 swapchain,
                 swapchain_loader,
                 present_queue,
                 render_finished_semaphore,
+                render_pass,
+                frame_buffers,
+                clip_loader,
+                start: Instant::now(),
             };
         }
     }
 
-    pub fn render(&self, window: &Window) {
+    pub fn render(&mut self, window: &Window) {
         unsafe {
-            let surface_data = self.renderer.surface_data.as_ref().unwrap();
-
             let (present_index, _) = self.swapchain_loader.acquire_next_image(self.swapchain, u64::MAX, vk::Semaphore::null(), vk::Fence::null()).unwrap();
+
+            let render_target = RenderTarget::from(
+                &self.renderer,
+                window.inner_size().width,
+                window.inner_size().height,
+                self.render_pass,
+                self.frame_buffers[present_index as usize],
+            );
+
+            let clip = self.clip_loader.get(&String::from("project.ts"), &self.renderer).unwrap();
+            let mut clip = &mut *clip.borrow_mut();
+
+            match clip {
+                Clips::ScriptClip(script_clip) => {
+                    script_clip.set_frame((self.start.elapsed().as_millis() as f64 / 1000_f64 * 60_f64) as u32 % 60);
+                    script_clip.render(&self.renderer, &mut self.clip_loader, window.inner_size().width, window.inner_size().height, &render_target);
+                }
+                _ => {}
+            }
 
             let wait_semaphors = [self.render_finished_semaphore];
             let swapchains = [self.swapchain];
@@ -203,15 +232,18 @@ impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {}
 
     fn window_event(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
-        println!("{event:?}");
-
         match event {
             WindowEvent::RedrawRequested => {
                 if self.window.is_none() {
                     return;
                 }
 
-                self.window.as_ref().unwrap().request_redraw();
+                match self.editor.as_mut() {
+                    Some(editor) => editor.render(self.window.as_ref().unwrap()),
+                    None => {
+                        self.window.as_ref().unwrap().request_redraw();
+                    }
+                }
             }
             _ => {}
         }
@@ -258,9 +290,9 @@ fn main() {
 
     //     let mut renderer = Renderer::new();
 
-    //     let mut clip_loader = ClipLoader::new();
-    //     let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
-    //     let mut clip = &mut *clip.borrow_mut();
+    // let mut clip_loader = ClipLoader::new();
+    // let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
+    // let mut clip = &mut *clip.borrow_mut();
 
     //     let mut total_frame_time = 0;
     //     let mut total_frames = 0;

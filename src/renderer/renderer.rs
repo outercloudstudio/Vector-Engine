@@ -178,10 +178,10 @@ impl Renderer {
         }
     }
 
-    pub fn create_render_pass(&self, initial_layout: vk::ImageLayout, final_layout: vk::ImageLayout) -> vk::RenderPass {
+    pub fn create_render_pass(&self, initial_layout: vk::ImageLayout, final_layout: vk::ImageLayout, format: vk::Format) -> vk::RenderPass {
         unsafe {
             let color_attachment = vk::AttachmentDescription::default()
-                .format(vk::Format::R8G8B8A8_UNORM)
+                .format(format)
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .load_op(if let vk::ImageLayout::UNDEFINED = initial_layout {
                     vk::AttachmentLoadOp::DONT_CARE
@@ -648,10 +648,15 @@ impl Renderer {
 }
 
 #[derive(Clone)]
-pub struct RenderTarget {
+pub struct RenderTargetImageData {
     pub image: vk::Image,
     pub image_view: vk::ImageView,
     pub image_memory: vk::DeviceMemory,
+}
+
+#[derive(Clone)]
+pub struct RenderTarget {
+    pub image_data: Option<RenderTargetImageData>,
 
     pub width: u32,
     pub height: u32,
@@ -661,9 +666,6 @@ pub struct RenderTarget {
 
     pub render_pass: RenderPass,
     pub frame_buffer: Framebuffer,
-
-    graphics_queue: vk::Queue,
-    command_pool: vk::CommandPool,
 
     device: Device,
 }
@@ -713,21 +715,19 @@ impl RenderTarget {
 
             let target_image_view = renderer.device.create_image_view(&target_image_view_create_info, None).unwrap();
 
-            let graphics_queue = renderer.create_graphics_queue();
-
-            let command_pool = renderer.create_command_pool();
-
             let viewport = renderer.create_viewport(width, height);
             let scissor = renderer.create_scissor(width, height);
 
-            let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+            let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, vk::Format::R8G8B8A8_UNORM);
 
             let frame_buffer = renderer.create_framebuffer(target_image_view, render_pass, width, height);
 
-            RenderTarget {
-                image: target_image,
-                image_view: target_image_view,
-                image_memory: target_image_memory,
+            return RenderTarget {
+                image_data: Some(RenderTargetImageData {
+                    image: target_image,
+                    image_view: target_image_view,
+                    image_memory: target_image_memory,
+                }),
 
                 width,
                 height,
@@ -738,18 +738,39 @@ impl RenderTarget {
                 render_pass,
                 frame_buffer,
 
-                graphics_queue,
-                command_pool,
-
                 device: renderer.device.clone(),
-            }
+            };
         }
     }
 
-    pub fn from() {}
+    pub fn from(renderer: &Renderer, width: u32, height: u32, render_pass: vk::RenderPass, frame_buffer: vk::Framebuffer) -> RenderTarget {
+        let viewport = renderer.create_viewport(width, height);
+        let scissor = renderer.create_scissor(width, height);
+
+        return RenderTarget {
+            image_data: None,
+
+            width,
+            height,
+
+            viewport,
+            scissor,
+
+            render_pass,
+            frame_buffer,
+
+            device: renderer.device.clone(),
+        };
+    }
 
     pub fn to_raw(&self, renderer: &Renderer) -> Vec<u8> {
         unsafe {
+            let image_data = self.image_data.as_ref().unwrap();
+
+            let graphics_queue = renderer.create_graphics_queue();
+
+            let command_pool = renderer.create_command_pool();
+
             let size = self.width as u64 * self.height as u64 * 4;
 
             let save_buffer_info = vk::BufferCreateInfo::default()
@@ -777,7 +798,7 @@ impl RenderTarget {
 
             let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::default()
                 .level(vk::CommandBufferLevel::PRIMARY)
-                .command_pool(self.command_pool)
+                .command_pool(command_pool)
                 .command_buffer_count(1);
 
             let command_buffer = renderer.device.allocate_command_buffers(&command_buffer_allocate_info).unwrap()[0];
@@ -806,7 +827,7 @@ impl RenderTarget {
 
             renderer
                 .device
-                .cmd_copy_image_to_buffer(command_buffer, self.image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
+                .cmd_copy_image_to_buffer(command_buffer, image_data.image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, save_buffer, &[region]);
 
             renderer.device.end_command_buffer(command_buffer).unwrap();
 
@@ -815,11 +836,11 @@ impl RenderTarget {
 
             let fence = renderer.create_fence();
 
-            renderer.device.queue_submit(self.graphics_queue, &[info], fence).unwrap();
+            renderer.device.queue_submit(graphics_queue, &[info], fence).unwrap();
 
             renderer.device.wait_for_fences(&[fence], true, u64::MAX).unwrap();
 
-            renderer.device.free_command_buffers(self.command_pool, &[command_buffer]);
+            renderer.device.free_command_buffers(command_pool, &[command_buffer]);
 
             let memory = renderer.device.map_memory(save_buffer_memory, 0, size, vk::MemoryMapFlags::empty()).unwrap();
 
@@ -834,6 +855,8 @@ impl RenderTarget {
             renderer.device.destroy_buffer(save_buffer, None);
             renderer.device.free_memory(save_buffer_memory, None);
 
+            self.device.destroy_command_pool(command_pool, None);
+
             return pixels;
         }
     }
@@ -842,14 +865,14 @@ impl RenderTarget {
 impl Drop for RenderTarget {
     fn drop(&mut self) {
         unsafe {
-            self.device.free_memory(self.image_memory, None);
-            self.device.destroy_image_view(self.image_view, None);
-            self.device.destroy_image(self.image, None);
+            if let Some(image_data) = self.image_data.as_ref() {
+                self.device.free_memory(image_data.image_memory, None);
+                self.device.destroy_image_view(image_data.image_view, None);
+                self.device.destroy_image(image_data.image, None);
+            }
 
             self.device.destroy_render_pass(self.render_pass, None);
             self.device.destroy_framebuffer(self.frame_buffer, None);
-
-            self.device.destroy_command_pool(self.command_pool, None);
         }
     }
 }

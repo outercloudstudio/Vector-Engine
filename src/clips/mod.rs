@@ -169,6 +169,7 @@ impl ImageClip {
         let command_pool = renderer.create_command_pool();
 
         let render_target = RenderTarget::new(width, height, renderer);
+        let image_data = render_target.image_data.as_ref().unwrap();
 
         let (staging_buffer, staging_buffer_memory, staging_buffer_size) = renderer.create_buffer(
             bytes.len() as u64,
@@ -186,7 +187,7 @@ impl ImageClip {
 
         transition_image_layout(
             &renderer.device,
-            render_target.image,
+            image_data.image,
             vk::Format::R8G8B8A8_SRGB,
             vk::ImageLayout::UNDEFINED,
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -194,11 +195,11 @@ impl ImageClip {
             graphics_queue,
         );
 
-        copy_buffer_to_image(&renderer.device, staging_buffer, render_target.image, width, height, command_pool, graphics_queue);
+        copy_buffer_to_image(&renderer.device, staging_buffer, image_data.image, width, height, command_pool, graphics_queue);
 
         transition_image_layout(
             &renderer.device,
-            render_target.image,
+            image_data.image,
             vk::Format::R8G8B8A8_SRGB,
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
