@@ -17,3 +17,5 @@ tokio = { version = "1.36.0", features = ["full"] }
 notify = "6.1.1"
 image = "0.24.9"
 ffmpeg-sidecar = "2.0.5"
+ash-window = "0.13.0"
+winit = "0.30.9"

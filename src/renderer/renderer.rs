@@ -4,10 +4,13 @@ use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
 use ash::ext::debug_utils;
+use ash::khr::surface;
 use ash::util::read_spv;
-use ash::vk::ShaderModule;
+use ash::vk::{ShaderModule, SurfaceKHR};
 use ash::{vk, Device, Entry, Instance};
 use log::info;
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use winit::window::Window;
 
 use super::utils::*;
 
@@ -25,6 +28,13 @@ pub struct Renderer {
 
     pub debug_call_back: vk::DebugUtilsMessengerEXT,
     pub debug_utils: debug_utils::Instance,
+
+    pub surface_data: Option<SurfaceData>,
+}
+
+pub struct SurfaceData {
+    surface: SurfaceKHR,
+    surface_loader: surface::Instance,
 }
 
 impl Renderer {
@@ -100,6 +110,8 @@ impl Renderer {
 
                 debug_utils,
                 debug_call_back,
+
+                surface_data: None,
             }
         }
     }
@@ -111,6 +123,10 @@ impl Renderer {
             self.debug_utils.destroy_debug_utils_messenger(self.debug_call_back, None);
 
             self.instance.destroy_instance(None);
+
+            if let Some(surface_data) = self.surface_data {
+                surface_data.surface_loader.destroy_surface(surface_data.surface, None);
+            }
         }
     }
 
@@ -526,6 +542,90 @@ impl Renderer {
             self.device.create_fence(&fence_create_info, None).unwrap()
         }
     }
+
+    pub fn new_with_window(window: &Window) -> Renderer {
+        unsafe {
+            let entry = Entry::linked();
+
+            let layer_names = [CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0")];
+            let layers_names_raw: Vec<*const c_char> = layer_names.iter().map(|raw_name| raw_name.as_ptr()).collect();
+
+            let mut extension_names = vec![vk::EXT_DEBUG_UTILS_NAME.as_ptr()];
+            extension_names.extend(ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw()).unwrap().to_vec());
+
+            let appinfo = vk::ApplicationInfo::default()
+                .application_name(CStr::from_bytes_with_nul_unchecked(b"VulkanTriangle\0"))
+                .application_version(0)
+                .engine_name(CStr::from_bytes_with_nul_unchecked(b"VulkanTriangle\0"))
+                .engine_version(0)
+                .api_version(vk::make_api_version(0, 1, 0, 0));
+
+            let create_info = vk::InstanceCreateInfo::default()
+                .application_info(&appinfo)
+                .enabled_layer_names(&layers_names_raw)
+                .enabled_extension_names(&extension_names);
+
+            let instance: Instance = entry.create_instance(&create_info, None).expect("Instance creation error");
+
+            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
+                .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::ERROR | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::INFO)
+                .message_type(vk::DebugUtilsMessageTypeFlagsEXT::GENERAL | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE)
+                .pfn_user_callback(Some(vulkan_debug_callback));
+
+            let debug_utils = debug_utils::Instance::new(&entry, &instance);
+
+            let debug_call_back = debug_utils.create_debug_utils_messenger(&debug_info, None).unwrap();
+
+            let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
+
+            let surface = ash_window::create_surface(&entry, &instance, window.display_handle().unwrap().as_raw(), window.window_handle().unwrap().as_raw(), None).unwrap();
+            let surface_loader = surface::Instance::new(&entry, &instance);
+
+            let (physical_device, queue_family_index) = physical_devices
+                .iter()
+                .find_map(|pdevice| {
+                    instance.get_physical_device_queue_family_properties(*pdevice).iter().enumerate().find_map(|(index, info)| {
+                        if info.queue_flags.contains(vk::QueueFlags::GRAPHICS) && surface_loader.get_physical_device_surface_support(*pdevice, index as u32, surface).unwrap() {
+                            Some((*pdevice, index))
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .expect("Couldn't find suitable device.");
+
+            let queue_family_index = queue_family_index as u32;
+
+            let features = vk::PhysicalDeviceFeatures {
+                shader_clip_distance: 1,
+                ..Default::default()
+            };
+            let priorities = [1.0];
+
+            let queue_info = vk::DeviceQueueCreateInfo::default().queue_family_index(queue_family_index).queue_priorities(&priorities);
+
+            let device_create_info = vk::DeviceCreateInfo::default().queue_create_infos(std::slice::from_ref(&queue_info)).enabled_features(&features);
+
+            let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
+
+            let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
+
+            Renderer {
+                instance,
+                device,
+                physical_device,
+
+                queue_family_index,
+
+                debug_utils,
+                debug_call_back,
+
+                surface_data: Some(SurfaceData { surface, surface_loader }),
+            }
+        }
+    }
+
+    pub fn create_surface(&self, window: &Window) {}
 }
 
 #[derive(Copy, Clone)]
