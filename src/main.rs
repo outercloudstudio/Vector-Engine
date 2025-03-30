@@ -156,15 +156,9 @@ impl Editor {
 
     pub fn render(&self, window: &Window) {
         unsafe {
-            let present_complete_semaphore_info = vk::SemaphoreCreateInfo::default();
-            let present_complete_semaphore = self.renderer.device.create_semaphore(&present_complete_semaphore_info, None).unwrap();
-
             let surface_data = self.renderer.surface_data.as_ref().unwrap();
 
-            let (present_index, _) = self
-                .swapchain_loader
-                .acquire_next_image(self.swapchain, u64::MAX, present_complete_semaphore, vk::Fence::null())
-                .unwrap();
+            let (present_index, _) = self.swapchain_loader.acquire_next_image(self.swapchain, u64::MAX, vk::Semaphore::null(), vk::Fence::null()).unwrap();
 
             let wait_semaphors = [self.render_finished_semaphore];
             let swapchains = [self.swapchain];
@@ -217,7 +211,7 @@ impl ApplicationHandler for App {
                     return;
                 }
 
-                self.window.unwrap().request_redraw();
+                self.window.as_ref().unwrap().request_redraw();
             }
             _ => {}
         }

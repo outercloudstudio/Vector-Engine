@@ -620,7 +620,12 @@ impl Renderer {
 
             let queue_info = vk::DeviceQueueCreateInfo::default().queue_family_index(queue_family_index).queue_priorities(&priorities);
 
-            let device_create_info = vk::DeviceCreateInfo::default().queue_create_infos(std::slice::from_ref(&queue_info)).enabled_features(&features);
+            let extension_names = vec![vk::KHR_SWAPCHAIN_NAME.as_ptr()];
+
+            let device_create_info = vk::DeviceCreateInfo::default()
+                .enabled_extension_names(&extension_names)
+                .queue_create_infos(std::slice::from_ref(&queue_info))
+                .enabled_features(&features);
 
             let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
 
