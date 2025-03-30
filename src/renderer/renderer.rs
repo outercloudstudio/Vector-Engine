@@ -547,7 +547,15 @@ impl Renderer {
         unsafe {
             let fence_create_info = vk::FenceCreateInfo::default();
 
-            self.device.create_fence(&fence_create_info, None).unwrap()
+            return self.device.create_fence(&fence_create_info, None).unwrap();
+        }
+    }
+
+    pub fn create_semaphore(&self) -> vk::Semaphore {
+        unsafe {
+            let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+
+            return self.device.create_semaphore(&semaphore_create_info, None).unwrap();
         }
     }
 
@@ -732,6 +740,8 @@ impl RenderTarget {
             }
         }
     }
+
+    pub fn from() {}
 
     pub fn to_raw(&self, renderer: &Renderer) -> Vec<u8> {
         unsafe {

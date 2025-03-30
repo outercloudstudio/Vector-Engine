@@ -31,6 +31,13 @@ use winit::{
 
 struct Editor {
     renderer: Renderer,
+
+    swapchain: vk::SwapchainKHR,
+    swapchain_loader: swapchain::Device,
+
+    present_queue: vk::Queue,
+
+    render_finished_semaphore: vk::Semaphore,
 }
 
 impl Editor {
@@ -91,6 +98,10 @@ impl Editor {
 
             let swapchain = swapchain_loader.create_swapchain(&swapchain_create_info, None).unwrap();
 
+            let present_queue = renderer.create_graphics_queue();
+
+            let render_finished_semaphore = renderer.create_semaphore();
+
             let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
             let present_image_views: Vec<vk::ImageView> = present_images
                 .iter()
@@ -116,12 +127,14 @@ impl Editor {
                 })
                 .collect();
 
+            let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::PRESENT_SRC_KHR);
+
             let framebuffers: Vec<vk::Framebuffer> = present_image_views
                 .iter()
                 .map(|&present_image_view| {
                     let framebuffer_attachments = [present_image_view];
                     let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
-                        .render_pass(renderer.renderpass)
+                        .render_pass(render_pass)
                         .attachments(&framebuffer_attachments)
                         .width(surface_resolution.width)
                         .height(surface_resolution.height)
@@ -131,11 +144,36 @@ impl Editor {
                 })
                 .collect();
 
-            return Editor { renderer };
+            return Editor {
+                renderer,
+                swapchain,
+                swapchain_loader,
+                present_queue,
+                render_finished_semaphore,
+            };
         }
     }
 
-    pub fn render(&self, window: &Window) {}
+    pub fn render(&self, window: &Window) {
+        unsafe {
+            let present_complete_semaphore_info = vk::SemaphoreCreateInfo::default();
+            let present_complete_semaphore = self.renderer.device.create_semaphore(&present_complete_semaphore_info, None).unwrap();
+
+            let surface_data = self.renderer.surface_data.as_ref().unwrap();
+
+            let (present_index, _) = self
+                .swapchain_loader
+                .acquire_next_image(self.swapchain, u64::MAX, present_complete_semaphore, vk::Fence::null())
+                .unwrap();
+
+            let wait_semaphors = [self.render_finished_semaphore];
+            let swapchains = [self.swapchain];
+            let image_indices = [present_index];
+            let present_info = vk::PresentInfoKHR::default().wait_semaphores(&wait_semaphors).swapchains(&swapchains).image_indices(&image_indices);
+
+            self.swapchain_loader.queue_present(self.present_queue, &present_info).unwrap();
+        }
+    }
 }
 
 struct App {
@@ -152,26 +190,6 @@ impl App {
         let event_loop = EventLoop::new().unwrap();
 
         event_loop.run_app(&mut self).unwrap();
-
-        // let window = WindowBuilder::new().with_title("Vector Engine").with_inner_size(LogicalSize::new(800, 600)).build(&event_loop).unwrap();
-
-        // event_loop.run(move |event, _, control_flow| {
-        //     *control_flow = ControlFlow::Poll;
-
-        //     match event {
-        //         Event::WindowEvent { event, .. } => match event {
-        //             WindowEvent::CloseRequested => {
-        //                 *control_flow = ControlFlow::Exit;
-        //             }
-        //             _ => {}
-        //         },
-        //         Event::MainEventsCleared => {
-        //             // Render on the swapchain
-        //             renderer.render_frame();
-        //         }
-        //         _ => {}
-        //     }
-        // });
     }
 }
 
@@ -198,6 +216,8 @@ impl ApplicationHandler for App {
                 if self.window.is_none() {
                     return;
                 }
+
+                self.window.unwrap().request_redraw();
             }
             _ => {}
         }
