@@ -129,9 +129,7 @@ impl ScriptClip {
         self.internal_frame = frame;
     }
 
-    pub fn render(&self, renderer: &Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32) -> RenderTarget {
-        let patch_render_context = PatchRenderContext::new(renderer, width, height);
-
+    pub fn render(&self, renderer: &Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32, render_target: &RenderTarget) {
         let elements = self.runtime.get_elements();
 
         let mut ordered_elements = elements.clone();
@@ -141,15 +139,15 @@ impl ScriptClip {
             let element = &ordered_elements[element_index];
 
             match element {
-                Elements::Rect(rect) => rect.render(renderer, &self.element_render_context, &patch_render_context),
+                Elements::Rect(rect) => rect.render(renderer, &self.element_render_context, &render_target),
             }
         }
-
-        return patch_render_context.complete();
     }
 
     pub fn render_to_raw(&self, renderer: &mut Renderer, clip_loader: &mut ClipLoader, width: u32, height: u32) -> Vec<u8> {
-        let render_target = self.render(renderer, clip_loader, width, height);
+        let render_target = RenderTarget::new(width, height, renderer);
+
+        self.render(renderer, clip_loader, width, height, &render_target);
 
         let bytes = render_target.to_raw(&renderer);
 

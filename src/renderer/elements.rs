@@ -99,49 +99,8 @@ impl Drop for ElementRenderContext {
 pub struct PatchRenderContext {
     device: Device,
 
-    viewport: vk::Viewport,
-    scissor: vk::Rect2D,
-
-    render_target: RenderTarget,
-
     width: u32,
     height: u32,
-
-    render_pass: RenderPass,
-    frame_buffer: Framebuffer,
-}
-
-impl PatchRenderContext {
-    pub fn new(renderer: &Renderer, width: u32, height: u32) -> PatchRenderContext {
-        let viewport = renderer.create_viewport(width, height);
-        let scissor = renderer.create_scissor(width, height);
-
-        let render_target = RenderTarget::new(width, height, renderer);
-
-        let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
-
-        let frame_buffer = renderer.create_framebuffer(&render_target, render_pass, width, height);
-
-        PatchRenderContext {
-            device: renderer.device.clone(),
-            viewport,
-            scissor,
-            render_target,
-            width,
-            height,
-            render_pass,
-            frame_buffer,
-        }
-    }
-
-    pub fn complete(self: PatchRenderContext) -> RenderTarget {
-        unsafe {
-            self.device.destroy_render_pass(self.render_pass, None);
-            self.device.destroy_framebuffer(self.frame_buffer, None);
-        }
-
-        return self.render_target;
-    }
 }
 
 #[derive(Clone)]
@@ -283,7 +242,7 @@ impl RectData {
 
 // TODO: Look at push constants
 impl Rect {
-    pub fn render(&self, renderer: &Renderer, element_render_context: &ElementRenderContext, patch_render_context: &PatchRenderContext) {
+    pub fn render(&self, renderer: &Renderer, element_render_context: &ElementRenderContext, render_target: &RenderTarget) {
         let uniform_ptr = renderer.start_copy_data_to_buffer(
             element_render_context.rect_render_context.uniform_buffer_size,
             element_render_context.rect_render_context.uniform_buffer_memory,
@@ -310,9 +269,9 @@ impl Rect {
         let (graphics_pipeline, graphics_pipeline_layout) = renderer.create_graphics_pipeline(
             element_render_context.rect_render_context.vertex_shader,
             element_render_context.rect_render_context.fragment_shader,
-            patch_render_context.viewport,
-            patch_render_context.scissor,
-            patch_render_context.render_pass,
+            render_target.viewport,
+            render_target.scissor,
+            render_target.render_pass,
             descriptor_set_layout,
             descriptor_set_layout_bindings,
             &attribute_descriptions,
@@ -330,14 +289,14 @@ impl Rect {
         let command_buffer = renderer.create_command_buffer(element_render_context.command_pool);
 
         renderer.begin_render_pass(
-            patch_render_context.render_pass,
-            patch_render_context.frame_buffer,
+            render_target.render_pass,
+            render_target.frame_buffer,
             command_buffer,
             graphics_pipeline,
-            patch_render_context.viewport,
-            patch_render_context.scissor,
-            patch_render_context.width,
-            patch_render_context.height,
+            render_target.viewport,
+            render_target.scissor,
+            render_target.width,
+            render_target.height,
         );
 
         unsafe {

@@ -4,7 +4,7 @@ mod runtime;
 
 use std::{env, io::Write, path::Path, sync::mpsc::channel, thread, time::Instant};
 
-use ash::vk;
+use ash::{khr::swapchain, vk};
 use cgmath::{vec2, vec4};
 use clips::{ClipLoader, Clips, ScriptClip};
 use ffmpeg_sidecar::{
@@ -30,13 +30,122 @@ use winit::{
 };
 
 struct Editor {
-    renderer: Option<Renderer>,
-    window: Option<Window>,
+    renderer: Renderer,
 }
 
 impl Editor {
-    pub fn new() -> Editor {
-        return Editor { renderer: None, window: None };
+    pub fn new(window: &Window) -> Editor {
+        unsafe {
+            let renderer = Renderer::new_with_surface(window);
+
+            let surface_data = renderer.surface_data.as_ref().unwrap();
+
+            let surface_format = surface_data.surface_loader.get_physical_device_surface_formats(renderer.physical_device, surface_data.surface).unwrap()[0];
+
+            let surface_capabilities = surface_data
+                .surface_loader
+                .get_physical_device_surface_capabilities(renderer.physical_device, surface_data.surface)
+                .unwrap();
+
+            let mut desired_image_count = surface_capabilities.min_image_count + 1;
+            if surface_capabilities.max_image_count > 0 && desired_image_count > surface_capabilities.max_image_count {
+                desired_image_count = surface_capabilities.max_image_count;
+            }
+
+            let surface_resolution = match surface_capabilities.current_extent.width {
+                u32::MAX => vk::Extent2D {
+                    width: window.inner_size().width,
+                    height: window.inner_size().height,
+                },
+                _ => surface_capabilities.current_extent,
+            };
+
+            let pre_transform = if surface_capabilities.supported_transforms.contains(vk::SurfaceTransformFlagsKHR::IDENTITY) {
+                vk::SurfaceTransformFlagsKHR::IDENTITY
+            } else {
+                surface_capabilities.current_transform
+            };
+
+            let present_modes = surface_data
+                .surface_loader
+                .get_physical_device_surface_present_modes(renderer.physical_device, surface_data.surface)
+                .unwrap();
+
+            let present_mode = present_modes.iter().cloned().find(|&mode| mode == vk::PresentModeKHR::MAILBOX).unwrap_or(vk::PresentModeKHR::FIFO);
+
+            let swapchain_loader = swapchain::Device::new(&renderer.instance, &renderer.device);
+
+            let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
+                .surface(surface_data.surface)
+                .min_image_count(desired_image_count)
+                .image_color_space(surface_format.color_space)
+                .image_format(surface_format.format)
+                .image_extent(surface_resolution)
+                .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+                .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
+                .pre_transform(pre_transform)
+                .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+                .present_mode(present_mode)
+                .clipped(true)
+                .image_array_layers(1);
+
+            let swapchain = swapchain_loader.create_swapchain(&swapchain_create_info, None).unwrap();
+
+            let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
+            let present_image_views: Vec<vk::ImageView> = present_images
+                .iter()
+                .map(|&image| {
+                    let create_view_info = vk::ImageViewCreateInfo::default()
+                        .view_type(vk::ImageViewType::TYPE_2D)
+                        .format(surface_format.format)
+                        .components(vk::ComponentMapping {
+                            r: vk::ComponentSwizzle::R,
+                            g: vk::ComponentSwizzle::G,
+                            b: vk::ComponentSwizzle::B,
+                            a: vk::ComponentSwizzle::A,
+                        })
+                        .subresource_range(vk::ImageSubresourceRange {
+                            aspect_mask: vk::ImageAspectFlags::COLOR,
+                            base_mip_level: 0,
+                            level_count: 1,
+                            base_array_layer: 0,
+                            layer_count: 1,
+                        })
+                        .image(image);
+                    renderer.device.create_image_view(&create_view_info, None).unwrap()
+                })
+                .collect();
+
+            let framebuffers: Vec<vk::Framebuffer> = present_image_views
+                .iter()
+                .map(|&present_image_view| {
+                    let framebuffer_attachments = [present_image_view];
+                    let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
+                        .render_pass(renderer.renderpass)
+                        .attachments(&framebuffer_attachments)
+                        .width(surface_resolution.width)
+                        .height(surface_resolution.height)
+                        .layers(1);
+
+                    renderer.device.create_framebuffer(&frame_buffer_create_info, None).unwrap()
+                })
+                .collect();
+
+            return Editor { renderer };
+        }
+    }
+
+    pub fn render(&self, window: &Window) {}
+}
+
+struct App {
+    window: Option<Window>,
+    editor: Option<Editor>,
+}
+
+impl App {
+    pub fn new() -> App {
+        return App { editor: None, window: None };
     }
 
     pub fn open(mut self) {
@@ -64,11 +173,9 @@ impl Editor {
         //     }
         // });
     }
-
-    pub fn render(&self, window: &Window) {}
 }
 
-impl ApplicationHandler for Editor {
+impl ApplicationHandler for App {
     fn new_events(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, cause: winit::event::StartCause) {
         if self.window.is_some() {
             return;
@@ -78,7 +185,7 @@ impl ApplicationHandler for Editor {
 
         self.window = Some(event_loop.create_window(window_attributes).unwrap());
 
-        self.renderer = Some(Renderer::new_with_window(self.window.as_ref().unwrap()));
+        self.editor = Some(Editor::new(self.window.as_ref().unwrap()));
     }
 
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {}
@@ -105,7 +212,7 @@ fn main() {
 
     ffmpeg_sidecar::download::auto_download().unwrap();
 
-    let editor = Editor::new();
+    let editor = App::new();
     editor.open();
 
     // let (watcher_sender, watcher_receiver) = channel::<()>();

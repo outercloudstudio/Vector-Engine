@@ -6,7 +6,7 @@ use std::{borrow::Cow, default::Default};
 use ash::ext::debug_utils;
 use ash::khr::{surface, swapchain};
 use ash::util::read_spv;
-use ash::vk::{Framebuffer, Image, ImageView, ShaderModule, SurfaceFormatKHR, SurfaceKHR, SwapchainKHR};
+use ash::vk::{Framebuffer, Image, ImageView, RenderPass, ShaderModule, SurfaceFormatKHR, SurfaceKHR, SwapchainKHR};
 use ash::{vk, Device, Entry, Instance};
 use log::info;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
@@ -33,13 +33,8 @@ pub struct Renderer {
 }
 
 pub struct SurfaceData {
-    surface: SurfaceKHR,
-    surface_loader: surface::Instance,
-    swapchain: SwapchainKHR,
-    swapchain_loader: swapchain::Device,
-    present_images: Vec<Image>,
-    present_image_views: Vec<ImageView>,
-    frame_buffers: Vec<Framebuffer>,
+    pub surface: SurfaceKHR,
+    pub surface_loader: surface::Instance,
 }
 
 impl Renderer {
@@ -133,12 +128,6 @@ impl Renderer {
         unsafe {
             if let Some(surface_data) = self.surface_data {
                 surface_data.surface_loader.destroy_surface(surface_data.surface, None);
-
-                surface_data.swapchain_loader.destroy_swapchain(surface_data.swapchain, None);
-
-                for &image_view in surface_data.present_image_views.iter() {
-                    self.device.destroy_image_view(image_view, None);
-                }
             }
 
             self.device.destroy_device(None);
@@ -230,9 +219,9 @@ impl Renderer {
         }
     }
 
-    pub fn create_framebuffer(&self, render_target: &RenderTarget, render_pass: vk::RenderPass, width: u32, height: u32) -> vk::Framebuffer {
+    pub fn create_framebuffer(&self, image_view: ImageView, render_pass: vk::RenderPass, width: u32, height: u32) -> vk::Framebuffer {
         unsafe {
-            let frame_buffer_attachments = &[render_target.image_view];
+            let frame_buffer_attachments = &[image_view];
 
             let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
                 .render_pass(render_pass)
@@ -562,7 +551,7 @@ impl Renderer {
         }
     }
 
-    pub fn new_with_window(window: &Window) -> Renderer {
+    pub fn new_with_surface(window: &Window) -> Renderer {
         unsafe {
             let entry = Entry::linked();
 
@@ -629,91 +618,6 @@ impl Renderer {
 
             let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
 
-            let surface_format = surface_loader.get_physical_device_surface_formats(physical_device, surface).unwrap()[0];
-
-            let surface_capabilities = surface_loader.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
-
-            let mut desired_image_count = surface_capabilities.min_image_count + 1;
-            if surface_capabilities.max_image_count > 0 && desired_image_count > surface_capabilities.max_image_count {
-                desired_image_count = surface_capabilities.max_image_count;
-            }
-
-            let surface_resolution = match surface_capabilities.current_extent.width {
-                u32::MAX => vk::Extent2D {
-                    width: window.inner_size().width,
-                    height: window.inner_size().height,
-                },
-                _ => surface_capabilities.current_extent,
-            };
-
-            let pre_transform = if surface_capabilities.supported_transforms.contains(vk::SurfaceTransformFlagsKHR::IDENTITY) {
-                vk::SurfaceTransformFlagsKHR::IDENTITY
-            } else {
-                surface_capabilities.current_transform
-            };
-
-            let present_modes = surface_loader.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
-
-            let present_mode = present_modes.iter().cloned().find(|&mode| mode == vk::PresentModeKHR::MAILBOX).unwrap_or(vk::PresentModeKHR::FIFO);
-
-            let swapchain_loader = swapchain::Device::new(&instance, &device);
-
-            let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
-                .surface(surface)
-                .min_image_count(desired_image_count)
-                .image_color_space(surface_format.color_space)
-                .image_format(surface_format.format)
-                .image_extent(surface_resolution)
-                .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-                .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-                .pre_transform(pre_transform)
-                .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-                .present_mode(present_mode)
-                .clipped(true)
-                .image_array_layers(1);
-
-            let swapchain = swapchain_loader.create_swapchain(&swapchain_create_info, None).unwrap();
-
-            let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
-            let present_image_views: Vec<vk::ImageView> = present_images
-                .iter()
-                .map(|&image| {
-                    let create_view_info = vk::ImageViewCreateInfo::default()
-                        .view_type(vk::ImageViewType::TYPE_2D)
-                        .format(surface_format.format)
-                        .components(vk::ComponentMapping {
-                            r: vk::ComponentSwizzle::R,
-                            g: vk::ComponentSwizzle::G,
-                            b: vk::ComponentSwizzle::B,
-                            a: vk::ComponentSwizzle::A,
-                        })
-                        .subresource_range(vk::ImageSubresourceRange {
-                            aspect_mask: vk::ImageAspectFlags::COLOR,
-                            base_mip_level: 0,
-                            level_count: 1,
-                            base_array_layer: 0,
-                            layer_count: 1,
-                        })
-                        .image(image);
-                    device.create_image_view(&create_view_info, None).unwrap()
-                })
-                .collect();
-
-            let framebuffers: Vec<vk::Framebuffer> = present_image_views
-                .iter()
-                .map(|&present_image_view| {
-                    let framebuffer_attachments = [present_image_view];
-                    let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
-                        .render_pass(renderpass)
-                        .attachments(&framebuffer_attachments)
-                        .width(base.surface_resolution.width)
-                        .height(base.surface_resolution.height)
-                        .layers(1);
-
-                    base.device.create_framebuffer(&frame_buffer_create_info, None).unwrap()
-                })
-                .collect();
-
             Renderer {
                 instance,
                 device,
@@ -724,29 +628,8 @@ impl Renderer {
                 debug_utils,
                 debug_call_back,
 
-                surface_data: Some(SurfaceData {
-                    surface,
-                    surface_loader,
-                    swapchain,
-                    swapchain_loader,
-                    present_images,
-                    present_image_views,
-                }),
+                surface_data: Some(SurfaceData { surface, surface_loader }),
             }
-        }
-    }
-
-    pub fn render_to_swapchain(&self) {
-        unsafe {
-            let present_complete_semaphore_info = vk::SemaphoreCreateInfo::default();
-            let present_complete_semaphore = self.device.create_semaphore(&present_complete_semaphore_info, None).unwrap();
-
-            let surface_data = self.surface_data.as_ref().unwrap();
-
-            let (present_index, _) = surface_data
-                .swapchain_loader
-                .acquire_next_image(surface_data.swapchain, u64::MAX, present_complete_semaphore, vk::Fence::null())
-                .unwrap();
         }
     }
 }
@@ -759,6 +642,12 @@ pub struct RenderTarget {
 
     pub width: u32,
     pub height: u32,
+
+    pub viewport: vk::Viewport,
+    pub scissor: vk::Rect2D,
+
+    pub render_pass: RenderPass,
+    pub frame_buffer: Framebuffer,
 
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
@@ -815,6 +704,13 @@ impl RenderTarget {
 
             let command_pool = renderer.create_command_pool();
 
+            let viewport = renderer.create_viewport(width, height);
+            let scissor = renderer.create_scissor(width, height);
+
+            let render_pass = renderer.create_render_pass(vk::ImageLayout::UNDEFINED, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+
+            let frame_buffer = renderer.create_framebuffer(target_image_view, render_pass, width, height);
+
             RenderTarget {
                 image: target_image,
                 image_view: target_image_view,
@@ -822,6 +718,12 @@ impl RenderTarget {
 
                 width,
                 height,
+
+                viewport,
+                scissor,
+
+                render_pass,
+                frame_buffer,
 
                 graphics_queue,
                 command_pool,
@@ -928,6 +830,9 @@ impl Drop for RenderTarget {
             self.device.free_memory(self.image_memory, None);
             self.device.destroy_image_view(self.image_view, None);
             self.device.destroy_image(self.image, None);
+
+            self.device.destroy_render_pass(self.render_pass, None);
+            self.device.destroy_framebuffer(self.frame_buffer, None);
 
             self.device.destroy_command_pool(self.command_pool, None);
         }
