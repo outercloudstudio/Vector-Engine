@@ -45,7 +45,7 @@ impl ScriptClipRuntime {
         let state_arc = state.clone();
 
         let runtime_extension = Extension::builder("runtime_extension")
-            .ops(vec![op_reset_frame::DECL, op_add_frame_element::DECL, op_add_context::DECL])
+            .ops(vec![op_reset_frame::DECL, op_add_frame_element::DECL, op_add_context::DECL, op_load_font::DECL])
             .state(|extension_state| {
                 extension_state.put::<Arc<Mutex<ClipRuntimeState>>>(state_arc);
             })
@@ -316,6 +316,18 @@ fn op_add_context(state: &mut OpState, scope: &mut v8::HandleScope, value: v8::L
 
     state.contexts.push(generator);
 
+    Ok(())
+}
+
+#[op2]
+fn op_load_font(
+    state: &mut OpState,
+    scope: &mut v8::HandleScope,
+    path_value: v8::Local<v8::Value>,
+    cell_size_value: v8::Local<v8::Value>,
+    characters_value: v8::Local<v8::Value>,
+    pullback_value: v8::Local<v8::Value>,
+) -> Result<(), AnyError> {
     Ok(())
 }
 

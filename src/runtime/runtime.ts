@@ -216,20 +216,33 @@ class Clip {
 }
 
 class FontAtlas {
-	constructor(
-		public path: string,
-		public rows: number,
-		public columns: number,
-		public dropdown: number,
-		public spacing: number,
-		public characters: string,
-		public widthOverrides: Record<string, number>
-	) {}
+	public characterWidths: Record<string, number>
+
+	constructor(public path: string, public cellSize: number, public characters: string, public pullback: number) {
+		this.characterWidths = Deno.core.ops.op_load_font(path, cellSize, characters, pullback)
+
+		if (!this.characters.includes(' ') && this.characters.includes('m')) {
+			this.characterWidths[' '] = this.characterWidths['m']
+			this.characters += ' '
+		}
+
+		if (this.characters.includes('m')) {
+			this.characterWidths['.'] = this.characterWidths['m']
+		}
+	}
+}
+
+class Font {
+	constructor(public atlases: FontAtlas[], public spacing: number) {}
+
+	public getAtlas(character: string) {
+		return this.atlases.find(atlas => atlas.characters.includes(character))
+	}
 }
 
 class VectText {
 	public text: Reactive<string> = react('')
-	public font: FontAtlas = undefined!
+	public font: Font = undefined!
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
 	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public characterSize: Reactive<number> = react(100)
@@ -239,7 +252,7 @@ class VectText {
 
 	constructor(options: {
 		text?: OptionallyReactable<string>
-		font?: FontAtlas
+		font?: Font
 		position?: OptionallyReactable<Vector2>
 		origin?: OptionallyReactable<Vector2>
 		characterSize?: OptionallyReactable<number>
@@ -263,8 +276,10 @@ class VectText {
 		let width = 0
 
 		for (const character of this.text.value) {
-			if (this.font.widthOverrides[character] !== undefined) {
-				width += this.characterSize.value * this.font.widthOverrides[character]
+			const atlas = this.font.getAtlas(character)
+
+			if (atlas?.characterWidths[character] !== undefined) {
+				width += this.characterSize.value * atlas.characterWidths[character]
 			} else {
 				width += this.characterSize.value * this.font.spacing
 			}

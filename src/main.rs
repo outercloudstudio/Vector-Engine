@@ -247,11 +247,12 @@ impl Editor {
 
             let difference = self.last_frame.elapsed().as_millis() - now.elapsed().as_millis();
 
-            if difference > 0 {
-                info!("FPS {}", 1000 / difference);
-            } else {
-                info!("FPS too high!");
-            }
+            // DEBUG Disabled for now
+            // if difference > 0 {
+            //     info!("FPS {}", 1000 / difference);
+            // } else {
+            //     info!("FPS too high!");
+            // }
 
             self.last_frame = now;
         }
