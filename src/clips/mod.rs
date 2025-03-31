@@ -63,6 +63,10 @@ impl ClipLoader {
     }
 
     pub fn invalidate(&mut self, path: &String) {
+        if !self.cache.contains_key(path) {
+            return;
+        }
+
         self.cache.remove(path);
     }
 }

@@ -6,7 +6,7 @@ use std::{
     env,
     io::Write,
     path::Path,
-    sync::mpsc::channel,
+    sync::{atomic::AtomicBool, mpsc::channel, Arc},
     thread,
     time::{Duration, Instant},
 };
@@ -14,21 +14,19 @@ use std::{
 use ash::{khr::swapchain, vk};
 use cgmath::{vec2, vec4};
 use clips::{ClipLoader, Clips, ScriptClip};
+use deno_core::parking_lot::Mutex;
 use ffmpeg_sidecar::{
     command::FfmpegCommand,
     event::{FfmpegEvent, LogLevel},
 };
 use log::info;
 
-use notify::{RecursiveMode, Watcher};
+use notify::{Event, ReadDirectoryChangesWatcher, RecursiveMode, Watcher};
 use renderer::{
     elements::{Elements, Rect},
     renderer::{RenderTarget, Renderer},
 };
-use winit::{
-    application::ApplicationHandler,
-    event::{Event, WindowEvent},
-};
+use winit::{application::ApplicationHandler, event::WindowEvent};
 use winit::{dpi::LogicalSize, platform::run_on_demand::EventLoopExtRunOnDemand};
 use winit::{dpi::Size, window::Window};
 use winit::{
@@ -50,6 +48,10 @@ struct Editor {
     clip_loader: ClipLoader,
     start: Instant,
     last_frame: Instant,
+
+    watcher: ReadDirectoryChangesWatcher,
+    need_to_invalidate_paths: Arc<AtomicBool>,
+    invalidated_paths: Arc<Mutex<Vec<String>>>,
 }
 
 impl Editor {
@@ -154,7 +156,28 @@ impl Editor {
                 })
                 .collect();
 
-            let mut clip_loader = ClipLoader::new();
+            let clip_loader = ClipLoader::new();
+
+            let invalidated_paths = Arc::new(Mutex::new(vec![]));
+            let invalidated_paths_thread = invalidated_paths.clone();
+
+            let need_to_invalidate_paths = Arc::new(AtomicBool::new(false));
+            let need_to_invalidate_paths_thread = need_to_invalidate_paths.clone();
+
+            let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
+                Ok(_event) => {
+                    let mut invalidated_paths = invalidated_paths_thread.lock();
+
+                    let mut paths = _event.paths.iter().map(|path| String::from(path.to_str().unwrap()).chars().skip(28).collect()).collect::<Vec<String>>();
+
+                    invalidated_paths.append(&mut paths);
+                    need_to_invalidate_paths_thread.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+                _ => {}
+            })
+            .unwrap();
+
+            watcher.watch(Path::new(r#"D:\Vector Engine\playground"#), RecursiveMode::Recursive).unwrap();
 
             return Editor {
                 renderer,
@@ -166,12 +189,27 @@ impl Editor {
                 clip_loader,
                 start: Instant::now(),
                 last_frame: Instant::now(),
+                watcher,
+                invalidated_paths,
+                need_to_invalidate_paths,
             };
         }
     }
 
     pub fn render(&mut self, window: &Window) {
         unsafe {
+            let need_to_invalidate = self.need_to_invalidate_paths.swap(false, std::sync::atomic::Ordering::Relaxed);
+
+            if need_to_invalidate {
+                let mut paths = self.invalidated_paths.lock();
+
+                for path in paths.iter() {
+                    self.clip_loader.invalidate(&path);
+                }
+
+                *paths = Vec::<String>::new();
+            }
+
             let present_finished_semaphore = self.renderer.create_semaphore();
 
             let (present_index, _) = self
