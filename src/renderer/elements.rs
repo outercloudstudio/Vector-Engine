@@ -483,20 +483,20 @@ impl Clip {
 
         let clip = &mut *clip.borrow_mut();
 
-        let render_target = RenderTarget::new(self.size.x as u32, self.size.y as u32, renderer);
-        render_target.set_debug_image_name(String::from("Clip Source"), renderer);
+        let clip_render_target = RenderTarget::new(self.size.x as u32, self.size.y as u32, renderer);
+        clip_render_target.set_debug_image_name(String::from("Clip Source"), renderer);
 
         match clip {
             Clips::ScriptClip(ref mut clip) => {
                 clip.set_frame(self.frame);
 
-                clip.render(renderer, clip_loader, self.size.x as u32, self.size.y as u32, &render_target);
+                clip.render(renderer, clip_loader, self.size.x as u32, self.size.y as u32, &clip_render_target);
             }
 
-            Clips::ImageClip(ref mut clip) => clip.render(renderer, &render_target),
+            Clips::ImageClip(ref mut clip) => clip.render(renderer, &clip_render_target),
         };
 
-        let clip_image_view = &render_target.image_data.as_ref().unwrap().image_view;
+        let clip_image_view = &clip_render_target.image_data.as_ref().unwrap().image_view;
 
         let uniform_ptr = renderer.start_copy_data_to_buffer(
             element_render_context.clip_render_context.uniform_buffer_size,
