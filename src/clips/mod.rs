@@ -144,6 +144,7 @@ impl ScriptClip {
 
             match element {
                 Elements::Rect(rect) => rect.render(renderer, &self.element_render_context, &render_target),
+                Elements::Clip(clip) => clip.render(renderer, &self.element_render_context, &render_target, clip_loader),
             }
         }
     }
@@ -228,9 +229,7 @@ impl ImageClip {
 
     pub fn set_frame(&mut self, frame: u32) {}
 
-    pub fn render(&self, renderer: &Renderer, clip_loader: &ClipLoader) -> Arc<RenderTarget> {
-        self.render_target.clone()
-    }
+    pub fn render(&self, renderer: &Renderer, render_target: &RenderTarget) {}
 
     pub fn render_to_raw(&self, renderer: &Renderer, clip_loader: &ClipLoader) -> Vec<u8> {
         self.bytes.clone()

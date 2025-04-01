@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
 
+use crate::renderer::elements::Clip;
 use crate::renderer::elements::{Elements, Rect};
 
 struct ClipRuntimeState {
@@ -277,6 +278,51 @@ impl Rect {
     }
 }
 
+impl Clip {
+    pub fn deserialize(scope: &mut v8::HandleScope, value: v8::Local<v8::Value>) -> Clip {
+        let object = v8::Local::<v8::Object>::try_from(value).unwrap();
+
+        let position_key = v8::String::new(scope, "position").unwrap().into();
+        let position_value = object.get(scope, position_key).unwrap();
+
+        let origin_key = v8::String::new(scope, "origin").unwrap().into();
+        let origin_value = object.get(scope, origin_key).unwrap();
+
+        let size_key = v8::String::new(scope, "size").unwrap().into();
+        let size_value = object.get(scope, size_key).unwrap();
+
+        let rotation_key = v8::String::new(scope, "rotation").unwrap().into();
+        let rotation_value = object.get(scope, rotation_key).unwrap();
+
+        let color_key = v8::String::new(scope, "color").unwrap().into();
+        let color_value = object.get(scope, color_key).unwrap();
+
+        let clip_key = v8::String::new(scope, "clip").unwrap().into();
+        let clip_value = object.get(scope, clip_key).unwrap();
+
+        let frame_key = v8::String::new(scope, "frame").unwrap().into();
+        let frame_value = object.get(scope, frame_key).unwrap();
+
+        let order_key = v8::String::new(scope, "order").unwrap().into();
+        let order_value = object.get(scope, order_key).unwrap();
+
+        let radius_key = v8::String::new(scope, "radius").unwrap().into();
+        let radius_value = object.get(scope, radius_key).unwrap();
+
+        Clip {
+            clip: deserialize_string(scope, clip_value),
+            frame: deserialize_number(scope, frame_value) as u32,
+            position: deserialize_vector2(scope, position_value),
+            origin: deserialize_vector2(scope, origin_value),
+            rotation: deserialize_number(scope, rotation_value),
+            size: deserialize_vector2(scope, size_value),
+            color: deserialize_vector4(scope, color_value),
+            radius: deserialize_number(scope, radius_value),
+            order: deserialize_number(scope, order_value),
+        }
+    }
+}
+
 #[op2]
 fn op_reset_frame(state: &mut OpState, scope: &mut v8::HandleScope) -> Result<(), AnyError> {
     let state_mutex = state.borrow_mut::<Arc<Mutex<ClipRuntimeState>>>();
@@ -300,6 +346,10 @@ fn op_add_frame_element(state: &mut OpState, scope: &mut v8::HandleScope, value:
 
     if type_string == "Rect" {
         state.elements.push(Elements::Rect(Rect::deserialize(scope, value)));
+    }
+
+    if type_string == "Clip" {
+        state.elements.push(Elements::Clip(Clip::deserialize(scope, value)));
     }
 
     Ok(())
