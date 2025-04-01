@@ -484,6 +484,7 @@ impl Clip {
         let clip = &mut *clip.borrow_mut();
 
         let render_target = RenderTarget::new(self.size.x as u32, self.size.y as u32, renderer);
+        render_target.set_debug_image_name(String::from("Clip Source"), renderer);
 
         match clip {
             Clips::ScriptClip(ref mut clip) => {
@@ -503,8 +504,8 @@ impl Clip {
         );
 
         unsafe {
-            let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, size_of::<RectData>() as u64);
-            align.copy_from_slice(&[RectData {
+            let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, size_of::<ClipData>() as u64);
+            align.copy_from_slice(&[ClipData {
                 color: self.color,
                 position: self.position,
                 origin: self.origin,
@@ -516,7 +517,7 @@ impl Clip {
 
         renderer.end_copy_data_to_buffer(element_render_context.clip_render_context.uniform_buffer_memory);
 
-        let descriptor_set_layout = renderer.create_descriptor_set_layout(RectData::get_descriptor_set_layout_bindings());
+        let descriptor_set_layout = renderer.create_descriptor_set_layout(ClipData::get_descriptor_set_layout_bindings());
         let descriptor_set_layout_bindings = UvVertex::get_descriptor_set_layout_binding();
         let attribute_descriptions = UvVertex::get_attribute_descriptions();
 
@@ -541,7 +542,7 @@ impl Clip {
             element_render_context.clip_render_context.uniform_buffer,
             *clip_image_view,
             sampler,
-            size_of::<RectData>() as u64,
+            size_of::<ClipData>() as u64,
         );
 
         let command_buffer = renderer.create_command_buffer(element_render_context.command_pool);

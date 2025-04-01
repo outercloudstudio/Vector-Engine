@@ -1,12 +1,12 @@
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::io::Cursor;
 use std::ptr::copy_nonoverlapping;
 use std::{borrow::Cow, default::Default};
 
 use ash::ext::debug_utils;
-use ash::khr::{surface, swapchain};
+use ash::khr::surface;
 use ash::util::read_spv;
-use ash::vk::{Framebuffer, Image, ImageView, RenderPass, ShaderModule, SurfaceFormatKHR, SurfaceKHR, SwapchainKHR};
+use ash::vk::{Framebuffer, ImageView, RenderPass, ShaderModule, SurfaceKHR};
 use ash::{vk, Device, Entry, Instance};
 use log::info;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
@@ -26,8 +26,9 @@ pub struct Renderer {
 
     pub queue_family_index: u32,
 
-    pub debug_call_back: vk::DebugUtilsMessengerEXT,
     pub debug_utils: debug_utils::Instance,
+    pub debug_utils_device: debug_utils::Device,
+    pub debug_call_back: vk::DebugUtilsMessengerEXT,
 
     pub surface_data: Option<SurfaceData>,
 }
@@ -107,7 +108,7 @@ impl Renderer {
 
             let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
 
-            let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
+            let debug_utils_device = debug_utils::Device::new(&instance, &device);
 
             Renderer {
                 instance,
@@ -117,6 +118,7 @@ impl Renderer {
                 queue_family_index,
 
                 debug_utils,
+                debug_utils_device,
                 debug_call_back,
 
                 surface_data: None,
@@ -631,6 +633,8 @@ impl Renderer {
 
             let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
 
+            let debug_utils_device = debug_utils::Device::new(&instance, &device);
+
             Renderer {
                 instance,
                 device,
@@ -639,6 +643,7 @@ impl Renderer {
                 queue_family_index,
 
                 debug_utils,
+                debug_utils_device,
                 debug_call_back,
 
                 surface_data: Some(SurfaceData { surface, surface_loader }),
@@ -683,7 +688,7 @@ impl RenderTarget {
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .tiling(vk::ImageTiling::OPTIMAL)
-                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
+                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
             let target_image = renderer.device.create_image(&target_image_create_info, None).unwrap();
@@ -864,6 +869,16 @@ impl RenderTarget {
             self.device.destroy_command_pool(command_pool, None);
 
             return pixels;
+        }
+    }
+
+    pub fn set_debug_image_name(&self, name: String, renderer: &Renderer) {
+        let name = CString::new(name).unwrap();
+
+        let name_info = vk::DebugUtilsObjectNameInfoEXT::default().object_handle(self.image_data.as_ref().unwrap().image).object_name(&name);
+
+        unsafe {
+            renderer.debug_utils_device.set_debug_utils_object_name(&name_info).unwrap();
         }
     }
 }
