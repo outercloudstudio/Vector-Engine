@@ -165,19 +165,23 @@ pub struct ImageClip {
     pub height: u32,
 
     bytes: Vec<u8>,
-    render_target: Arc<RenderTarget>,
 }
 
 impl ImageClip {
     pub fn new(bytes: Vec<u8>, width: u32, height: u32, renderer: &Renderer) -> ImageClip {
+        ImageClip { bytes, width, height }
+    }
+
+    pub fn set_frame(&mut self, frame: u32) {}
+
+    pub fn render(&self, renderer: &Renderer, render_target: &RenderTarget) {
         let graphics_queue = renderer.create_graphics_queue();
         let command_pool = renderer.create_command_pool();
 
-        let render_target = RenderTarget::new(width, height, renderer);
         let image_data = render_target.image_data.as_ref().unwrap();
 
         let (staging_buffer, staging_buffer_memory, staging_buffer_size) = renderer.create_buffer(
-            bytes.len() as u64,
+            self.bytes.len() as u64,
             vk::BufferUsageFlags::TRANSFER_SRC,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
@@ -185,7 +189,7 @@ impl ImageClip {
         let ptr = renderer.start_copy_data_to_buffer(staging_buffer_size, staging_buffer_memory);
 
         unsafe {
-            copy_nonoverlapping(bytes.as_ptr(), ptr.cast(), bytes.len());
+            copy_nonoverlapping(self.bytes.as_ptr(), ptr.cast(), self.bytes.len());
         }
 
         renderer.end_copy_data_to_buffer(staging_buffer_memory);
@@ -200,7 +204,7 @@ impl ImageClip {
             graphics_queue,
         );
 
-        copy_buffer_to_image(&renderer.device, staging_buffer, image_data.image, width, height, command_pool, graphics_queue);
+        copy_buffer_to_image(&renderer.device, staging_buffer, image_data.image, self.width, self.height, command_pool, graphics_queue);
 
         transition_image_layout(
             &renderer.device,
@@ -218,18 +222,7 @@ impl ImageClip {
 
             renderer.device.destroy_command_pool(command_pool, None);
         }
-
-        ImageClip {
-            bytes,
-            width,
-            height,
-            render_target: Arc::new(render_target),
-        }
     }
-
-    pub fn set_frame(&mut self, frame: u32) {}
-
-    pub fn render(&self, renderer: &Renderer, render_target: &RenderTarget) {}
 
     pub fn render_to_raw(&self, renderer: &Renderer, clip_loader: &ClipLoader) -> Vec<u8> {
         self.bytes.clone()
