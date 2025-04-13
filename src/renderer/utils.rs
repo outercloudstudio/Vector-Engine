@@ -74,6 +74,12 @@ pub fn transition_image_layout(
                 vk::PipelineStageFlags::TRANSFER,
                 vk::PipelineStageFlags::FRAGMENT_SHADER,
             ),
+            (vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL) => (
+                vk::AccessFlags::SHADER_READ,
+                vk::AccessFlags::TRANSFER_READ,
+                vk::PipelineStageFlags::FRAGMENT_SHADER,
+                vk::PipelineStageFlags::TRANSFER,
+            ),
             _ => {
                 return;
             }

@@ -175,7 +175,7 @@ pub struct ImageVertex {
     pub uv: Vector2<f32>,
 }
 
-const UVS: [Vector2<f32>; 4] = [vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)];
+const UVS: [Vector2<f32>; 4] = [vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)];
 
 impl ImageClip {
     pub fn new(bytes: Vec<u8>, width: u32, height: u32, renderer: &Renderer) -> ImageClip {

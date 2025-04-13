@@ -230,7 +230,7 @@ impl Editor {
 
             match clip {
                 Clips::ScriptClip(script_clip) => {
-                    script_clip.set_frame((self.start.elapsed().as_millis() as f64 / 1000_f64 * 60_f64) as u32 % 180);
+                    script_clip.set_frame((self.start.elapsed().as_millis() as f64 / 1000_f64 * 60_f64) as u32 % (60 * 10));
                     script_clip.render(&self.renderer, &mut self.clip_loader, window.inner_size().width, window.inner_size().height, &render_target);
                 }
                 _ => {}
@@ -321,67 +321,49 @@ fn main() {
 
     ffmpeg_sidecar::download::auto_download().unwrap();
 
-    let editor = App::new();
-    editor.open();
+    // let editor = App::new();
+    // editor.open();
 
-    // let (watcher_sender, watcher_receiver) = channel::<()>();
+    info!("Rendering...");
 
-    // let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
-    //     Ok(_event) => {
-    //         watcher_sender.send(()).unwrap();
-    //     }
-    //     _ => {}
-    // })
-    // .unwrap();
+    let now = Instant::now();
 
-    // watcher.watch(Path::new(r#"D:\Vector Engine\playground"#), RecursiveMode::Recursive).unwrap();
+    let mut output = FfmpegCommand::new()
+        .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "30"])
+        .input("-")
+        .args(["-c:v", "libx265", "-pix_fmt", "yuva420p"])
+        .args(["-y", "renders/render.mp4"])
+        .spawn()
+        .unwrap();
 
-    // thread::spawn(move || loop {
-    //     info!("Rendering...");
+    let mut stdin = output.take_stdin().unwrap();
 
-    //     let now = Instant::now();
+    let mut renderer = Renderer::new();
 
-    //     let mut output = FfmpegCommand::new()
-    //         .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "30"])
-    //         .input("-")
-    //         .args(["-c:v", "libx265", "-pix_fmt", "yuva420p"])
-    //         .args(["-y", "renders/render.mp4"])
-    //         .spawn()
-    //         .unwrap();
+    let mut clip_loader = ClipLoader::new();
+    let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
+    let mut clip = &mut *clip.borrow_mut();
 
-    //     let mut stdin = output.take_stdin().unwrap();
+    let mut total_frame_time = 0;
+    let mut total_frames = 0;
 
-    //     let mut renderer = Renderer::new();
+    for i in 0..(60 * 8) {
+        match &mut clip {
+            Clips::ScriptClip(ref mut clip) => {
+                clip.set_frame(i);
 
-    // let mut clip_loader = ClipLoader::new();
-    // let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
-    // let mut clip = &mut *clip.borrow_mut();
+                let frame_now = Instant::now();
+                let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
+                total_frame_time += frame_now.elapsed().as_millis();
+                total_frames += 1;
 
-    //     let mut total_frame_time = 0;
-    //     let mut total_frames = 0;
+                stdin.write_all(&bytes).ok();
+            }
+            _ => {}
+        }
+    }
 
-    //     for i in 0..60 {
-    //         match &mut clip {
-    //             Clips::ScriptClip(ref mut clip) => {
-    //                 clip.set_frame(i);
+    info!("Average frame time {}ms", total_frame_time / total_frames);
 
-    //                 let frame_now = Instant::now();
-    //                 let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
-    //                 total_frame_time += frame_now.elapsed().as_millis();
-    //                 total_frames += 1;
-
-    //                 stdin.write_all(&bytes).ok();
-    //             }
-    //             _ => {}
-    //         }
-    //     }
-
-    //     info!("Average frame time {}ms", total_frame_time / total_frames);
-
-    //     info!("Render fully at {}ms", now.elapsed().as_millis());
-
-    //     watcher_receiver.recv().unwrap();
-    // })
-    // .join()
-    // .unwrap();
+    info!("Render fully at {}ms", now.elapsed().as_millis());
 }

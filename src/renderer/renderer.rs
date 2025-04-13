@@ -688,7 +688,7 @@ impl RenderTarget {
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .tiling(vk::ImageTiling::OPTIMAL)
-                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST)
+                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::TRANSFER_SRC)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
             let target_image = renderer.device.create_image(&target_image_create_info, None).unwrap();
@@ -835,6 +835,16 @@ impl RenderTarget {
                     height: self.height,
                     depth: 1,
                 });
+
+            transition_image_layout(
+                &renderer.device,
+                image_data.image,
+                vk::Format::R8G8B8A8_SRGB,
+                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                command_pool,
+                graphics_queue,
+            );
 
             renderer
                 .device
