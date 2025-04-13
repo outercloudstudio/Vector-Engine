@@ -9,3 +9,6 @@ glslc.exe clip/shader.vert -o compiled/clip.vert.spv
 
 glslc.exe text/shader.frag -o compiled/text.frag.spv
 glslc.exe text/shader.vert -o compiled/text.vert.spv
+
+glslc.exe image/shader.frag -o compiled/image.frag.spv
+glslc.exe image/shader.vert -o compiled/image.vert.spv
