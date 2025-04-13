@@ -329,7 +329,7 @@ fn main() {
     let now = Instant::now();
 
     let mut output = FfmpegCommand::new()
-        .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "30"])
+        .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "60"])
         .input("-")
         .args(["-c:v", "libx265", "-pix_fmt", "yuva420p"])
         .args(["-y", "renders/render.mp4"])
