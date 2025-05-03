@@ -321,49 +321,51 @@ fn main() {
 
     ffmpeg_sidecar::download::auto_download().unwrap();
 
-    // let editor = App::new();
-    // editor.open();
+    let editor = App::new();
+    editor.open();
 
-    info!("Rendering...");
+    // info!("Rendering...");
 
-    let now = Instant::now();
+    // let now = Instant::now();
 
-    let mut output = FfmpegCommand::new()
-        .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "60"])
-        .input("-")
-        .args(["-c:v", "libx265", "-pix_fmt", "yuva420p"])
-        .args(["-y", "renders/render.mp4"])
-        .spawn()
-        .unwrap();
+    // let mut output = FfmpegCommand::new()
+    //     .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-s", "1920x1080", "-r", "60"])
+    //     .input("-")
+    //     .args(["-c:v", "libx265", "-pix_fmt", "yuva420p"])
+    //     .args(["-y", "renders/render.mp4"])
+    //     .spawn()
+    //     .unwrap();
 
-    let mut stdin = output.take_stdin().unwrap();
+    // let mut stdin = output.take_stdin().unwrap();
 
-    let mut renderer = Renderer::new();
+    // let mut renderer = Renderer::new();
 
-    let mut clip_loader = ClipLoader::new();
-    let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
-    let mut clip = &mut *clip.borrow_mut();
+    // let mut clip_loader = ClipLoader::new();
+    // let clip = clip_loader.get(&String::from("project.ts"), &renderer).unwrap();
+    // let mut clip = &mut *clip.borrow_mut();
 
-    let mut total_frame_time = 0;
-    let mut total_frames = 0;
+    // let mut total_frame_time = 0;
+    // let mut total_frames = 0;
 
-    for i in 0..(60 * 8) {
-        match &mut clip {
-            Clips::ScriptClip(ref mut clip) => {
-                clip.set_frame(i);
+    // for i in 0..(60 * 8) {
+    //     match &mut clip {
+    //         Clips::ScriptClip(ref mut clip) => {
+    //             clip.set_frame(i);
 
-                let frame_now = Instant::now();
-                let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
-                total_frame_time += frame_now.elapsed().as_millis();
-                total_frames += 1;
+    //             let frame_now = Instant::now();
+    //             let bytes = clip.render_to_raw(&mut renderer, &mut clip_loader, 1920, 1080);
+    //             total_frame_time += frame_now.elapsed().as_millis();
+    //             total_frames += 1;
 
-                stdin.write_all(&bytes).ok();
-            }
-            _ => {}
-        }
-    }
+    //             info!("Frame fragment: {:?}", &bytes[0..12]);
 
-    info!("Average frame time {}ms", total_frame_time / total_frames);
+    //             stdin.write_all(&bytes).ok();
+    //         }
+    //         _ => {}
+    //     }
+    // }
 
-    info!("Render fully at {}ms", now.elapsed().as_millis());
+    // info!("Average frame time {}ms", total_frame_time / total_frames);
+
+    // info!("Render fully at {}ms", now.elapsed().as_millis());
 }

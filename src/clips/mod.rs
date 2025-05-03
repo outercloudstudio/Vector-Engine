@@ -145,6 +145,7 @@ impl ScriptClip {
 
             match element {
                 Elements::Rect(rect) => rect.render(renderer, &self.element_render_context, &render_target),
+                Elements::Ellipse(ellipse) => ellipse.render(renderer, &self.element_render_context, &render_target),
                 Elements::Clip(clip) => clip.render(renderer, &self.element_render_context, &render_target, clip_loader),
             }
         }

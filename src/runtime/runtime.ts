@@ -146,6 +146,7 @@ class Ellipse {
 	public position: Reactive<Vector2> = react(new Vector2(0, 0))
 	public origin: Reactive<Vector2> = react(new Vector2(0.5, 0.5))
 	public size: Reactive<Vector2> = react(new Vector2(100, 100))
+	public rotation: Reactive<number> = react(0)
 	public color: Reactive<Vector4> = react(new Vector4(1, 1, 1, 1))
 	public order: Reactive<number> = react(0)
 
@@ -153,6 +154,7 @@ class Ellipse {
 		position?: OptionallyReactable<Vector2>
 		origin?: OptionallyReactable<Vector2>
 		size?: OptionallyReactable<Vector2>
+		rotation?: OptionallyReactable<number>
 		color?: OptionallyReactable<Vector4>
 		order?: OptionallyReactable<number>
 	}) {
@@ -168,6 +170,7 @@ class Ellipse {
 			position: this.position.value,
 			origin: this.origin.value,
 			size: this.size.value,
+			rotation: this.rotation.value,
 			color: this.color.value,
 			order: this.order.value,
 		}

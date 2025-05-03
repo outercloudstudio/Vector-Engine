@@ -30,6 +30,7 @@ fn flip_vertically(a: Vector2<f32>) -> Vector2<f32> {
 #[derive(Clone)]
 pub enum Elements {
     Rect(Rect),
+    Ellipse(Ellipse),
     Clip(Clip),
 }
 
@@ -37,6 +38,7 @@ impl Elements {
     pub fn get_order(&self) -> f32 {
         match &self {
             Elements::Rect(rect) => rect.order,
+            Elements::Ellipse(ellipse) => ellipse.order,
             Elements::Clip(clip) => clip.order,
         }
     }
@@ -71,6 +73,7 @@ pub struct ElementRenderContext {
     graphics_queue: vk::Queue,
     command_pool: vk::CommandPool,
     rect_render_context: RectRenderContext,
+    ellipse_render_context: EllipseRenderContext,
     clip_render_context: ClipRenderContext,
 }
 
@@ -80,6 +83,7 @@ impl ElementRenderContext {
         let command_pool = renderer.create_command_pool();
 
         let rect_render_context = RectRenderContext::new(renderer);
+        let ellipse_render_context = EllipseRenderContext::new(renderer);
         let clip_render_context = ClipRenderContext::new(renderer);
 
         ElementRenderContext {
@@ -88,6 +92,7 @@ impl ElementRenderContext {
             device: renderer.device.clone(),
 
             rect_render_context,
+            ellipse_render_context,
             clip_render_context,
         }
     }
@@ -311,6 +316,226 @@ impl Rect {
             renderer
                 .device
                 .cmd_bind_index_buffer(command_buffer, element_render_context.rect_render_context.index_buffer, 0, vk::IndexType::UINT32);
+            renderer
+                .device
+                .cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
+            renderer.device.cmd_draw_indexed(command_buffer, 6, 1, 0, 0, 1);
+        }
+
+        renderer.end_render_pass(command_buffer, element_render_context.graphics_queue);
+        renderer.execute_render_pass(command_buffer, element_render_context.graphics_queue);
+
+        unsafe {
+            renderer.device.destroy_descriptor_pool(descriptor_pool, None);
+
+            renderer.device.destroy_pipeline(graphics_pipeline, None);
+            renderer.device.destroy_pipeline_layout(graphics_pipeline_layout, None);
+
+            renderer.device.destroy_descriptor_set_layout(descriptor_set_layout, None);
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Ellipse {
+    pub position: Vector2<f32>,
+    pub origin: Vector2<f32>,
+    pub size: Vector2<f32>,
+    pub rotation: f32,
+    pub color: Vector4<f32>,
+    pub order: f32,
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct EllipseRenderContext {
+    device: Device,
+
+    vertex_shader: ShaderModule,
+    fragment_shader: ShaderModule,
+
+    index_buffer: vk::Buffer,
+    index_buffer_memory: vk::DeviceMemory,
+    index_buffer_size: u64,
+    vertex_buffer: vk::Buffer,
+    vertex_buffer_memory: vk::DeviceMemory,
+    vertex_buffer_size: u64,
+    uniform_buffer: vk::Buffer,
+    uniform_buffer_memory: vk::DeviceMemory,
+    uniform_buffer_size: u64,
+}
+
+impl EllipseRenderContext {
+    pub fn new(renderer: &Renderer) -> EllipseRenderContext {
+        let device = renderer.device.clone();
+
+        let vertex_shader = renderer.create_shader(include_bytes!("./shaders/compiled/ellipse.vert.spv").to_vec());
+        let fragment_shader = renderer.create_shader(include_bytes!("./shaders/compiled/ellipse.frag.spv").to_vec());
+
+        let (index_buffer, index_buffer_memory, index_buffer_size) = renderer.create_buffer(
+            4 * 6,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (vertex_buffer, vertex_buffer_memory, vertex_buffer_size) = renderer.create_buffer(
+            size_of::<UvVertex>() as u64 * 4,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let (uniform_buffer, uniform_buffer_memory, uniform_buffer_size) = renderer.create_buffer(
+            size_of::<EllipseData>() as u64,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+
+        let index_ptr = renderer.start_copy_data_to_buffer(index_buffer_size, index_buffer_memory);
+
+        unsafe {
+            copy_nonoverlapping(vec![0, 1, 2, 2, 3, 0].as_ptr(), index_ptr.cast(), 6);
+        }
+
+        renderer.end_copy_data_to_buffer(index_buffer_memory);
+
+        let vertex_positions: Vec<Vector2<f32>> = vec![vec2(0_f32, 0_f32), vec2(0_f32, 1_f32), vec2(1_f32, 1_f32), vec2(1_f32, 0_f32)];
+
+        let mut vertices: Vec<UvVertex> = Vec::new();
+
+        for index in 0..vertex_positions.len() {
+            vertices.push(UvVertex {
+                position: vertex_positions[index],
+                uv: UVS[index],
+            });
+        }
+
+        let vertex_ptr = renderer.start_copy_data_to_buffer(vertex_buffer_size, vertex_buffer_memory);
+
+        unsafe {
+            copy_nonoverlapping(vertices.as_ptr(), vertex_ptr.cast(), vertices.len());
+        }
+
+        renderer.end_copy_data_to_buffer(vertex_buffer_memory);
+
+        return EllipseRenderContext {
+            device,
+            vertex_shader,
+            fragment_shader,
+            index_buffer,
+            index_buffer_memory,
+            index_buffer_size,
+            vertex_buffer,
+            vertex_buffer_memory,
+            vertex_buffer_size,
+            uniform_buffer,
+            uniform_buffer_memory,
+            uniform_buffer_size,
+        };
+    }
+}
+
+impl Drop for EllipseRenderContext {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.destroy_shader_module(self.vertex_shader, None);
+            self.device.destroy_shader_module(self.fragment_shader, None);
+
+            self.device.destroy_buffer(self.index_buffer, None);
+            self.device.free_memory(self.index_buffer_memory, None);
+
+            self.device.destroy_buffer(self.vertex_buffer, None);
+            self.device.free_memory(self.vertex_buffer_memory, None);
+
+            self.device.destroy_buffer(self.uniform_buffer, None);
+            self.device.free_memory(self.uniform_buffer_memory, None);
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+#[allow(dead_code)]
+pub struct EllipseData {
+    pub color: Vector4<f32>,
+    pub position: Vector2<f32>,
+    pub origin: Vector2<f32>,
+    pub size: Vector2<f32>,
+    pub rotation: f32,
+}
+
+impl EllipseData {
+    pub fn get_descriptor_set_layout_bindings() -> Vec<vk::DescriptorSetLayoutBinding<'static>> {
+        let layout_binding = vk::DescriptorSetLayoutBinding::default()
+            .binding(0)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::ALL_GRAPHICS);
+        vec![layout_binding]
+    }
+}
+
+// TODO: Look at push constants
+impl Ellipse {
+    pub fn render(&self, renderer: &Renderer, element_render_context: &ElementRenderContext, render_target: &RenderTarget) {
+        let uniform_ptr = renderer.start_copy_data_to_buffer(
+            element_render_context.ellipse_render_context.uniform_buffer_size,
+            element_render_context.ellipse_render_context.uniform_buffer_memory,
+        );
+
+        unsafe {
+            let mut align = ash::util::Align::new(uniform_ptr, align_of::<f32>() as u64, size_of::<EllipseData>() as u64);
+            align.copy_from_slice(&[EllipseData {
+                color: self.color,
+                position: self.position,
+                origin: self.origin,
+                size: self.size,
+                rotation: self.rotation,
+            }]);
+        }
+
+        renderer.end_copy_data_to_buffer(element_render_context.ellipse_render_context.uniform_buffer_memory);
+
+        let descriptor_set_layout = renderer.create_descriptor_set_layout(EllipseData::get_descriptor_set_layout_bindings());
+        let descriptor_set_layout_bindings = UvVertex::get_descriptor_set_layout_binding();
+        let attribute_descriptions = UvVertex::get_attribute_descriptions();
+
+        let (graphics_pipeline, graphics_pipeline_layout) = renderer.create_graphics_pipeline(
+            element_render_context.ellipse_render_context.vertex_shader,
+            element_render_context.ellipse_render_context.fragment_shader,
+            render_target.viewport,
+            render_target.scissor,
+            render_target.render_pass,
+            descriptor_set_layout,
+            descriptor_set_layout_bindings,
+            &attribute_descriptions,
+        );
+
+        let descriptor_pool = renderer.create_descriptor_pool(vec![vk::DescriptorPoolSize::default().ty(vk::DescriptorType::UNIFORM_BUFFER).descriptor_count(1)]);
+
+        let descriptor_sets = renderer.create_descriptor_uniform_sets(
+            descriptor_set_layout,
+            descriptor_pool,
+            element_render_context.ellipse_render_context.uniform_buffer,
+            size_of::<EllipseData>() as u64,
+        );
+
+        let command_buffer = renderer.create_command_buffer(element_render_context.command_pool);
+
+        renderer.begin_render_pass(
+            render_target.render_pass,
+            render_target.frame_buffer,
+            command_buffer,
+            graphics_pipeline,
+            render_target.viewport,
+            render_target.scissor,
+            render_target.width,
+            render_target.height,
+        );
+
+        unsafe {
+            renderer
+                .device
+                .cmd_bind_vertex_buffers(command_buffer, 0, &[element_render_context.ellipse_render_context.vertex_buffer], &[0]);
+            renderer
+                .device
+                .cmd_bind_index_buffer(command_buffer, element_render_context.ellipse_render_context.index_buffer, 0, vk::IndexType::UINT32);
             renderer
                 .device
                 .cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline_layout, 0, &descriptor_sets, &[]);
